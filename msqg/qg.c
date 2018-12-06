@@ -114,7 +114,7 @@ event writestdout (i++) {
   scalar zeta = zetal[0];
   double ke = 0;
   foreach(reduction(+:ke))
-    ke -= po[]*zeta[]*sq(Ro[]*Delta);
+    ke -= 0.5*po[]*zeta[]*sq(Ro[]*Delta);
 
   fprintf (stdout,"i = %i, dt = %g, t = %g, ke = %g\n", i, dt, t, ke);
 }
