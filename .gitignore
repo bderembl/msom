@@ -3,3 +3,11 @@ outdir
 *.bin
 *.bas*
 out-*
+__pycache__
+*.so
+*.d
+*_wrap*
+*.dat
+*.o
+*.deps
+*.tests

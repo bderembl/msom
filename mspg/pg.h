@@ -627,7 +627,7 @@ void momentum(scalar * bl, vector * ul, vector * dul)
 }
 
 
-void adjust_bt_velocity(vector * ul)
+void adjust_bt_velocity(vector * ul, double btfac)
 {
 
   face vector u_me[];
@@ -642,10 +642,14 @@ void adjust_bt_velocity(vector * ul)
   foreach_face(){
     for (int l = 1; l < nl+1 ; l++) {
       face vector u = ul[l];
-      u.x[] += ubt.x[] - u_me.x[];
+      u.x[] += btfac*ubt.x[] - u_me.x[];
     }
   }
 
+  for (int l = 1; l < nl+1 ; l++) {
+    face vector u = ul[l];
+    boundary ((scalar *){u});
+  }
 }
 
 /**
@@ -688,7 +692,7 @@ static void advance_pg (scalar * output, scalar * input,
     }
   }
 
-  adjust_bt_velocity(uol);
+  adjust_bt_velocity(uol,1);
 
   boundary (bol);
 
@@ -719,7 +723,6 @@ double update_pg (scalar * evolving, scalar * updates, double dtmax)
   return dtmax;
 }
 
-
 void set_vars()
 {
   assert (pl     == NULL);
@@ -745,7 +748,6 @@ void set_vars()
   }
 
   evolving = list_concat(bl, (scalar *) ul);
-
 
   // init vertical grid
   ds = 1./nl;
@@ -823,6 +825,7 @@ void set_vars()
 
   advance = advance_pg;
   update = update_pg;
+
 }
 
 
@@ -857,4 +860,217 @@ event cleanup (i = end, last) {
   trash_vars();
 }
 
+////////////////: python specific routines /////////////////////////
 
+scalar * pyupdates = NULL;
+
+
+double dtconv = 1e-1; // only needed for the bifurcation solver; do not choose it too small
+
+
+// continuation parameters, etc
+int contpar = 0;
+double forcing_mag = 1.0;
+
+/**
+    Explicit vertical diffusion routine for the bifuraction solver */
+
+trace
+void vdiff_explicit  (scalar * bl, scalar * dbl) {
+  vertbc(bl);
+  foreach(){
+    for (int l = 1; l < nl+1 ; l++) {
+      scalar b0 = bl[l];
+      scalar b1 = bl[l+1];
+      scalar b2 = bl[l-1];
+      scalar db = dbl[l];
+
+      db[] +=   (k(x,y,sf[l-1])*(b2[] - b0[])
+               - k(x,y,sf[l])*(b0[] - b1[]))/sq(ds);
+    }
+  }
+}
+
+void convection_tend(scalar * bl, scalar * dbl, double dt)
+{
+
+  foreach() {
+    for (int l = 1; l < nl+1 ; l++) {
+      scalar b = bl[l];
+      scalar b_sav = b_mel[l];
+      b_sav[] = 1.0*b[];
+    }
+  }
+
+  convection(bl);
+
+  foreach() {
+    for (int l = 1; l < nl+1 ; l++) {
+      scalar b = bl[l];
+      scalar b_sav = b_mel[l];
+      scalar db = dbl[l];
+      db[] += (b[]-b_sav[])/dt;
+      b[] = b_sav[];
+    }
+  }
+}
+
+void forcing_explicit(scalar * bl, scalar *dbl)
+{
+
+  scalar b = bl[1];
+  scalar db = dbl[1];
+  foreach()
+    db[] += (b_surf[] - b[])/tau_surf;
+}
+
+
+/**
+   Python interface routines (should be in .i file but I need foreach)
+ */
+/**
+   Set and adjust the continuation parameter via the python interface
+ */
+void pyset_contpar(int pycontpar) { 
+  contpar = pycontpar; 
+}
+
+void pyadjust_contpar(double contpar_val){
+  if (contpar == 1) {
+    forcing_mag = contpar_val;
+    foreach() 
+      b_surf[] = forcing_mag*6*cos(pi*(y-ys));
+  }
+}
+
+void pyinit_const(int pynl){ 
+  nl = pynl;
+  a = sqrt(3.0e-2/k(0,0,0)); 
+  r = 0.02; 
+  tau_surf = 3.0e-2;
+  omega = 0.2;
+
+  ys = 0.3;
+  origin (0.0, ys);
+
+}
+
+void pyinit_last(){
+
+  pyupdates = list_clone(evolving);
+
+  double tau0 = 0.12;
+  foreach()
+    wind_effect[] = tau0*(2*pi*tau0*cos(2*(y-ys)*pi));
+
+  foreach()
+    b_surf[] = 6*cos(pi*(y-ys));
+
+  mgD = btsolver(psibt,wind_effect,ronh,fonh,omega);
+  bt_velocity(ubt, psibt);
+
+  boundary (all);
+}
+
+void pyset_field (scalar * evolving, double * val1, int len1){
+  
+  scalar * bl = (scalar *) &evolving[0];
+  vector * ul = (vector *) &evolving[nl+2];
+
+  int i = 0;
+  foreach()
+    for (int l = 1; l < nl+1; l++) {
+    scalar b = bl[l];
+      b[] =  val1[i];
+      i++;
+    }
+  boundary(bl);
+  vertbc(bl);
+
+  foreach_face(x)
+    for (int l = 1; l < nl+1 ; l++) {
+      face vector u = ul[l];
+      u.x[] =  val1[i];
+      i++;
+    }
+
+  foreach_face(y)
+    for (int l = 1; l < nl+1 ; l++) {
+      face vector u = ul[l];
+      u.y[] =  val1[i];
+      i++;
+    }
+
+  for (int l = 1; l < nl+1 ; l++) {
+    face vector u = ul[l];
+    boundary ((scalar *){u});
+  }
+}
+
+
+void pyget_field (scalar * evolving, double * val1, int len1){
+  
+  scalar * bl = (scalar *) &evolving[0];
+  vector * ul = (vector *) &evolving[nl+2];
+
+  int i = 0;
+  foreach()
+    for (int l = 1; l < nl+1; l++) {
+    scalar b = bl[l];
+      val1[i] = b[];
+      i++;
+    }
+
+  foreach_face(x)
+    for (int l = 1; l < nl+1 ; l++) {
+      face vector u = ul[l];
+       val1[i] = u.x[];
+      i++;
+    }
+
+  foreach_face(y)
+    for (int l = 1; l < nl+1 ; l++) {
+      face vector u = ul[l];
+       val1[i] = u.y[];
+      i++;
+    }
+}
+
+
+void pystep ( double * val1, int len1,
+              double * val2, int len2){
+  
+  foreach()
+    for (scalar s in pyupdates)
+      s[] = 0.;
+
+  scalar * bl = (scalar *) &evolving[0];
+  vector * ul = (vector *) &evolving[nl+2];
+
+  scalar * dbl = (scalar *) &pyupdates[0];
+  vector * dul = (vector *) &pyupdates[nl+2];
+
+  pyset_field ( evolving, val1, len1);
+
+  double dtloc = 1.0;
+
+  adjust_bt_velocity(ul,1);
+
+  dtloc = advection (bl, ul, dbl, dtloc);
+  hdiffusion(bl, dbl);
+//  qg_forcing(dbl,b_forcl);
+  forcing_explicit(bl,dbl);
+  vdiff_explicit(bl,dbl);
+  convection_tend(bl,dbl,dtconv);
+
+ momentum(bl, ul, dul);
+ adjust_bt_velocity(dul,0);
+
+  pyget_field ( pyupdates, val2, len2);
+} 
+
+void pytrash_vars (){
+  
+  trash_vars();
+  free (pyupdates);
+}
