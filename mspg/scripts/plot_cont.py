@@ -8,12 +8,14 @@ plt.ion()
 
 file0 = 'params.dat'
 file1 = 'sol.dat'
+file2 = 'cont_diag.dat'
 
 with open(file0,'rb') as fout:
   params = pickle.loads(fout.read())
 
 
 data = np.loadtxt(file1)
+cont_par = np.loadtxt(file2)
 
 # N and nl have to match the dimensions in pg.c
 N = params["N"]
