@@ -4,10 +4,11 @@
 
    qcc -lm -O3 regrid.c -o regrid.e
    ./regrid.e 512 0 psipg.bas  
+   ./regrid.e 512 1 gppg.bas  
 */
 
 #include "run.h"
-#include "../msqg/auxiliar_input.h"
+#include "../../msqg/auxiliar_input.h"
 #include <stdio.h>
 
 scalar * omegal;

@@ -78,12 +78,12 @@ event init (i = 0) {
     hl[l] = dh[l];
 
     
-  sprintf (name,"%spsipg.bas0512", outdir);
+  sprintf (name,"%spsipg.bas%04d", outdir,N);
   fp = fopen (name, "r");  
   input_matrixl (ppl, fp);
   fclose(fp);
 
-  sprintf (name,"%sgppg.bas0512", outdir);
+  sprintf (name,"%sgppg.bas%04d", outdir,N);
   fp = fopen (name, "r");  
   input_matrixl (gpl, fp);
   fclose(fp);
