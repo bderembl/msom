@@ -583,7 +583,7 @@ void set_vars()
       gp[] =  1e6; //2e-2*lref/sq(uref);
 
   foreach()
-    Ro[] = 0.02; // u=0.1m/s,  f=1e-4s-1,  l=50km 
+    Ro[] = Rom; // u=0.1m/s,  f=1e-4s-1,  l=50km
 
   /**
      Initialize variables */
