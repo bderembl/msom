@@ -26,8 +26,8 @@ scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
 
-// parts of the jacobian operator
-scalar * jac1l = NULL;
+// temporary psi field with samem BC as p
+scalar * tmpl = NULL;
 
 scalar * evolving = NULL;
 
@@ -40,6 +40,7 @@ double * hl;
 
 double Lt = 100; // size of the domain
 double Re = 1e1; // reynolds number
+double Re4 = 1e3; // bihormonic reynolds number
 double Ek = 1e-2; // Ekman number
 double Rom = 1e-2; // Mean Rossby number
 double beta = 0.5;
@@ -111,14 +112,13 @@ void invertq(scalar * pol, scalar * qol)
 trace
 void comp_del2(scalar * pol, scalar * zetal, double add, double fac)
 {
-  foreach() {
+  foreach()
     for (int l = 0; l < nl ; l++) {
       scalar po = pol[l];
       scalar zeta = zetal[l];
       zeta[] = add*zeta[] 
         + fac*(po[1] + po[-1] + po[0,1] + po[0,-1] - 4*po[])/(sq(Delta));
     }
-  }
 
   boundary(zetal);
   
@@ -312,13 +312,13 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
     scalar po1  = pol[l];
     scalar pp1  = ppl[l];
     scalar po2  = pol[l+1];
-    scalar jac1 = jac1l[l];
+    scalar jac1 = tmpl[l];
     scalar pp2  = ppl[l+1];
     jacobian(po1, po2, jac1, 0.);
     jacobian(pp1, po2, jac1, 1.);
     jacobian(po1, pp2, jac1, 1.);
   }
- combine_jac(jac1l, dqol, 1.);
+ combine_jac(tmpl, dqol, 1.);
 
   // compute dtmax
    for (int l = 0; l < nl ; l++) {
@@ -342,7 +342,17 @@ void dissip  (scalar * zetal, scalar * dqol)
   // no multiplication by Ro because we multiply the entire
   // equation by Ro
   double iRe = 1/Re;
-  comp_del2(zetal, dqol, 1., iRe);
+  comp_del2(zetal, tmpl, 0., 1.);
+
+  foreach() 
+    for (int l = 0; l < nl ; l++) {
+      scalar dqo = dqol[l];
+      scalar p4 = tmpl[l];
+      dqo[] += p4[]/Re;
+    }
+
+  double iRe4 = -1/Re4;
+  comp_del2(tmpl, dqol, 1., iRe4);
 
 }
 
@@ -489,7 +499,7 @@ void set_vars()
   assert (iBul   == NULL);
   assert (gpl    == NULL);
   assert (zetal  == NULL);
-  assert (jac1l  == NULL);
+  assert (tmpl   == NULL);
 
   assert (nl > 0);
 
@@ -516,8 +526,8 @@ void set_vars()
     scalar gp = new scalar;
     gpl = list_append (gpl, gp);
     
-    scalar j1 = new scalar;
-    jac1l = list_append (jac1l, j1);
+    scalar pt = new scalar;
+    tmpl = list_append (tmpl, pt);
 
     po[right]  = dirichlet(0);
     po[left]   = dirichlet(0);
@@ -553,6 +563,11 @@ void set_vars()
     pp[left]   = dirichlet(0);
     pp[top]    = dirichlet(0);
     pp[bottom] = dirichlet(0);
+
+    pt[right]  = dirichlet(0);
+    pt[left]   = dirichlet(0);
+    pt[top]    = dirichlet(0);
+    pt[bottom] = dirichlet(0);
 
   }
   evolving = qol;
@@ -594,7 +609,7 @@ void set_vars()
     for (scalar qm in qom){qm[] = 0.0;}
     for (scalar zeta in zetal){zeta[] = 0.0;}
     for (scalar pof in pofl){pof[] = 0.0;}
-    for (scalar jac1 in jac1l){jac1[] = 0.0;}
+    for (scalar pt in tmpl){pt[] = 0.0;}
     for (scalar qos in qosl){qos[] = 0.0;}
   }
   /**
@@ -685,7 +700,7 @@ void trash_vars(){
   free (cm2l), cm2l = NULL;
   free (iBul), iBul = NULL;
   free (gpl), gpl = NULL;
-  free (jac1l), jac1l = NULL;
+  free (tmpl), tmpl = NULL;
   free (qosl), qosl = NULL;
   free(hl);
 
