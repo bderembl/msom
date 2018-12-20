@@ -27,10 +27,10 @@ x = np.arange(N)
 
 xc,yc = np.meshgrid(x,y)
 
-psipg = np.fromfile(dir0 + 'psipg.bas0512','f4').reshape(nl,N1,N1).transpose(0,2,1)
+psipg = np.fromfile(dir0 + 'psipg.bas' + str(N).zfill(4) ,'f4').reshape(nl,N1,N1).transpose(0,2,1)
 psipg = psipg[:,1:,1:]
 
-gppg = np.fromfile(dir0 + 'gppg.bas0512','f4').reshape(nl,N1,N1).transpose(0,2,1)
+gppg = np.fromfile(dir0 + 'gppg.bas' + str(N).zfill(4),'f4').reshape(nl,N1,N1).transpose(0,2,1)
 gppg = gppg[:,1:,1:]
 
 
