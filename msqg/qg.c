@@ -19,45 +19,46 @@ mpirun -np 16 ./qg.e
 
 
 int main() {
-  outdir = "outdir/";
 
 /**
-   Horizontal and vertical number of grid points */
+   Read input parameters
+ */
 
-  N = 512;
+  FILE * fp;
+  if (fp = fopen("params.in", "rt")) {
+    char tempbuff[100];
+    char tmps1[16];
+    char tmps2[16];
 
-  char name[80];
-  sprintf (name,"%sdh.bin", outdir);
-  FILE * fp = fopen (name, "r");
-  fseek(fp, 0, SEEK_END); 
-  nl = ftell(fp)/sizeof(float); 
-  fclose(fp);
+    while(fgets(tempbuff,100,fp)) {
+      sscanf(tempbuff, "%15s = %15s", tmps1, tmps2);
+      if      (strcmp(tmps1,"N")==0)     { N = atoi(tmps2);     }
+      else if (strcmp(tmps1,"nl")==0)    { nl = atoi(tmps2);    }
+      else if (strcmp(tmps1,"L0")==0)    { L0 = atof(tmps2);    }
+      else if (strcmp(tmps1,"Rom")==0)   { Rom = atof(tmps2);   }
+      else if (strcmp(tmps1,"Ek")==0)    { Ek = atof(tmps2);    }
+      else if (strcmp(tmps1,"Re")==0)    { Re = atof(tmps2);    }
+      else if (strcmp(tmps1,"Re4")==0)   { Re4 = atof(tmps2);   }
+      else if (strcmp(tmps1,"beta")==0)  { beta = atof(tmps2);  }
+      else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
+      else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }
+      else if (strcmp(tmps1,"DT")==0)    { DT = atof(tmps2);    }
+      else if (strcmp(tmps1,"tend")==0)  { tend = atof(tmps2);  }
+      else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
+      else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
+      else if (strcmp(tmps1,"CFL")==0)   { CFL = atof(tmps2);   }
+      else if (strcmp(tmps1,"dpath")==0) { dpath = tmps2;       }
+    }
+    fclose(fp);
+  } else {
+    fprintf(stdout, "file params.dat not found\n");
+    exit(0);
+  }
 
-  fprintf(stdout, "Config: N = %d, nl = %d\n",N, nl);
-
-/**
-   Time stepping parameters
-*/
-  DT = 5.e-2;
-  CFL = 0.6;
-  tend = 5000.0;
-  dtout = 10.;
-  dtfilter = 0.5;
-
-/**
-   Physical parameters: Size of the domain, Rossby number, Ekman
-   number, Reynolds number, beta
-*/
-  Lt = 100; 
-  Rom = 0.025;
-  Ek = 1.0;
-  Re = 15.0; //512:15 1024:50
-  Re4 = 100;
-  beta = 0.5;
-
+  fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 
   init_grid (N);
-  size(Lt);
+  size(L0);
   run();
 }
 
@@ -69,7 +70,7 @@ event init (i = 0) {
    Layer thickness and large scale variables
 */
   char name[80];
-  sprintf (name,"%sdh.bin", outdir);
+  sprintf (name,"%sdh.bin", dpath);
   float dh[nl];
   FILE * fp = fopen (name, "r");  
   fread(&dh, sizeof(float), nl, fp);
@@ -79,12 +80,12 @@ event init (i = 0) {
     hl[l] = dh[l];
 
     
-  sprintf (name,"%spsipg.bas%04d", outdir,N);
+  sprintf (name,"%spsipg.bas%04d", dpath,N);
   fp = fopen (name, "r");  
   input_matrixl (ppl, fp);
   fclose(fp);
 
-  sprintf (name,"%sgppg.bas%04d", outdir,N);
+  sprintf (name,"%sgppg.bas%04d", dpath,N);
   fp = fopen (name, "r");  
   input_matrixl (gpl, fp);
   fclose(fp);
@@ -99,13 +100,12 @@ event init (i = 0) {
       qo[] = noise();
       po[] = 0.;
     }
-  
 }
 
-event filter (t = 0; t <= tend+1e-10;  t += dtfilter) {
+event filter (t = 0; t <= tend+1e-10;  t += dtflt) {
   fprintf(stdout,"Filter solution\n");
   invertq(pol,qol);
-  wavelet_filter(pol, pofl, dtfilter);
+  wavelet_filter(pol, pofl, dtflt);
   comp_q(pol,qol);
 }
 
@@ -125,12 +125,12 @@ event writestdout (i++) {
  */
 event output (t = 0) {
   char name[80];
-  sprintf (name,"%siBu.bas", outdir);
+  sprintf (name,"%siBu.bas", dpath);
   FILE * fp = fopen (name, "w");
   output_matrixl (iBul, fp);
   fclose(fp);
 
-  sprintf (name,"%ssig_filt.bas", outdir);
+  sprintf (name,"%ssig_filt.bas", dpath);
   fp = fopen (name, "w");
   output_matrixl ({sig_filt}, fp);
   fclose(fp);
@@ -153,17 +153,17 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   boundary(qol);  
 
   char name[80];
-  sprintf (name,"%spo%09d.bas", outdir, i);
+  sprintf (name,"%spo%09d.bas", dpath, i);
   FILE * fp = fopen (name, "w");
   output_matrixl (pol, fp);
   fclose(fp);
 
-  sprintf (name,"%sqo%09d.bas", outdir, i);
+  sprintf (name,"%sqo%09d.bas", dpath, i);
   fp = fopen (name, "w");
   output_matrixl (qol, fp);
   fclose(fp);
 
-  sprintf (name,"%spf%09d.bas", outdir, i);
+  sprintf (name,"%spf%09d.bas", dpath, i);
   fp = fopen (name, "w");
   output_matrixl (pofl, fp);
   fclose(fp);
@@ -181,7 +181,7 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /* scalar l[]; */
   /* foreach() */
   /*   l[] = level; */
-  /* sprintf (name,"%slevel%09d.dat", outdir, i); */
+  /* sprintf (name,"%slevel%09d.dat", dpath, i); */
   /* fp = fopen (name, "w"); */
   /* output_field ({l}, fp); */
   /* fclose(fp); */

@@ -25,6 +25,8 @@ scalar * gpl = NULL;
 scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
+double afilt = 10.;  // filter size = afilt*Rd
+double Lfmax = 10.;  // max filter length scale
 
 // temporary psi field with samem BC as p
 scalar * tmpl = NULL;
@@ -38,7 +40,6 @@ scalar Ro[];
 int nl = 1;
 double * hl;
 
-double Lt = 100; // size of the domain
 double Re = 1e1; // reynolds number
 double Re4 = 1e3; // bihormonic reynolds number
 double Ek = 1e-2; // Ekman number
@@ -48,10 +49,10 @@ double tau0 = 0.; // wind stress curl
 double sbc = 0.; // slip BC: 0: free slip (OK), big: no slip (TO BE FINISHED)
 
 double tend = 1; // end time
-double dtfilter = 1; // Delat T filtering 
-double dtout = 1; // Delat T output 
+double dtflt = 1; // Delat T filtering
+double dtout = 1; // Delat T output
 
-char * outdir = "./";
+char * dpath = "./";
 
 int nbar = 0;
 
@@ -378,7 +379,7 @@ void surface_forcing  (scalar * dqol)
 {
   scalar dqo = dqol[0];
   foreach() 
-    dqo[] -= tau0*sin(2*pi*y/Lt);
+    dqo[] -= tau0*sin(2*pi*y/L0);
 }
 
 
@@ -401,7 +402,7 @@ void time_filter (scalar * qol, scalar * qo_mel, double dt)
 }
 
 trace
-void wavelet_filter(scalar *qol, scalar * qofl, double dtfilter)
+void wavelet_filter(scalar *qol, scalar * qofl, double dtflt)
 {
   /* save q values */
 //  scalar * qosl = list_clone(qol);
@@ -436,7 +437,7 @@ void wavelet_filter(scalar *qol, scalar * qofl, double dtfilter)
       scalar qof  = qofl[l];
       scalar qos  = qosl[l];
 
-      qof[] = (qof[]*nbar + (qos[] - qo[])/dtfilter)/(nbar+1);
+      qof[] = (qof[]*nbar + (qos[] - qo[])/dtflt)/(nbar+1);
       //qof[] = (qos[] - qo[]);
     }
   boundary(qofl);
@@ -648,7 +649,7 @@ event init (i = 0)
      compute filter length scale and wavelet coeffs*/
   scalar iRd = iBul[1];
   foreach()
-    sig_filt[] = min(15*sqrt(-1/iRd[]),Lt/8);
+    sig_filt[] = min(afilt*sqrt(-1/iRd[]),Lfmax);
 
 
   restriction({sig_filt});
