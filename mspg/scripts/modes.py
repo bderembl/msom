@@ -214,15 +214,6 @@ psi_ls_o = np.transpose(psi_ls_o,(0,2,1))
 
 psi_ls_o.astype('f4').tofile('psipg.bas')
 
-gpt_o = np.zeros((nlt,N1,N1))
-gpt_o[:-1,1:,1:] = gpt_a
-gpt_o[:,0,:] = 0
-gpt_o[:,:,0] = 0
-gpt_o[:,0,0] = N
-gpt_o = np.transpose(gpt_o,(0,2,1))
-gpt_o.astype('f4').tofile('gppg.bas')
-
-
 Fr_o = np.zeros((nlt,N1,N1))
 Fr_o[:-1,1:,1:] = Fr
 Fr_o[:,0,:] = 0
@@ -236,5 +227,4 @@ plt.figure()
 plt.contourf(xc,yc,psi_ls_o[0,1:,1:].T,20)
 plt.colorbar()
 
-dzt_a.astype('f4').tofile('dh.bin')
-dht_a.astype('f4').tofile('dh_tmp.bin')
+dht_a.astype('f4').tofile('dh.bin')

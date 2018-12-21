@@ -59,16 +59,11 @@ int compare_i (const void* a, const void* b) {
 
 /**
  Main program */
-/* void eigmod (double * hl, scalar Ro, scalar * gpl, */
-/*              scalar * cl2m, scalar * cm2l, scalar * iBul) */
-void eigmod (double * hl, double * dhf, double * dhc, scalar Ro, scalar * gpl, scalar * Frl,
+void eigmod (double * dhf, double * dhc, scalar Ro, scalar * Frl,
              scalar * cl2m, scalar * cm2l, scalar * iBul)
 {
   
-  double htotal = 0.;
-  for (int l = 0; l < nl ; l++) {
-    htotal += hl[l];
-  }
+  double htotal = 1.;
 
   int print = 0;
   int print2 = 0;
@@ -87,16 +82,12 @@ void eigmod (double * hl, double * dhf, double * dhc, scalar Ro, scalar * gpl, s
     if (nl > 1){
 
       int l = 0;
-      scalar gp1 = gpl[l];
       scalar Fr1 = Frl[l];
 
       amat[nl*l + l+1] = -sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
       amat[nl*l + l ] = - amat[nl*l + l+1];
 
       for (int l = 1; l < nl-1 ; l++) {
-       
-        scalar gp1 = gpl[l];
-        scalar gp2 = gpl[l-1];
         scalar Fr0 = Frl[l-1];
         scalar Fr1 = Frl[l];
 
@@ -106,7 +97,6 @@ void eigmod (double * hl, double * dhf, double * dhc, scalar Ro, scalar * gpl, s
       }
       l = nl-1;
       scalar Fr0 = Frl[l-1];
-      scalar gp2 = gpl[l-1];
       amat[nl*l + l-1] = -sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
       amat[nl*l + l ] = - amat[nl*l + l-1];
     }
@@ -118,9 +108,9 @@ void eigmod (double * hl, double * dhf, double * dhc, scalar Ro, scalar * gpl, s
 
       printf("Ro = %g\n",Ro[]);
       for (int l = 0; l < nl ; l++) {
-        scalar gp1 = gpl[l];
-        printf("%i, gp = %g\n",l, gp1[]);
-        printf("%i, hl = %g\n",l, hl[l]);
+        scalar Fr1 = Frl[l];
+        printf("%i, Fr = %g\n",l, Fr1[]);
+        printf("%i, dh = %g\n",l, dhf[l]);
       }
       print_matrix_rowmajor( "a matrix", nl,nl, amat, nl);
       print2 = 0;
@@ -219,10 +209,8 @@ void eigmod (double * hl, double * dhf, double * dhc, scalar Ro, scalar * gpl, s
     for (int m = 0; m < nl ; m++) {
       double dotp = 0.;
       for (int k = 0; k < nl ; k++) {
-//        dotp += hl[k]*vr[k*nl+m]*vr[k*nl+m];
         dotp += dhf[k]*vr[k*nl+m]*vr[k*nl+m];
       }
-      htotal = 1.;
       double flfac = sign(vr[m])*sqrt(htotal/dotp);
       for (int k = 0; k < nl ; k++) {
         vr[k*nl+m] = flfac*vr[k*nl+m];
