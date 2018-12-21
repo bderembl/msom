@@ -1,10 +1,10 @@
-#!shs
+#!sh
 # input parameter files
 # each '=' sign must be surrounded by at least one whitespace on each side
 
 # domain size
 N  = 512
-nl = 10
+nl = 4
 L0 = 100
 
 # physical parameters

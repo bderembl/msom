@@ -82,27 +82,30 @@ gp = -Bs*np.diff(b,1,0)
 f0 = yc*L*beta
 
 # il: layer interface
-#il = [0,3,8,16,30]        # 4 layers
+il = [0,3,8,16,30]        # 4 layers
+#il = [0,3,6,9,12,15,18,21,24,27,30] # 10 layers
 #il = [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30]
-il = [0,3,6,9,12,15,18,21,24,27,30]
 nlt = len(il)-1
 bt = np.zeros((nlt,N,N))
 ut = np.zeros((nlt,N,N))
 vt = np.zeros((nlt,N,N))
-gpt = np.zeros((nlt,N,N))
+gpt = np.zeros((nlt-1,N,N))
 dzt = np.zeros((nlt))
 
 for n2 in range(0,nlt):
   bt[n2,:,:] = np.mean(b[il[n2]:il[n2+1],:,:],0)
   ut[n2,:,:] = np.mean(u[il[n2]:il[n2+1],:,:],0)
   vt[n2,:,:] = np.mean(v[il[n2]:il[n2+1],:,:],0)
-gpt[:-1,:,:] = -Bs*np.diff(bt,1,0)
+gpt[:,:,:] = -Bs*np.diff(bt,1,0)
 #gpt = np.where(gpt<gpmin,gpmin,gpt)
 
 for n2 in range(0,nlt):
   dzt[n2] = np.sum(dz[il[n2]:il[n2+1]])
 
+dzi = 0.5*(dzt[:-1] + dzt[1:])
 zt = 0.5*dzt - np.cumsum(dzt)
+
+N2lt = gpt/dzi.reshape((nlt-1,1,1))
 
 rd = np.zeros((nl,N,N))
 l2m = np.zeros((nl,nl,N,N))
@@ -124,8 +127,8 @@ m2lt = np.zeros((nlt,nlt,N,N))
 
 for nx in range(0,N):
   for ny in range(0,N):
-    rdt[:,ny,nx] = def_radius.cal_rad(dzt,gpt[:-1,ny,nx],f0[ny,nx])
-    l2,m2 = def_radius.cal_transfo(dzt,gpt[:-1,ny,nx],f0[ny,nx])
+    rdt[:,ny,nx] = def_radius.cal_rad(dzt,gpt[:,ny,nx],f0[ny,nx])
+    l2,m2 = def_radius.cal_transfo(dzt,gpt[:,ny,nx],f0[ny,nx])
     l2mt[:,:,ny,nx] = l2
     m2lt[:,:,ny,nx] = m2
 
@@ -140,25 +143,31 @@ for n2 in range(0,nlt):
   zeta = (fv[1:,1:] - fv[1:,:-1] - fu[1:,1:] + fu[:-1,1:])/Deltad
   psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta)
 
+ir = 2
+
 ci = [1,2,5,10,20,30,40,50,60,70,80,90]
 plt.figure()
 plt.contourf(x,y,b[0,:,:])
 plt.colorbar()
-CS = plt.contour(x,y,rd[1,:,:]*1e-3, ci, colors='k')
+CS = plt.contour(x,y,rd[ir,:,:]*1e-3, ci, colors='k')
 plt.clabel(CS, inline=1, fontsize=10)
 
 plt.figure()
 plt.contourf(x,y,bt[0,:,:])
 plt.colorbar()
-CS = plt.contour(x,y,rdt[1,:,:]*1e-3, ci, colors='k')
+CS = plt.contour(x,y,rdt[ir,:,:]*1e-3, ci, colors='k')
 plt.clabel(CS, inline=1, fontsize=10)
 
 nx = 50
 ny = 50
 
 plt.figure()
-# plt.plot(m2l[:,3,ny,nx],z)
-# plt.plot(m2lt[:,3,ny,nx],zt)
+for nm in range(0,nlt):
+  plt.plot(m2l[:,nm,ny,nx],z)
+
+plt.figure()
+for nm in range(0,nlt):
+  plt.plot(m2lt[:,nm,ny,nx],zt)
 
 
 u_mod = np.zeros(nl)
@@ -169,6 +178,7 @@ u_mod2 = np.dot(l2m[:,:,ny,nx],u[:,ny,nx])
 u_mod2[nlt:] = 0.
 u_proj2 = np.dot(m2l[:,:,ny,nx],u_mod2)
 
+plt.figure()
 plt.plot(u[:,ny,nx],z,'k+-')
 plt.plot(ut[:,ny,nx],zt,'k+--')
 plt.plot(u_proj,z,'r')
@@ -191,6 +201,8 @@ plt.plot(b_proj2,z,'b')
 psi_ls_a = psi_ls/u_qg**2
 gpt_a    = gpt*l_qg/u_qg**2
 dzt_a    = dzt/l_qg
+Fr = u_qg/(np.sqrt(N2lt)*H)
+dht_a    = dzt/H
 
 # Export to basilisk format
 psi_ls_o = 0*psi_ls
@@ -203,7 +215,7 @@ psi_ls_o = np.transpose(psi_ls_o,(0,2,1))
 psi_ls_o.astype('f4').tofile('psipg.bas')
 
 gpt_o = np.zeros((nlt,N1,N1))
-gpt_o[:,1:,1:] = gpt_a
+gpt_o[:-1,1:,1:] = gpt_a
 gpt_o[:,0,:] = 0
 gpt_o[:,:,0] = 0
 gpt_o[:,0,0] = N
@@ -211,8 +223,18 @@ gpt_o = np.transpose(gpt_o,(0,2,1))
 gpt_o.astype('f4').tofile('gppg.bas')
 
 
+Fr_o = np.zeros((nlt,N1,N1))
+Fr_o[:-1,1:,1:] = Fr
+Fr_o[:,0,:] = 0
+Fr_o[:,:,0] = 0
+Fr_o[:,0,0] = N
+Fr_o = np.transpose(Fr_o,(0,2,1))
+Fr_o.astype('f4').tofile('frpg.bas')
+
+
 plt.figure()
 plt.contourf(xc,yc,psi_ls_o[0,1:,1:].T,20)
 plt.colorbar()
 
 dzt_a.astype('f4').tofile('dh.bin')
+dht_a.astype('f4').tofile('dh_tmp.bin')

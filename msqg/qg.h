@@ -22,6 +22,7 @@ scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * gpl = NULL;
+scalar * Frl = NULL;
 scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
@@ -39,6 +40,8 @@ scalar Ro[];
 
 int nl = 1;
 double * hl;
+double * dhf;
+double * dhc;
 
 double Re = 1e1; // reynolds number
 double Re4 = 1e3; // bihormonic reynolds number
@@ -159,9 +162,11 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
       scalar po_2 = pol[l+1];
       scalar strech = strechl[l];
       scalar gp1 = gpl[l];
+      scalar Fr1 = Frl[l];
       double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
+      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-      strech[] = add*strech[] + a2*po_2[] - a2*po_1[] ;
+      strech[] = add*strech[] + b1*po_2[] - b1*po_1[] ;
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -173,11 +178,15 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
         
         scalar gp0 = gpl[l-1];
         scalar gp1 = gpl[l];
+        scalar Fr0 = Frl[l-1];
+        scalar Fr1 = Frl[l];
         
         double a0 = 1./( gp0[]*hl[l]*sq(Ro[]));
         double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
+        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-        strech[] = add*strech[] + a0*po_0[] + a2*po_2[] - (a0 + a2)*po_1[] ;
+        strech[] = add*strech[] + b0*po_0[] + b1*po_2[] - (b0 + b1)*po_1[] ;
 
       }
       // lower layer
@@ -186,8 +195,12 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
       po_2 = pol[l];
       strech = strechl[l];
       gp1 = gpl[l-1];
+      scalar Fr0 = Frl[l-1];
+
       a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
-      strech[] = add*strech[] + a2*po_1[] - a2*po_2[] ;
+      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+
+      strech[] = add*strech[] + b0*po_1[] - b0*po_2[] ;
 
     }
     else{
@@ -210,9 +223,11 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
       scalar jac1 = jac1l[l];
       scalar jaca = jacal[l];
       scalar gp1 = gpl[l];
+      scalar Fr1 = Frl[l];
       double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
+      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-      jaca[] = add*jaca[] + a2*jac1[];
+      jaca[] = add*jaca[] + b1*jac1[];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -223,11 +238,15 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
         
         scalar gp0 = gpl[l-1];
         scalar gp1 = gpl[l];
+        scalar Fr0 = Frl[l-1];
+        scalar Fr1 = Frl[l];
         
         double a0 = 1./( gp0[]*hl[l]*sq(Ro[]));
         double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
+        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-        jaca[] = add*jaca[] - a0*jac0[] + a2*jac1[];
+        jaca[] = add*jaca[] - b0*jac0[] + b1*jac1[];
 
       }
       // lower layer
@@ -236,7 +255,10 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
       jaca = jacal[l];
       gp1 = gpl[l-1];
       a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
-      jaca[] = add*jaca[] - a2*jac1[];
+      scalar Fr0 = Frl[l-1];
+      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+
+      jaca[] = add*jaca[] - b0*jac1[];
 
     }
     else{
@@ -499,6 +521,7 @@ void set_vars()
   assert (cm2l   == NULL);
   assert (iBul   == NULL);
   assert (gpl    == NULL);
+  assert (Frl    == NULL);
   assert (zetal  == NULL);
   assert (tmpl   == NULL);
 
@@ -526,6 +549,8 @@ void set_vars()
     iBul = list_append (iBul, iBu);
     scalar gp = new scalar;
     gpl = list_append (gpl, gp);
+    scalar Fr = new scalar;
+    Frl = list_append (Frl, Fr);
     
     scalar pt = new scalar;
     tmpl = list_append (tmpl, pt);
@@ -594,9 +619,18 @@ void set_vars()
   for (int l = 0; l < nl; l++)
     hl[l] = 0.1/nl;
 
-  foreach() 
+  dhc = malloc ((nl-1)*sizeof(double));
+  dhf = malloc (nl*sizeof(double));
+  for (int l = 0; l < nl; l++)
+    dhf[l] = 1/nl;
+
+  foreach()
     for (scalar gp in gpl)
       gp[] =  1e6; //2e-2*lref/sq(uref);
+
+  foreach()
+    for (scalar Fr in Frl)
+      Fr[] =  1e-3; //2e-2*lref/sq(uref);
 
   foreach()
     Ro[] = Rom; // u=0.1m/s,  f=1e-4s-1,  l=50km
@@ -636,6 +670,9 @@ into account user-defined field initialisations. */
 event init (i = 0)
 {
 
+  for (int l = 0; l < nl-1; l++)
+    dhc[l] = 0.5*(dhf[l] + dhf[l+1]);
+
   /* foreach() */
   /*   Ro[] = uref/((fref + betad*(y-0.5*L0)*lref)*lref); */
   foreach()
@@ -643,7 +680,8 @@ event init (i = 0)
 
   /**
      compute PV inversion matrices  */
-  eigmod(hl, Ro, gpl, cl2m, cm2l, iBul);
+//  eigmod(hl, Ro, gpl, cl2m, cm2l, iBul);
+  eigmod(hl, dhf, dhc, Ro, gpl, Frl, cl2m, cm2l, iBul);
 
   /**
      compute filter length scale and wavelet coeffs*/
@@ -701,9 +739,12 @@ void trash_vars(){
   free (cm2l), cm2l = NULL;
   free (iBul), iBul = NULL;
   free (gpl), gpl = NULL;
+  free (Frl), Frl = NULL;
   free (tmpl), tmpl = NULL;
   free (qosl), qosl = NULL;
   free(hl);
+  free(dhf);
+  free(dhc);
 
 }
 
