@@ -235,4 +235,5 @@ plt.figure()
 plt.contourf(xc,yc,psi_ls_o[0,1:,1:].T,20)
 plt.colorbar()
 
-dht_a.astype('f4').tofile('dh.bin')
+dzt_a.astype('f4').tofile('dh.bin')
+dht_a.astype('f4').tofile('dh_tmp.bin')
