@@ -222,6 +222,14 @@ Fr_o[:,0,0] = N
 Fr_o = np.transpose(Fr_o,(0,2,1))
 Fr_o.astype('f4').tofile('frpg.bas')
 
+gp_o = np.zeros((nlt,N1,N1))
+gp_o[:-1,1:,1:] = gpt_a
+gp_o[:,0,:] = 0
+gp_o[:,:,0] = 0
+gp_o[:,0,0] = N
+gp_o = np.transpose(gp_o,(0,2,1))
+gp_o.astype('f4').tofile('gppg.bas')
+
 
 plt.figure()
 plt.contourf(xc,yc,psi_ls_o[0,1:,1:].T,20)
