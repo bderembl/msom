@@ -71,33 +71,16 @@ event init (i = 0) {
   char name[80];
   sprintf (name,"%sdh.bin", dpath);
   float dh[nl];
-  FILE * fp = fopen (name, "r");  
-  fread(&dh, sizeof(float), nl, fp);
-  fclose(fp);
-
-  for (int l = 0; l < nl ; l++)
-    hl[l] = dh[l];
-
-
-//  char name[80];
-  sprintf (name,"%sdh_tmp.bin", dpath);
-//  float dh[nl];
-  fp = fopen (name, "r");
+  FILE * fp = fopen (name, "r");
   fread(&dh, sizeof(float), nl, fp);
   fclose(fp);
 
   for (int l = 0; l < nl ; l++)
     dhf[l] = dh[l];
 
-    
   sprintf (name,"%spsipg.bas%04d", dpath,N);
   fp = fopen (name, "r");
   input_matrixl (ppl, fp);
-  fclose(fp);
-
-  sprintf (name,"%sgppg.bas%04d", dpath,N);
-  fp = fopen (name, "r");
-  input_matrixl (gpl, fp);
   fclose(fp);
 
   sprintf (name,"%sfrpg.bas%04d", dpath,N);

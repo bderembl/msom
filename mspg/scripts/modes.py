@@ -214,15 +214,6 @@ psi_ls_o = np.transpose(psi_ls_o,(0,2,1))
 
 psi_ls_o.astype('f4').tofile('psipg.bas')
 
-gpt_o = np.zeros((nlt,N1,N1))
-gpt_o[:-1,1:,1:] = gpt_a
-gpt_o[:,0,:] = 0
-gpt_o[:,:,0] = 0
-gpt_o[:,0,0] = N
-gpt_o = np.transpose(gpt_o,(0,2,1))
-gpt_o.astype('f4').tofile('gppg.bas')
-
-
 Fr_o = np.zeros((nlt,N1,N1))
 Fr_o[:-1,1:,1:] = Fr
 Fr_o[:,0,:] = 0
@@ -230,6 +221,14 @@ Fr_o[:,:,0] = 0
 Fr_o[:,0,0] = N
 Fr_o = np.transpose(Fr_o,(0,2,1))
 Fr_o.astype('f4').tofile('frpg.bas')
+
+gp_o = np.zeros((nlt,N1,N1))
+gp_o[:-1,1:,1:] = gpt_a
+gp_o[:,0,:] = 0
+gp_o[:,:,0] = 0
+gp_o[:,0,0] = N
+gp_o = np.transpose(gp_o,(0,2,1))
+gp_o.astype('f4').tofile('gppg.bas')
 
 
 plt.figure()

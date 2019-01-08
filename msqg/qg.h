@@ -21,7 +21,6 @@ scalar * ppl  = NULL; // large scale stream function
 scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
-scalar * gpl = NULL;
 scalar * Frl = NULL;
 scalar sig_filt[];
 scalar sig_lev[];
@@ -39,7 +38,6 @@ mgstats mgpsi;
 scalar Ro[];
 
 int nl = 1;
-double * hl;
 double * dhf;
 double * dhc;
 
@@ -161,9 +159,7 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
       scalar po_1 = pol[l];
       scalar po_2 = pol[l+1];
       scalar strech = strechl[l];
-      scalar gp1 = gpl[l];
       scalar Fr1 = Frl[l];
-      double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
       double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
       strech[] = add*strech[] + b1*po_2[] - b1*po_1[] ;
@@ -176,13 +172,9 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
         scalar po_2 = pol[l+1];
         scalar strech = strechl[l];
         
-        scalar gp0 = gpl[l-1];
-        scalar gp1 = gpl[l];
         scalar Fr0 = Frl[l-1];
         scalar Fr1 = Frl[l];
         
-        double a0 = 1./( gp0[]*hl[l]*sq(Ro[]));
-        double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
         double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
         double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
@@ -194,10 +186,7 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
       po_1 = pol[l-1];
       po_2 = pol[l];
       strech = strechl[l];
-      gp1 = gpl[l-1];
       scalar Fr0 = Frl[l-1];
-
-      a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
       double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
 
       strech[] = add*strech[] + b0*po_1[] - b0*po_2[] ;
@@ -222,9 +211,7 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
       int l = 0;
       scalar jac1 = jac1l[l];
       scalar jaca = jacal[l];
-      scalar gp1 = gpl[l];
       scalar Fr1 = Frl[l];
-      double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
       double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
       jaca[] = add*jaca[] + b1*jac1[];
@@ -236,13 +223,9 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
         scalar jac1 = jac1l[l];
         scalar jaca = jacal[l];
         
-        scalar gp0 = gpl[l-1];
-        scalar gp1 = gpl[l];
         scalar Fr0 = Frl[l-1];
         scalar Fr1 = Frl[l];
         
-        double a0 = 1./( gp0[]*hl[l]*sq(Ro[]));
-        double a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
         double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
         double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
@@ -253,8 +236,6 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
       l = nl-1;
       jac1 = jac1l[l-1];
       jaca = jacal[l];
-      gp1 = gpl[l-1];
-      a2 = 1./( gp1[]*hl[l]*sq(Ro[]));
       scalar Fr0 = Frl[l-1];
       double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
 
@@ -520,7 +501,6 @@ void set_vars()
   assert (cl2m   == NULL);
   assert (cm2l   == NULL);
   assert (iBul   == NULL);
-  assert (gpl    == NULL);
   assert (Frl    == NULL);
   assert (zetal  == NULL);
   assert (tmpl   == NULL);
@@ -547,8 +527,6 @@ void set_vars()
     ppl = list_append (ppl, pp);
     scalar iBu = new scalar;
     iBul = list_append (iBul, iBu);
-    scalar gp = new scalar;
-    gpl = list_append (gpl, gp);
     scalar Fr = new scalar;
     Frl = list_append (Frl, Fr);
     
@@ -611,29 +589,21 @@ void set_vars()
   
   /**
      Default variables:
-     Layer thicknesses hl
-     Reduced gravity gpl
+     Layer thicknesses dhf (dhc is computed after)
+     Froude number Fr
      Rossby number Ro
   */
-  hl = malloc (nl*sizeof(double));
-  for (int l = 0; l < nl; l++)
-    hl[l] = 0.1/nl;
-
   dhc = malloc ((nl-1)*sizeof(double));
   dhf = malloc (nl*sizeof(double));
   for (int l = 0; l < nl; l++)
     dhf[l] = 1/nl;
 
   foreach()
-    for (scalar gp in gpl)
-      gp[] =  1e6; //2e-2*lref/sq(uref);
-
-  foreach()
     for (scalar Fr in Frl)
-      Fr[] =  1e-3; //2e-2*lref/sq(uref);
+      Fr[] =  1e-3; 
 
   foreach()
-    Ro[] = Rom; // u=0.1m/s,  f=1e-4s-1,  l=50km
+    Ro[] = Rom; 
 
   /**
      Initialize variables */
@@ -680,8 +650,7 @@ event init (i = 0)
 
   /**
      compute PV inversion matrices  */
-//  eigmod(hl, Ro, gpl, cl2m, cm2l, iBul);
-  eigmod(hl, dhf, dhc, Ro, gpl, Frl, cl2m, cm2l, iBul);
+  eigmod(dhf, dhc, Ro, Frl, cl2m, cm2l, iBul);
 
   /**
      compute filter length scale and wavelet coeffs*/
@@ -738,11 +707,9 @@ void trash_vars(){
   free (cl2m), cl2m = NULL;
   free (cm2l), cm2l = NULL;
   free (iBul), iBul = NULL;
-  free (gpl), gpl = NULL;
   free (Frl), Frl = NULL;
   free (tmpl), tmpl = NULL;
   free (qosl), qosl = NULL;
-  free(hl);
   free(dhf);
   free(dhc);
 
