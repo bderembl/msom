@@ -32,26 +32,26 @@ int main() {
 
     while(fgets(tempbuff,100,fp)) {
       sscanf(tempbuff, "%15s = %15s", tmps1, tmps2);
-      if      (strcmp(tmps1,"N")==0)     { N = atoi(tmps2);     }
-      else if (strcmp(tmps1,"nl")==0)    { nl = atoi(tmps2);    }
-      else if (strcmp(tmps1,"L0")==0)    { L0 = atof(tmps2);    }
-      else if (strcmp(tmps1,"Rom")==0)   { Rom = atof(tmps2);   }
-      else if (strcmp(tmps1,"Ek")==0)    { Ek = atof(tmps2);    }
-      else if (strcmp(tmps1,"Re")==0)    { Re = atof(tmps2);    }
-      else if (strcmp(tmps1,"Re4")==0)   { Re4 = atof(tmps2);   }
-      else if (strcmp(tmps1,"beta")==0)  { beta = atof(tmps2);  }
+      if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
+      else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
+      else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
+      else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
+      else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
+      else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
+      else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
+      else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
       else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
       else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }
-      else if (strcmp(tmps1,"DT")==0)    { DT = atof(tmps2);    }
-      else if (strcmp(tmps1,"tend")==0)  { tend = atof(tmps2);  }
+      else if (strcmp(tmps1,"DT")   ==0) { DT    = atof(tmps2); }
+      else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
       else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
       else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
-      else if (strcmp(tmps1,"CFL")==0)   { CFL = atof(tmps2);   }
+      else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
       else if (strcmp(tmps1,"dpath")==0) { dpath = tmps2;       }
     }
     fclose(fp);
   } else {
-    fprintf(stdout, "file params.dat not found\n");
+    fprintf(stdout, "file params.in not found\n");
     exit(0);
   }
 

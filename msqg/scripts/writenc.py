@@ -8,7 +8,7 @@ import scipy.io.netcdf as netcdf
 
 #plt.ion()
 
-dir0 = "outdir/"
+dir0 = "../outdir/"
 
 filep = 'po*'
 fileq = 'qo*'
