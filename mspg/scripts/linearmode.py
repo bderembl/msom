@@ -17,19 +17,19 @@ matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 
 
-filepsi = '../psipg.bas'
-filegp  = '../gppg.bas'
-fileh   = '../dh.bin'
+filepsi = 'psipg.bas'
+filefr  = 'frpg.bas'
+fileh   = 'dh.bin'
 
 file2 = 'stability_data_4.npy'
 
 flag_eigmeth = 1 # 0: via characteristic polynomial (slower?), 1: eigenvalue solver
 flag_test2lay = 0
 flag_gradqbar = 0 # format of the large scale advection of PV 0: L grad psi, 1: grad L psi
-flag_plot = 0
+flag_plot = 1
 flag_print = 1
 flag_klmap = 1
-flag_savedat = 1
+flag_savedat = 0
 
 if flag_savedat:
   if os.path.isfile(file2):
@@ -61,6 +61,11 @@ Kv = N2*H**4/(beta*L**3)
 Kh = N2*H**2/(beta*L)
 ys = 0.3
 
+# qg scales
+u_qg = 0.1  # m/s
+l_qg = 50e3 # m
+
+
 # grid
 Delta = 1/N
 Deltad = L*Delta
@@ -69,15 +74,21 @@ y = ys + np.linspace(0.5*Delta, 1-0.5*Delta,N)
 xc, yc = np.meshgrid(x,y)
 
 f0 = yc*L*beta
-
+fmid = (ys+0.5)*L*beta
 
 # read data
-gp = np.fromfile(filegp,'f4').reshape(nl,N1,N1).transpose(0,2,1)
+fr = np.fromfile(filefr,'f4').reshape(nl,N1,N1).transpose(0,2,1)
 po = np.fromfile(filepsi,'f4').reshape(nl,N1,N1).transpose(0,2,1)
 th = np.fromfile(fileh,'f4')
 
-gp = gp[:,1:,1:]
-psib = po[:,1:,1:]
+th = th*H
+thc = 0.5*(th[:-1] + th[1:])
+
+
+fr = fr[:,1:,1:]
+psib = po[:,1:,1:]*u_qg*u_qg
+
+gp = 1/fr[:-1,:,:]**2*u_qg**2/H**2*thc.reshape(nl-1,1,1)
 
 ##### TESTING PART
 # make a 2 layer problem
@@ -124,8 +135,25 @@ for nx in range(0,N):
     dqbdy[:,ny,nx] = -np.dot(mata,dpsibdy[:,ny,nx])
     dqbdx[:,ny,nx] = -np.dot(mata,dpsibdx[:,ny,nx])
       
+if flag_gradqbar == 1:
+  qbar = np.zeros((nl,N,N))
+  for nx in range(0,N):
+    for ny in range(0,N):
+      mata = def_radius.construct_mat(th,gp[:,ny,nx],f0[ny,nx])
+      qbar[:,ny,nx] = -np.dot(mata,psib[:,ny,nx])/f0[ny,nx]
+  
+  
+  aux,dqbdy,dqbdx = np.gradient(qbar)
+  dqbdy = dqbdy/Deltad
+  dqbdx = dqbdx/Deltad
+  
+#  dqbdx = dqbdx/f0
+#  dqbdy = dqbdy/f0
+
+
 # add beta effect
 dqbdy = dqbdy + beta
+
 
 if len(save_dat) == 0:
   save_dat = [None]*N*N
@@ -138,11 +166,11 @@ nx2 = nx1+1
 ny2 = ny1+1
 nsk = 1
 
-nx1 = 0
-ny1 = 0
-nx2 = N
-ny2 = N
-nsk = 1
+# nx1 = 0
+# ny1 = 0
+# nx2 = N
+# ny2 = N
+# nsk = 1
 
 k_grid = np.zeros((N,N))
 l_grid = np.zeros((N,N))
@@ -228,7 +256,7 @@ for nx in range(nx1,nx2,nsk):
       if doit == 1:
       # figure middle domain: 3.5
         window_s = 3.5
-#        window_s = 30
+#        window_s = 10
       else:
         window_s = save_dat[ny + N*nx]['window_s']
         
@@ -375,8 +403,8 @@ for nx in range(nx1,nx2,nsk):
       # 2d plot
       if flag_plot and flag_klmap:
         plt.figure()
-        plt.contourf(ktg*Rd1,ltg*Rd1,(omegai_c[:,:,0].real*86400),20)
-        plt.contourf(ktg*Rd1,-ltg*Rd1,(omegai_c[:,::-1,0].real*86400),20)
+        plt.contourf(ktg*Rd1,ltg*Rd1,(omegai_c[:,:,0].real*86400),20,cmap=plt.cm.hot_r)
+        plt.contourf(ktg*Rd1,-ltg*Rd1,(omegai_c[:,::-1,0].real*86400),20,cmap=plt.cm.hot_r)
         cb = plt.colorbar(label=r'$\omega$ (day$^{-1}$)')
         cb.formatter.set_powerlimits((0, 0))
         cb.update_ticks()
@@ -389,7 +417,7 @@ for nx in range(nx1,nx2,nsk):
         for i in range(0,nmodes):
           ikmax2 = modes[i,0]
           ilmax2 = modes[i,1]
-          plt.plot(kt[ikmax2]*Rd1,lt[ilmax2]*Rd1,'ro',markersize=10)
+          plt.plot(kt[ikmax2]*Rd1,lt[ilmax2]*Rd1,'wo',markersize=10)
           plt.text(kt[ikmax2]*Rd1,lt[ilmax2]*Rd1,str(i+1),ha='center',va='center')
 
           

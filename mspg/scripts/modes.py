@@ -84,7 +84,9 @@ f0 = yc*L*beta
 # il: layer interface
 il = [0,3,8,16,30]        # 4 layers
 #il = [0,3,6,9,12,15,18,21,24,27,30] # 10 layers
-#il = [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30]
+#il = [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30]  # 15 layers
+#il = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,20,22,24,26,28,30] # 23 layers
+#il = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30] # 30 layers
 nlt = len(il)-1
 bt = np.zeros((nlt,N,N))
 ut = np.zeros((nlt,N,N))
@@ -131,6 +133,14 @@ for nx in range(0,N):
     l2,m2 = def_radius.cal_transfo(dzt,gpt[:,ny,nx],f0[ny,nx])
     l2mt[:,:,ny,nx] = l2
     m2lt[:,:,ny,nx] = m2
+
+# # sort
+# rdt_s = 0*rdt
+# l2mt_s = 0*l2mt
+# m2lt_s = 0*m2lt
+# for nx in range(0,N):
+#   for ny in range(0,N):
+
 
 l2mt.astype('f4').tofile('l2mt.bin')
 m2lt.astype('f4').tofile('m2lt.bin')
@@ -235,5 +245,5 @@ plt.figure()
 plt.contourf(xc,yc,psi_ls_o[0,1:,1:].T,20)
 plt.colorbar()
 
-dzt_a.astype('f4').tofile('dh.bin')
-dht_a.astype('f4').tofile('dh_tmp.bin')
+#dzt_a.astype('f4').tofile('dh_old.bin')
+dht_a.astype('f4').tofile('dh.bin')
