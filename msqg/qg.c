@@ -137,11 +137,8 @@ event output (t = 0) {
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
 
-  if (t == 0) {
-    // invert vorticity
-    boundary(pol);
+  if (t == 0)
     invertq(pol,qol);
-  }
 
   /**
    Rescale qo*/

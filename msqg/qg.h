@@ -4,6 +4,7 @@
 
 #include "predictor-corrector.h"
 #include "poisson.h"
+#include "poisson_layer.h"
 #include "timestep.h"
 
 // layered variables
@@ -22,6 +23,8 @@ scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * Frl = NULL;
+scalar * str0l = NULL;
+scalar * str1l = NULL;
 scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
@@ -62,6 +65,7 @@ int nbar = 0;
 trace
 void invertq(scalar * pol, scalar * qol)
 {
+#if MODE_PV_INVERT
   // convert to modes: matrix multiplication cl2m*qo
   foreach(){
     // outer loop on modes
@@ -106,9 +110,11 @@ void invertq(scalar * pol, scalar * qol)
       }
     }
   }
+#else
+  mgpsi = poisson_layer (pol, qol, str0l = str0l, str1l = str1l, tolerance = 1e-3);
+#endif
 
   boundary(pol);
-
 }
 
 trace
@@ -148,7 +154,7 @@ void comp_del2(scalar * pol, scalar * zetal, double add, double fac)
 }
 
 trace
-void comp_strech(scalar * pol, scalar * strechl, double add)
+void comp_stretch(scalar * pol, scalar * stretchl, double add)
 {
 
   foreach() {
@@ -158,11 +164,11 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
       int l = 0;
       scalar po_1 = pol[l];
       scalar po_2 = pol[l+1];
-      scalar strech = strechl[l];
+      scalar stretch = stretchl[l];
       scalar Fr1 = Frl[l];
       double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-      strech[] = add*strech[] + b1*po_2[] - b1*po_1[] ;
+      stretch[] = add*stretch[] + b1*po_2[] - b1*po_1[] ;
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -170,7 +176,7 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
         scalar po_0 = pol[l-1];
         scalar po_1 = pol[l];
         scalar po_2 = pol[l+1];
-        scalar strech = strechl[l];
+        scalar stretch = stretchl[l];
         
         scalar Fr0 = Frl[l-1];
         scalar Fr1 = Frl[l];
@@ -178,27 +184,27 @@ void comp_strech(scalar * pol, scalar * strechl, double add)
         double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
         double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-        strech[] = add*strech[] + b0*po_0[] + b1*po_2[] - (b0 + b1)*po_1[] ;
+        stretch[] = add*stretch[] + b0*po_0[] + b1*po_2[] - (b0 + b1)*po_1[] ;
 
       }
       // lower layer
       l = nl-1;
-      po_1 = pol[l-1];
-      po_2 = pol[l];
-      strech = strechl[l];
+      scalar po_0 = pol[l-1];
+      po_1 = pol[l];
+      stretch = stretchl[l];
       scalar Fr0 = Frl[l-1];
       double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
 
-      strech[] = add*strech[] + b0*po_1[] - b0*po_2[] ;
+      stretch[] = add*stretch[] + b0*po_0[] - b0*po_1[] ;
 
     }
     else{
-      scalar strech = strechl[0];
-      strech[] = 0.;
+      scalar stretch = stretchl[0];
+      stretch[] = 0.;
     }
   }
 
-  boundary(strechl);
+  boundary(stretchl);
 }
 
 
@@ -253,7 +259,7 @@ trace
 void comp_q(scalar * pol, scalar * qol)
 {
   comp_del2  (pol, qol, 0., 1.);
-  comp_strech(pol, qol, 1.);
+  comp_stretch(pol, qol, 1.);
   // TODO: not the rigght BC if partial or no slip
   boundary(qol);
 }
@@ -318,9 +324,9 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
     scalar po2  = pol[l+1];
     scalar jac1 = tmpl[l];
     scalar pp2  = ppl[l+1];
-    jacobian(po1, po2, jac1, 0.);
-    jacobian(pp1, po2, jac1, 1.);
-    jacobian(po1, pp2, jac1, 1.);
+    jacobian(po1, po2, jac1, 0.); // J(p_l+1, p_l)
+    jacobian(pp1, po2, jac1, 1.); // J(p_l+1, pp_l)
+    jacobian(po1, pp2, jac1, 1.); // J(pp_l+1, p_l)
   }
  combine_jac(tmpl, dqol, 1.);
 
@@ -529,6 +535,11 @@ void set_vars()
     iBul = list_append (iBul, iBu);
     scalar Fr = new scalar;
     Frl = list_append (Frl, Fr);
+
+    scalar str0 = new scalar;
+    str0l = list_append (str0l, str0);
+    scalar str1 = new scalar;
+    str1l = list_append (str1l, str1);
     
     scalar pt = new scalar;
     tmpl = list_append (tmpl, pt);
@@ -616,6 +627,8 @@ void set_vars()
     for (scalar pof in pofl){pof[] = 0.0;}
     for (scalar pt in tmpl){pt[] = 0.0;}
     for (scalar qos in qosl){qos[] = 0.0;}
+    for (scalar str0 in str0l){str0[] = 0.0;}
+    for (scalar str1 in str1l){str1[] = 0.0;}
   }
   /**
      We overload the default 'advance' and 'update' functions of the
@@ -647,6 +660,44 @@ event init (i = 0)
   /*   Ro[] = uref/((fref + betad*(y-0.5*L0)*lref)*lref); */
   foreach()
     Ro[] = Rom/(1 + Rom*beta*(y-0.5*L0));
+
+
+  /**
+     Compute vertical stretching coef matrix
+   */
+
+  foreach() {
+
+    if (nl > 1){
+      // upper layer
+      int l = 0;
+      scalar Fr1 = Frl[l];
+      scalar str1 = str1l[l];
+      str1[] = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+
+      // intermediate layers
+      for (int l = 1; l < nl-1 ; l++) {
+        
+        scalar Fr0 = Frl[l-1];
+        scalar Fr1 = Frl[l];
+        
+        scalar str0 = str0l[l];
+        scalar str1 = str1l[l];
+
+        str0[] = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+        str1[] = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+
+      }
+      // lower layer
+      l = nl-1;
+      scalar Fr0 = Frl[l-1];
+      scalar str0 = str0l[l];
+      str0[] = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+    }
+  }
+
+
+
 
   /**
      compute PV inversion matrices  */
@@ -708,6 +759,8 @@ void trash_vars(){
   free (cm2l), cm2l = NULL;
   free (iBul), iBul = NULL;
   free (Frl), Frl = NULL;
+  free (str0l), str0l = NULL;
+  free (str1l), str1l = NULL;
   free (tmpl), tmpl = NULL;
   free (qosl), qosl = NULL;
   free(dhf);
