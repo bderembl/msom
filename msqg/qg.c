@@ -121,7 +121,7 @@ event writestdout (i++) {
 /**
    Write parameters
  */
-event output (t = 0) {
+event write_const (t = 0) {
   char name[80];
   sprintf (name,"%siBu.bas", dpath);
   FILE * fp = fopen (name, "w");
