@@ -55,6 +55,20 @@ int main() {
     exit(0);
   }
 
+  /**
+     Copy input parameter file for backup
+  */
+
+  char ch;
+  char name[80];
+  sprintf (name,"%sparams.in", dpath);
+  FILE * source = fopen("params.in", "r");
+  FILE * target = fopen(name, "w");
+  while ((ch = fgetc(source)) != EOF)
+    fputc(ch, target);
+  fclose(source);
+  fclose(target);
+
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 
   init_grid (N);
