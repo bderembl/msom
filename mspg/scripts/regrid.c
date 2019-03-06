@@ -3,8 +3,8 @@
    Interpolation routine
 
    qcc -lm -O3 regrid.c -o regrid.e
-   ./regrid.e 512 0 psipg.bas  
-   ./regrid.e 512 1 gppg.bas  
+   ./regrid.e 512 0 psipg.bas
+   ./regrid.e 512 1 frpg.bas
 */
 
 #include "run.h"
@@ -61,7 +61,9 @@ int main(int argc, char **argv) {
   boundary(omegal);
 
   char name2[80];
-  sprintf (name2,"%s%04d", name, Nout);
+  int len = strlen(name);
+  name[len - 4] = '\0'; // strip .bas
+  sprintf (name2,"%s_N%d.bas", name, Nout);
 
   fp = fopen (name2, "w");
   output_matrixl (omegal, fp, Nout, linear=1);

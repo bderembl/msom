@@ -83,7 +83,7 @@ event init (i = 0) {
    Layer thickness and large scale variables
 */
   char name[80];
-  sprintf (name,"%sdh.bin", dpath);
+  sprintf (name,"%sdh_%dl.bin", dpath,nl);
   float dh[nl];
   FILE * fp = fopen (name, "r");
   fread(&dh, sizeof(float), nl, fp);
@@ -92,12 +92,12 @@ event init (i = 0) {
   for (int l = 0; l < nl ; l++)
     dhf[l] = dh[l];
 
-  sprintf (name,"%spsipg.bas%04d", dpath,N);
+  sprintf (name,"%spsipg_%dl_N%d.bas", dpath,nl,N);
   fp = fopen (name, "r");
   input_matrixl (ppl, fp);
   fclose(fp);
 
-  sprintf (name,"%sfrpg.bas%04d", dpath,N);
+  sprintf (name,"%sfrpg_%dl_N%d.bas", dpath,nl,N);
   fp = fopen (name, "r");
   input_matrixl (Frl, fp);
   fclose(fp);

@@ -27,11 +27,11 @@ x = np.arange(N)
 
 xc,yc = np.meshgrid(x,y)
 
-psipg = np.fromfile(dir0 + 'psipg.bas' + str(N).zfill(4) ,'f4').reshape(nl,N1,N1).transpose(0,2,1)
+psipg = np.fromfile(dir0 + 'psipg_' + str(nl) + 'l_N'+ str(N) + '.bas' ,'f4').reshape(nl,N1,N1).transpose(0,2,1)
 psipg = psipg[:,1:,1:]
 
-gppg = np.fromfile(dir0 + 'gppg.bas' + str(N).zfill(4),'f4').reshape(nl,N1,N1).transpose(0,2,1)
-gppg = gppg[:,1:,1:]
+frpg = np.fromfile(dir0 + 'frpg_' + str(nl) + 'l_N'+ str(N) + '.bas','f4').reshape(nl,N1,N1).transpose(0,2,1)
+frpg = frpg[:,1:,1:]
 
 
 # read constants
@@ -59,7 +59,9 @@ for ifi in range(ifi0,nb_files):
   plt.clf()
 
   plt.contour(xc,yc,psipg[l,:,:] + p[l,:,:],colors='k',linewidths=1)
-
+#  plt.contourf(xc,yc,p[l,:,:], 50, cmap=plt.cm.seismic)
+#  plt.colorbar()
+  plt.savefig('psi' + str(l+1) + '_sum.pdf',bbox_inches='tight')
   plt.draw()
   
   nextit = input("press enter")
