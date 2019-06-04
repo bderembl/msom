@@ -13,6 +13,9 @@ MPI:
 CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e -grid=multigrid
 mpirun -np 16 ./qg.e
 */
+
+#define ENERGY_DIAG 1
+
 #include "grid/multigrid.h"
 #include "qg.h"
 #include "auxiliar_input.h"
@@ -78,8 +81,6 @@ int main() {
 
 
 event init (i = 0) {
-
-  fprintf(stdout,"init\n");
 /**
    Layer thickness and large scale variables
 */
@@ -92,9 +93,6 @@ event init (i = 0) {
 
   for (int l = 0; l < nl ; l++)
     dhf[l] = dh[l];
-
-  fprintf(stdout,"init\n");
-
 
   sprintf (name,"%spsipg_%dl_N%d.bas", dpath,nl,N);
   fp = fopen (name, "r");
@@ -109,28 +107,19 @@ event init (i = 0) {
 /**
    Initial conditions
 */
-  fprintf(stdout,"init1\n");
-
   foreach() 
     for (int l = 0; l < nl ; l++) {
-      /* scalar qo  = qol[l]; */
-      /* scalar po  = pol[l]; */
-      /* qo[] = noise(); */
-      /* po[] = 0.; */
+      scalar qo  = qol[l];
+      scalar po  = pol[l];
+      qo[] = noise();
+      po[] = 0.;
     }
-  fprintf(stdout,"init2\n");
 }
 
-/* event filter (t = 0; t <= tend+1e-10;  t += dtflt) { */
-/*   fprintf(stdout,"Filter solution\n"); */
-/*   wavelet_filter ( qol, pol, qofl, dtflt, nbar) */
-/* } */
-
-#if ENERGY_DIAG
-event comp_diag (i++) {
-  energy_tend (pol, dt);
+event filter (t = 0; t <= tend+1e-10;  t += dtflt) {
+  fprintf(stdout,"Filter solution\n");
+  wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
-#endif
 
 event writestdout (i++) {
 /* event writestdout (i=1) { */

@@ -358,7 +358,7 @@ void dissip  (scalar * zetal, scalar * dqol)
     for (int l = 0; l < nl ; l++) {
       scalar dqo = dqol[l];
       scalar p4 = tmpl[l];
-      dqo[] += p4[]/Re;
+      dqo[] += p4[]*iRe;
     }
 
   double iRe4 = -1/Re4;
@@ -510,7 +510,7 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
    ## Layerered variables initialization, etc
 */
 
-void create_layer_var (scalar * psil, int nl)
+scalar * create_layer_var (scalar * psil, int nl)
 {
   assert (psil == NULL);
   assert (nl > 0);
@@ -527,32 +527,34 @@ void create_layer_var (scalar * psil, int nl)
 
   foreach() 
     for (scalar po in psil) {po[] = 0.0;} 
+
+  return psil;
 }
 
 void set_vars()
 {
-  create_layer_var(pol,nl);
-  create_layer_var(qol,nl);
-  create_layer_var(ppl,nl);
-  create_layer_var(zetal,nl);
-  create_layer_var(tmpl,nl);
-  create_layer_var(Frl,nl);
-  create_layer_var(iBul,nl);
-  create_layer_var(str0l,nl);
-  create_layer_var(str1l,nl);
-  create_layer_var(qofl,nl);
+  pol   = create_layer_var(pol,nl);
+  qol   = create_layer_var(qol,nl);
+  ppl   = create_layer_var(ppl,nl);
+  zetal = create_layer_var(zetal,nl);
+  tmpl  = create_layer_var(tmpl,nl);
+  Frl   = create_layer_var(Frl,nl);
+  iBul  = create_layer_var(iBul,nl);
+  str0l = create_layer_var(str0l,nl);
+  str1l = create_layer_var(str1l,nl);
+  qofl  = create_layer_var(qofl,nl);
 //  create_layer_var(qosl,nl);
 #if MODE_PV_INVERT
-  create_layer_var(pom,nl);
-  create_layer_var(qom,nl);
+  pom = create_layer_var(pom,nl);
+  qom = create_layer_var(qom,nl);
 #endif
 
   /**
      Mode to layer inversion matrices (dimesnion: $nl^2$)
   */
   int nl2 = nl*nl;
-  create_layer_var(cl2m,nl2);
-  create_layer_var(cm2l,nl2);
+  cl2m = create_layer_var(cl2m,nl2);
+  cm2l = create_layer_var(cm2l,nl2);
 
   evolving = qol;
     
@@ -586,9 +588,6 @@ void set_vars()
 
 event defaults (i = 0){
   set_vars();
-#if ENERGY_DIAG
-  set_vars_energy();
-#endif
 }
 
 
@@ -713,9 +712,6 @@ void trash_vars(){
 
 event cleanup (i = end, last) {
   trash_vars();
-#if ENERGY_DIAG
-  trash_vars_energy();
-#endif
 }
 
 /**
