@@ -10,7 +10,7 @@ export OMP_NUM_THREADS=20 (?)
 ./qg.e
 
 MPI:
-CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e
+CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e -grid=multigrid
 mpirun -np 16 ./qg.e
 */
 #include "grid/multigrid.h"
@@ -79,6 +79,7 @@ int main() {
 
 event init (i = 0) {
 
+  fprintf(stdout,"init\n");
 /**
    Layer thickness and large scale variables
 */
@@ -91,6 +92,9 @@ event init (i = 0) {
 
   for (int l = 0; l < nl ; l++)
     dhf[l] = dh[l];
+
+  fprintf(stdout,"init\n");
+
 
   sprintf (name,"%spsipg_%dl_N%d.bas", dpath,nl,N);
   fp = fopen (name, "r");
@@ -105,21 +109,28 @@ event init (i = 0) {
 /**
    Initial conditions
 */
+  fprintf(stdout,"init1\n");
+
   foreach() 
     for (int l = 0; l < nl ; l++) {
-      scalar qo  = qol[l];
-      scalar po  = pol[l];
-      qo[] = noise();
-      po[] = 0.;
+      /* scalar qo  = qol[l]; */
+      /* scalar po  = pol[l]; */
+      /* qo[] = noise(); */
+      /* po[] = 0.; */
     }
+  fprintf(stdout,"init2\n");
 }
 
-event filter (t = 0; t <= tend+1e-10;  t += dtflt) {
-  fprintf(stdout,"Filter solution\n");
-  invertq(pol,qol);
-  wavelet_filter(pol, pofl, dtflt);
-  comp_q(pol,qol);
+/* event filter (t = 0; t <= tend+1e-10;  t += dtflt) { */
+/*   fprintf(stdout,"Filter solution\n"); */
+/*   wavelet_filter ( qol, pol, qofl, dtflt, nbar) */
+/* } */
+
+#if ENERGY_DIAG
+event comp_diag (i++) {
+  energy_tend (pol, dt);
 }
+#endif
 
 event writestdout (i++) {
 /* event writestdout (i=1) { */
@@ -172,9 +183,10 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   output_matrixl (qol, fp);
   fclose(fp);
 
+  invertq(tmpl,qofl);
   sprintf (name,"%spf%09d.bas", dpath, i);
   fp = fopen (name, "w");
-  output_matrixl (pofl, fp);
+  output_matrixl (tmpl, fp);
   fclose(fp);
   
   nbar = 0; // reset filter average
@@ -195,7 +207,37 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /* output_field ({l}, fp); */
   /* fclose(fp); */
 
+#if ENERGY_DIAG
+  sprintf (name,"%sde_bf%09d.bas", dpath, i);
+  fp = fopen (name, "w");
+  output_matrixl (de_bfl, fp);
+  fclose(fp);
 
+  sprintf (name,"%sde_vd%09d.bas", dpath, i);
+  fp = fopen (name, "w");
+  output_matrixl (de_vdl, fp);
+  fclose(fp);
+
+  sprintf (name,"%sde_j1%09d.bas", dpath, i);
+  fp = fopen (name, "w");
+  output_matrixl (de_j1l, fp);
+  fclose(fp);
+
+  sprintf (name,"%sde_j2%09d.bas", dpath, i);
+  fp = fopen (name, "w");
+  output_matrixl (de_j2l, fp);
+  fclose(fp);
+
+  sprintf (name,"%sde_j3%09d.bas", dpath, i);
+  fp = fopen (name, "w");
+  output_matrixl (de_j3l, fp);
+  fclose(fp);
+
+  sprintf (name,"%sde_ft%09d.bas", dpath, i);
+  fp = fopen (name, "w");
+  output_matrixl (de_ftl, fp);
+  fclose(fp);
+#endif
 }
 
 /* event adapt (t+=10) { */

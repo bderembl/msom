@@ -10,12 +10,12 @@
 // layered variables
 scalar * qol  = NULL; // vorticity on layers
 scalar * pol  = NULL; // stream function on layers
+scalar * zetal = NULL; // relative vorticity
+scalar * qofl = NULL; // filter mean
+//scalar * qosl = NULL; // filter mean
+
 scalar * qom  = NULL; // vorticity on vertical modes
 scalar * pom  = NULL; // stream function on modes
-scalar * zetal = NULL; // relative vorticity
-scalar * pofl = NULL; // filter mean
-scalar * qosl = NULL; // filter mean
-
 
 // large scale variables (inversion matrices, etc)
 scalar * ppl  = NULL; // large scale stream function
@@ -209,7 +209,8 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
 
 
 trace
-void combine_jac(scalar * jac1l, scalar * jacal, double add)
+void combine_jac(scalar * jac1l, scalar * jacal, double add,
+                 double p0, double p1)
 {
   foreach() {
     if (nl > 1){
@@ -220,7 +221,7 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
       scalar Fr1 = Frl[l];
       double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-      jaca[] = add*jaca[] + b1*jac1[];
+      jaca[] = add*jaca[] + p1*b1*jac1[];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -235,7 +236,7 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
         double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
         double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
 
-        jaca[] = add*jaca[] - b0*jac0[] + b1*jac1[];
+        jaca[] = add*jaca[] - p0*b0*jac0[] + p1*b1*jac1[];
 
       }
       // lower layer
@@ -245,7 +246,7 @@ void combine_jac(scalar * jac1l, scalar * jacal, double add)
       scalar Fr0 = Frl[l-1];
       double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
 
-      jaca[] = add*jaca[] - b0*jac1[];
+      jaca[] = add*jaca[] - p0*b0*jac1[];
 
     }
     else{
@@ -313,8 +314,8 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
     scalar po  = pol[l];
     scalar pp  = ppl[l];
     scalar dqo = dqol[l];
-    jacobian(po, qo, dqo, 1.); // J(zeta, p_qg)
-    jacobian(pp, qo, dqo, 1.); // J(zeta, p_pg)
+    jacobian(po, qo, dqo, 1.); // -J(p_qg, zeta)
+    jacobian(pp, qo, dqo, 1.); // -J(p_pg, zeta)
     beta_effect(po, dqo);
   }
   
@@ -324,11 +325,11 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
     scalar po2  = pol[l+1];
     scalar jac1 = tmpl[l];
     scalar pp2  = ppl[l+1];
-    jacobian(po1, po2, jac1, 0.); // J(p_l+1, p_l)
-    jacobian(pp1, po2, jac1, 1.); // J(p_l+1, pp_l)
-    jacobian(po1, pp2, jac1, 1.); // J(pp_l+1, p_l)
+    jacobian(po1, po2, jac1, 0.); // -J(p_l , p_l+1)
+    jacobian(pp1, po2, jac1, 1.); // -J(pp_l, p_l+1)
+    jacobian(po1, pp2, jac1, 1.); // -J(p_l , pp_l+1)
   }
- combine_jac(tmpl, dqol, 1.);
+ combine_jac(tmpl, dqol, 1., 1., 1.);
 
   // compute dtmax
    for (int l = 0; l < nl ; l++) {
@@ -344,7 +345,6 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 
   return dtmax;
 }
-
 
 trace
 void dissip  (scalar * zetal, scalar * dqol)
@@ -363,7 +363,6 @@ void dissip  (scalar * zetal, scalar * dqol)
 
   double iRe4 = -1/Re4;
   comp_del2(tmpl, dqol, 1., iRe4);
-
 }
 
 /**
@@ -392,6 +391,16 @@ void surface_forcing  (scalar * dqol)
 }
 
 
+void list_copy_deep (scalar * listin, scalar * listout)
+{
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar listi = listin[l];
+      scalar listo = listout[l];
+      listo[] = listi[];
+    }
+}
+
 trace
 void time_filter (scalar * qol, scalar * qo_mel, double dt)
 {
@@ -411,18 +420,21 @@ void time_filter (scalar * qol, scalar * qo_mel, double dt)
 }
 
 trace
-void wavelet_filter(scalar *qol, scalar * qofl, double dtflt)
+void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int nbar)
 {
+
   /* save q values */
 //  scalar * qosl = list_clone(qol);
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar qo  = qol[l];
-      scalar qos  = qosl[l];
-      qos[] = qo[];
+      scalar tmp  = tmpl[l];
+      tmp[] = qo[];
     }
+
+  invertq(pol,qol);
   
-  for (scalar qo in qol) {
+  for (scalar po in pol) {
     scalar w[];
     w[top] = 0;
     w[bottom] = 0;
@@ -430,32 +442,37 @@ void wavelet_filter(scalar *qol, scalar * qofl, double dtflt)
     w[left] = 0;
 
 
-    wavelet(qo,w);
+    wavelet(po,w);
     for (int l = 0; l <= depth(); l++) {
       foreach_level (l)
         w[] *= sig_lev[];
       boundary_level ({w}, l);
     }
-    inverse_wavelet (qo, w);
+    inverse_wavelet (po, w);
 
   }
   
+  comp_q(pol,qol);
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar qo  = qol[l];
       scalar qof  = qofl[l];
-      scalar qos  = qosl[l];
+      scalar tmp  = tmpl[l];
 
-      qof[] = (qof[]*nbar + (qos[] - qo[])/dtflt)/(nbar+1);
-      //qof[] = (qos[] - qo[]);
+      qof[] = (qof[]*nbar + (tmp[] - qo[])/dtflt)/(nbar+1);
+      //qof[] = (tmp[] - qo[]);
     }
+
+  if (dtflt == -1.0){
+    list_copy_deep (tmpl, qol);
+  }
+
   boundary(qofl);
   nbar++;
   
 }
 
 /**
-   
    ## time stepping routines
    We use the predictor corrector implementation */
 
@@ -473,9 +490,6 @@ static void advance_qg (scalar * output, scalar * input,
   boundary(output);
 }
 
-
-
-
 double update_qg (scalar * evolving, scalar * updates, double dtmax)
 {
   foreach()
@@ -485,119 +499,63 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   invertq(pol, evolving);
   comp_del2(pol, zetal, 0., 1.0);
   dtmax = advection(zetal, pol, updates, dtmax);
-  dissip(zetal,updates);
-  bottom_friction(zetal,updates);
+  dissip(zetal, updates);
+  bottom_friction(zetal, updates);
   surface_forcing(updates);
 
   return dtmax;
 }
 
-/**
-   
+/**  
    ## Layerered variables initialization, etc
 */
 
-void set_vars()
+void create_layer_var (scalar * psil, int nl)
 {
-  assert (qol    == NULL);
-  assert (pol    == NULL);
-  assert (qom    == NULL);
-  assert (pom    == NULL);
-  assert (ppl    == NULL);
-  assert (cl2m   == NULL);
-  assert (cm2l   == NULL);
-  assert (iBul   == NULL);
-  assert (Frl    == NULL);
-  assert (zetal  == NULL);
-  assert (tmpl   == NULL);
-
+  assert (psil == NULL);
   assert (nl > 0);
 
   for (int l = 0; l < nl; l++) {
     scalar po = new scalar;
-    pol = list_append (pol, po);
-    scalar qo = new scalar;
-    qol = list_append (qol, qo);
-    scalar pm = new scalar;
-    pom = list_append (pom, pm);
-    scalar qm = new scalar;
-    qom = list_append (qom, qm);
-    scalar zeta = new scalar;
-    zetal = list_append (zetal, zeta);
-    scalar pof = new scalar;
-    pofl = list_append (pofl, pof);
-    scalar qos = new scalar;
-    qosl = list_append (qosl, qos);
-
-    scalar pp = new scalar;
-    ppl = list_append (ppl, pp);
-    scalar iBu = new scalar;
-    iBul = list_append (iBul, iBu);
-    scalar Fr = new scalar;
-    Frl = list_append (Frl, Fr);
-
-    scalar str0 = new scalar;
-    str0l = list_append (str0l, str0);
-    scalar str1 = new scalar;
-    str1l = list_append (str1l, str1);
+    psil = list_append (psil, po);
     
-    scalar pt = new scalar;
-    tmpl = list_append (tmpl, pt);
-
     po[right]  = dirichlet(0);
     po[left]   = dirichlet(0);
     po[top]    = dirichlet(0);
     po[bottom] = dirichlet(0);
-    
-    qo[right]  = dirichlet(0);
-    qo[left]   = dirichlet(0);
-    qo[top]    = dirichlet(0);
-    qo[bottom] = dirichlet(0);
-
-    pm[right]  = dirichlet(0);
-    pm[left]   = dirichlet(0);
-    pm[top]    = dirichlet(0);
-    pm[bottom] = dirichlet(0);
-    
-    qm[right]  = dirichlet(0);
-    qm[left]   = dirichlet(0);
-    qm[top]    = dirichlet(0);
-    qm[bottom] = dirichlet(0);
-
-    zeta[right]  = dirichlet(0);
-    zeta[left]   = dirichlet(0);
-    zeta[top]    = dirichlet(0);
-    zeta[bottom] = dirichlet(0);
-
-    pof[right]  = dirichlet(0);
-    pof[left]   = dirichlet(0);
-    pof[top]    = dirichlet(0);
-    pof[bottom] = dirichlet(0);
-
-    pp[right]  = dirichlet(0);
-    pp[left]   = dirichlet(0);
-    pp[top]    = dirichlet(0);
-    pp[bottom] = dirichlet(0);
-
-    pt[right]  = dirichlet(0);
-    pt[left]   = dirichlet(0);
-    pt[top]    = dirichlet(0);
-    pt[bottom] = dirichlet(0);
-
   }
-  evolving = qol;
-  
+
+  foreach() 
+    for (scalar po in psil) {po[] = 0.0;} 
+}
+
+void set_vars()
+{
+  create_layer_var(pol,nl);
+  create_layer_var(qol,nl);
+  create_layer_var(ppl,nl);
+  create_layer_var(zetal,nl);
+  create_layer_var(tmpl,nl);
+  create_layer_var(Frl,nl);
+  create_layer_var(iBul,nl);
+  create_layer_var(str0l,nl);
+  create_layer_var(str1l,nl);
+  create_layer_var(qofl,nl);
+//  create_layer_var(qosl,nl);
+#if MODE_PV_INVERT
+  create_layer_var(pom,nl);
+  create_layer_var(qom,nl);
+#endif
+
   /**
      Mode to layer inversion matrices (dimesnion: $nl^2$)
   */
-  
-  for (int l = 0; l < nl*nl; l++) {
-    scalar l2 = new scalar;
-    cl2m = list_append (cl2m, l2);
-    scalar m2 = new scalar;
-    cm2l = list_append (cm2l, m2);
-  }
-  
+  int nl2 = nl*nl;
+  create_layer_var(cl2m,nl2);
+  create_layer_var(cm2l,nl2);
+
+  evolving = qol;
+    
   /**
      Default variables:
      Layer thicknesses dhf (dhc is computed after)
@@ -617,20 +575,6 @@ void set_vars()
     Ro[] = Rom; 
 
   /**
-     Initialize variables */
-  foreach() {
-    for (scalar po in pol){po[] = 0.0;} 
-    for (scalar qo in qol){qo[] = 0.0;}
-    for (scalar pm in pom){pm[] = 0.0;}
-    for (scalar qm in qom){qm[] = 0.0;}
-    for (scalar zeta in zetal){zeta[] = 0.0;}
-    for (scalar pof in pofl){pof[] = 0.0;}
-    for (scalar pt in tmpl){pt[] = 0.0;}
-    for (scalar qos in qosl){qos[] = 0.0;}
-    for (scalar str0 in str0l){str0[] = 0.0;}
-    for (scalar str1 in str1l){str1[] = 0.0;}
-  }
-  /**
      We overload the default 'advance' and 'update' functions of the
      predictor-corrector scheme and (TODO) setup the prolongation and
      restriction methods on trees. */
@@ -640,9 +584,11 @@ void set_vars()
 
 }
 
-
 event defaults (i = 0){
   set_vars();
+#if ENERGY_DIAG
+  set_vars_energy();
+#endif
 }
 
 
@@ -652,7 +598,6 @@ into account user-defined field initialisations. */
 
 event init (i = 0)
 {
-
   for (int l = 0; l < nl-1; l++)
     dhc[l] = 0.5*(dhf[l] + dhf[l+1]);
 
@@ -695,9 +640,6 @@ event init (i = 0)
       str0[] = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
     }
   }
-
-
-
 
   /**
      compute PV inversion matrices  */
@@ -750,10 +692,12 @@ event init (i = 0)
 void trash_vars(){
   free (pol), pol = NULL;
   free (qol), qol = NULL;
+#if MODE_PV_INVERT
   free (pom), pom = NULL;
   free (qom), qom = NULL;
+#endif
   free (zetal), zetal = NULL;
-  free (pofl), pofl = NULL;
+  free (qofl), qofl = NULL;
   free (ppl), ppl = NULL;
   free (cl2m), cl2m = NULL;
   free (cm2l), cm2l = NULL;
@@ -762,12 +706,19 @@ void trash_vars(){
   free (str0l), str0l = NULL;
   free (str1l), str1l = NULL;
   free (tmpl), tmpl = NULL;
-  free (qosl), qosl = NULL;
+//  free (qosl), qosl = NULL;
   free(dhf);
   free(dhc);
-
 }
 
 event cleanup (i = end, last) {
   trash_vars();
+#if ENERGY_DIAG
+  trash_vars_energy();
+#endif
 }
+
+/**
+   Energy diagnostic routines
+*/
+#include "qg_energy.h"

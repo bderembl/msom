@@ -14,7 +14,7 @@ Re    = 50.
 Re4   = 500.
 beta  = 0.5
 afilt = 12.
-Lfmax = 10.
+Lfmax = 12.5
 
 # timestepping
 DT    = 5.e-2
