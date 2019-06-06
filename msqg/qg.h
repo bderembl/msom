@@ -56,8 +56,6 @@ double tend = 1; // end time
 double dtflt = 1; // Delat T filtering
 double dtout = 1; // Delat T output
 
-char * dpath = "outdir/";
-
 int nbar = 0;
 int ediag = 0;
 
