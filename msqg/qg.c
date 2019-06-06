@@ -14,12 +14,13 @@ CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e -grid=multigri
 mpirun -np 16 ./qg.e
 */
 
-#define ENERGY_DIAG 1
-
 #include "grid/multigrid.h"
 #include "qg.h"
 #include "auxiliar_input.h"
 
+// for mkdir
+#include <sys/stat.h>
+#include <sys/types.h>
 
 int main() {
 
@@ -37,6 +38,7 @@ int main() {
       sscanf(tempbuff, "%15s = %15s", tmps1, tmps2);
       if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
+      else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
       else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
@@ -64,6 +66,14 @@ int main() {
 
   char ch;
   char name[80];
+  /* for (int i=1; i<10000; i++) { */
+  /*   sprintf(name, "%s%04d/", dpath, i); */
+  /*   fprintf(stdout,"%s",name); */
+  /*   if (mkdir(name, 0777) == 0) { */
+  /*     break; */
+  /*   } */
+  /* } */
+
   sprintf (name,"%sparams.in", dpath);
   FILE * source = fopen("params.in", "r");
   FILE * target = fopen(name, "w");
@@ -196,37 +206,37 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /* output_field ({l}, fp); */
   /* fclose(fp); */
 
-#if ENERGY_DIAG
-  sprintf (name,"%sde_bf%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (de_bfl, fp);
-  fclose(fp);
+  if (ediag){
+    sprintf (name,"%sde_bf%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_bfl, fp);
+    fclose(fp);
 
-  sprintf (name,"%sde_vd%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (de_vdl, fp);
-  fclose(fp);
+    sprintf (name,"%sde_vd%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_vdl, fp);
+    fclose(fp);
 
-  sprintf (name,"%sde_j1%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (de_j1l, fp);
-  fclose(fp);
+    sprintf (name,"%sde_j1%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_j1l, fp);
+    fclose(fp);
 
-  sprintf (name,"%sde_j2%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (de_j2l, fp);
-  fclose(fp);
+    sprintf (name,"%sde_j2%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_j2l, fp);
+    fclose(fp);
 
-  sprintf (name,"%sde_j3%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (de_j3l, fp);
-  fclose(fp);
+    sprintf (name,"%sde_j3%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_j3l, fp);
+    fclose(fp);
 
-  sprintf (name,"%sde_ft%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (de_ftl, fp);
-  fclose(fp);
-#endif
+    sprintf (name,"%sde_ft%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_ftl, fp);
+    fclose(fp);
+  }
 }
 
 /* event adapt (t+=10) { */
