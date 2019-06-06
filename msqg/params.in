@@ -2,6 +2,7 @@
 # input parameter files
 # each '=' sign must be surrounded by at least one whitespace on each side
 
+
 # domain size
 N  = 512
 nl = 4
@@ -19,9 +20,9 @@ Lfmax = 12.5
 # timestepping
 DT    = 5.e-2
 tend  = 5000.
-dtout = 10.
+dtout = 5.
 dtflt = 0.5
 CFL   = 0.6
 
-# input/output files
-dpath = outdir/
+# misc
+ediag = 1
