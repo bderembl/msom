@@ -14,11 +14,25 @@ filep = 'po*'
 fileq = 'qo*'
 filef = 'pf*'
 
+filebf = 'de_bf*'
+filevd = 'de_vd*'
+filej1 = 'de_j1*'
+filej2 = 'de_j2*'
+filej3 = 'de_j3*'
+fileft = 'de_ft*'
+
 allfilesp = sorted(glob.glob(dir0 + filep));
 allfilesq = sorted(glob.glob(dir0 + fileq));
 allfilesf = sorted(glob.glob(dir0 + filef));
-nb_files  = len(allfilesp);
 
+allfilesbf = sorted(glob.glob(dir0 + filebf));
+allfilesvd = sorted(glob.glob(dir0 + filevd));
+allfilesj1 = sorted(glob.glob(dir0 + filej1));
+allfilesj2 = sorted(glob.glob(dir0 + filej2));
+allfilesj3 = sorted(glob.glob(dir0 + filej3));
+allfilesft = sorted(glob.glob(dir0 + fileft));
+
+nb_files  = len(allfilesp);
 
 b = np.fromfile(allfilesp[0],'f4')
 N = int(b[0])
@@ -42,6 +56,14 @@ xpo = f.createVariable('x', 'f', ('x',))
 po  = f.createVariable('p' , 'f', ('t','z','y','x',))
 qo  = f.createVariable('q' , 'f', ('t','z','y','x',))
 pof  = f.createVariable('pf' , 'f', ('t','z','y','x',))
+if len(allfilesbf) > 0:
+  ebfo = f.createVariable('ebf' , 'f', ('t','z','y','x',))
+  evdo = f.createVariable('evd' , 'f', ('t','z','y','x',))
+  ej1o = f.createVariable('ej1' , 'f', ('t','z','y','x',))
+  ej2o = f.createVariable('ej2' , 'f', ('t','z','y','x',))
+  ej3o = f.createVariable('ej3' , 'f', ('t','z','y','x',))
+  efto = f.createVariable('eft' , 'f', ('t','z','y','x',))
+
 
 zpo[:] = np.arange(nl)
 ypo[:] = np.arange(N)
@@ -62,10 +84,33 @@ for ifi in range(0,nb_files):
   p  = p [:,1:,1:]
   q  = q [:,1:,1:]
   pf = pf[:,1:,1:]
-  
+
   po [ifi,:,:,:] = p [:,:,:]
   qo [ifi,:,:,:] = q [:,:,:]
   pof[ifi,:,:,:] = pf[:,:,:]
+
+  if len(allfilesbf) > 0:
+    ebf = np.fromfile(allfilesbf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    evd = np.fromfile(allfilesvd[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    ej1 = np.fromfile(allfilesj1[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    ej2 = np.fromfile(allfilesj2[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    ej3 = np.fromfile(allfilesj3[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    eft = np.fromfile(allfilesft[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+
+    ebf = ebf[:,1:,1:]
+    evd = evd[:,1:,1:]
+    ej1 = ej1[:,1:,1:]
+    ej2 = ej2[:,1:,1:]
+    ej3 = ej3[:,1:,1:]
+    eft = eft[:,1:,1:]  
+
+    ebfo[ifi,:,:,:] = ebf[:,:,:]
+    evdo[ifi,:,:,:] = evd[:,:,:]
+    ej1o[ifi,:,:,:] = ej1[:,:,:]
+    ej2o[ifi,:,:,:] = ej2[:,:,:]
+    ej3o[ifi,:,:,:] = ej3[:,:,:]
+    efto[ifi,:,:,:] = eft[:,:,:]
+
   tpo[ifi] = 1.0*ifi
 
 f.close()
