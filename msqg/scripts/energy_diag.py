@@ -40,40 +40,28 @@ N = int(b[0])
 N1 = N + 1
 nl = int(len(b)/N1**2)
 
-# create netcdf file
-fileout = dir0 + 'vars.nc'
-f = netcdf.netcdf_file(fileout,'w')
+fileh = 'dh_' + str(nl) +'l.bin'
 
-f.createDimension('t',None)
-f.createDimension('z',nl)
-f.createDimension('y',N)
-f.createDimension('x',N)
+dh = np.fromfile(dir0 + fileh,'f4')
+dhi = 0.5*(dh[:-1] + dh[1:])
 
-tpo = f.createVariable('t', 'f', ('t',))
-zpo = f.createVariable('z', 'f', ('z',))
-ypo = f.createVariable('y', 'f', ('y',))
-xpo = f.createVariable('x', 'f', ('x',))
+fileFr = 'frpg_' + str(nl) +'l_N' + str(N) + '.bas'
+Fr = np.fromfile(dir0 + fileFr,'f4').reshape(nl,N1,N1).transpose(0,2,1)
+Fr = Fr[:,1:,1:]
 
-po  = f.createVariable('p' , 'f', ('t','z','y','x',))
-qo  = f.createVariable('q' , 'f', ('t','z','y','x',))
-pof  = f.createVariable('pf' , 'f', ('t','z','y','x',))
-if len(allfilesbf) > 0:
-  ebfo = f.createVariable('ebf' , 'f', ('t','z','y','x',))
-  evdo = f.createVariable('evd' , 'f', ('t','z','y','x',))
-  ej1o = f.createVariable('ej1' , 'f', ('t','z','y','x',))
-  ej2o = f.createVariable('ej2' , 'f', ('t','z','y','x',))
-  ej3o = f.createVariable('ej3' , 'f', ('t','z','y','x',))
-  efto = f.createVariable('eft' , 'f', ('t','z','y','x',))
+# create grid
+Delta = L0/N
 
+x = np.linspace(0.5*Delta, L0 - 0.5*Delta,N)
+xc,yc = np.meshgrid(x,x)
 
-zpo[:] = np.arange(nl)
-ypo[:] = np.arange(N)
-xpo[:] = np.arange(N)
-
-# tpo[0] = 1.0
-# bo[0,:,:,:] = 1.0
+# physical parameters
+Ro = Rom/(1 + Rom*beta*(yc-0.5*L0));
 
 ifi = nb_files - 1
+
+ke_all = np.zeros((nb_files,nl))
+pe_all = np.zeros((nb_files,nl))
 
 for ifi in range(0,nb_files):
 #for ifi in range(0,100):
@@ -85,10 +73,6 @@ for ifi in range(0,nb_files):
   p  = p [:,1:,1:]
   q  = q [:,1:,1:]
   pf = pf[:,1:,1:]
-
-  po [ifi,:,:,:] = p [:,:,:]
-  qo [ifi,:,:,:] = q [:,:,:]
-  pof[ifi,:,:,:] = pf[:,:,:]
 
   if len(allfilesbf) > 0:
     ebf = np.fromfile(allfilesbf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
@@ -105,15 +89,15 @@ for ifi in range(0,nb_files):
     ej3 = ej3[:,1:,1:]
     eft = eft[:,1:,1:]  
 
-    ebfo[ifi,:,:,:] = ebf[:,:,:]
-    evdo[ifi,:,:,:] = evd[:,:,:]
-    ej1o[ifi,:,:,:] = ej1[:,:,:]
-    ej2o[ifi,:,:,:] = ej2[:,:,:]
-    ej3o[ifi,:,:,:] = ej3[:,:,:]
-    efto[ifi,:,:,:] = eft[:,:,:]
 
-  tpo[ifi] = dtout*ifi
+    u = np.gradient(p, axis = 1)/Delta*Ro.reshape(1,N,N)
+    v = np.gradient(p, axis = 2)/Delta*Ro.reshape(1,N,N)
+  
+    ke = 0.5*(u**2 + v**2)
+    
+    b = np.diff(p,1,0)/dhi.reshape(nl-1,1,1)
+    pe = 0.5*b**2*Fr[:-1,:,:]**2
 
-f.close()
-print ("nb points in file: {0}".format(nb_files))
+    ke_all[ifi,:] = ke.sum((1,2)) 
+    pe_all[ifi,:-1] = pe.sum((1,2)) 
 
