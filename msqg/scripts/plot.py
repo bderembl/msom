@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import glob
 import array
 
-plt.ion()
+#plt.ion()
 
-dir0 = "../outdir/"
+dir0 = "../outdir_0004/"
+exec(open(dir0 + "params.in").read())
 
 filep = 'po*'
 
@@ -40,15 +41,16 @@ iBu = iBu[:,1:,1:]
 
 Rd = np.sqrt(-1/iBu)*lref
 
-plt.figure()
-CS = plt.contour(xc,yc,Rd[1,:,:]*1e-3,[1,2,5,10,20,30,40,50,60,70,80,90],colors='b')
-plt.clabel(CS, inline=1, fontsize=10)
+# plt.figure()
+# CS = plt.contour(xc,yc,Rd[1,:,:]*1e-3,[1,2,5,10,20,30,40,50,60,70,80,90],colors='b')
+# plt.clabel(CS, inline=1, fontsize=10)
 
 # choose vertical level (0= top, nl-1=bottom)
 l = 0
 
-#ifi0 = nb_files - 1
-ifi0 = 0
+ifi0 = nb_files - 1
+#ifi0 = 1
+#ifi0 = 24
 
 for ifi in range(ifi0,nb_files):
 
@@ -57,11 +59,13 @@ for ifi in range(ifi0,nb_files):
 
   plt.figure(2)
   plt.clf()
+  vcont = np.linspace(-500,500,50)
 
-  plt.contour(xc,yc,psipg[l,:,:] + p[l,:,:],colors='k',linewidths=1)
-#  plt.contourf(xc,yc,p[l,:,:], 50, cmap=plt.cm.seismic)
-#  plt.colorbar()
-  plt.savefig('psi' + str(l+1) + '_sum.pdf',bbox_inches='tight')
+#  plt.contour(xc,yc,psipg[l,:,:] + p[l,:,:],colors='k',linewidths=1)
+  plt.contourf(xc,yc,p[l,:,:], vcont,cmap=plt.cm.seismic)
+  plt.colorbar()
+  
+#  plt.savefig("psi{0:04d}.png".format(ifi),bbox_inches='tight')
   plt.draw()
   
-  nextit = input("press enter")
+#  nextit = input("press enter")
