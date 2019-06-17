@@ -222,7 +222,7 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /* output_field ({l}, fp); */
   /* fclose(fp); */
 
-  if (ediag){
+  if (ediag>-1){
     sprintf (name,"%sde_bf%09d.bas", dpath, i);
     fp = fopen (name, "w");
     output_matrixl (de_bfl, fp);
@@ -252,6 +252,15 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     fp = fopen (name, "w");
     output_matrixl (de_ftl, fp);
     fclose(fp);
+
+    reset_layer_var(de_bfl);
+    reset_layer_var(de_vdl);
+    reset_layer_var(de_bfl);
+    reset_layer_var(de_j1l);
+    reset_layer_var(de_j2l);
+    reset_layer_var(de_j3l);
+    reset_layer_var(de_ftl);
+
   }
 }
 

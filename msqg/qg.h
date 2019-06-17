@@ -57,7 +57,7 @@ double dtflt = 1; // Delat T filtering
 double dtout = 1; // Delat T output
 
 int nbar = 0;
-int ediag = 0;
+int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 
 #include "eigmode.h"
 
@@ -528,6 +528,12 @@ scalar * create_layer_var (scalar * psil, int nl)
     for (scalar po in psil) {po[] = 0.0;} 
 
   return psil;
+}
+
+void reset_layer_var(scalar *psil)
+{
+  foreach()
+    for (scalar po in psil) {po[] = 0.0;}
 }
 
 void set_vars()
