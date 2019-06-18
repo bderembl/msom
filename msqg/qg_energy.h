@@ -13,25 +13,25 @@ scalar * de_j3l = NULL;
 scalar * de_ftl = NULL;
 scalar * tmp2l = NULL;
 
-trace
-void jacobian_de(scalar po, scalar qo, scalar jac, double add, 
-                 scalar po_r, scalar pp_r, double dt)
-{
-  foreach()
-    jac[] = add*jac[] + 
-    (( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1])
-     +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ])
-     + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ])
-     - qo[-1, 0]*( po[-1,1] - po[-1,-1])
-     - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ])
-     + qo[0 ,-1]*( po[1,-1] - po[-1,-1])
-     + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ])
-     - po[0 ,-1]*( qo[1,-1] - qo[-1,-1])
-     - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ])
-     + po[-1, 0]*( qo[-1,1] - qo[-1,-1]))
-    *Ro[]/(12.*Delta*Delta)
-    *(-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
-}
+/* trace */
+/* void jacobian_de(scalar po, scalar qo, scalar jac, double add,  */
+/*                  scalar po_r, scalar pp_r, double dt) */
+/* { */
+/*   foreach() */
+/*     jac[] = add*jac[] +  */
+/*     (( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1]) */
+/*      +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ]) */
+/*      + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ]) */
+/*      - qo[-1, 0]*( po[-1,1] - po[-1,-1]) */
+/*      - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ]) */
+/*      + qo[0 ,-1]*( po[1,-1] - po[-1,-1]) */
+/*      + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ]) */
+/*      - po[0 ,-1]*( qo[1,-1] - qo[-1,-1]) */
+/*      - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ]) */
+/*      + po[-1, 0]*( qo[-1,1] - qo[-1,-1])) */
+/*     *Ro[]/(12.*Delta*Delta) */
+/*     *(-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[]; */
+/* } */
 
 /**
    J1 = j(psi, q)
@@ -48,8 +48,10 @@ void advection_de  (scalar * qol, scalar * pol,
     scalar pp  = ppl[l];
     scalar de_j1 = de_j1l[l];
     scalar de_j2 = de_j2l[l];
-    jacobian_de(po, qo, de_j1, 1., po, pp, dt); // -J(p_qg, zeta)
-    jacobian_de(pp, qo, de_j2, 1., po, pp, dt); // -J(p_pg, zeta)
+    /* jacobian_de(po, qo, de_j1, 1., po, pp, dt); // -J(p_qg, zeta) */
+    /* jacobian_de(pp, qo, de_j2, 1., po, pp, dt); // -J(p_pg, zeta) */
+    jacobian(po, qo, de_j1, 1.); // -J(p_qg, zeta)
+    jacobian(pp, qo, de_j2, 1.); // -J(p_pg, zeta)
   }
   
    for (int l = 0; l < nl-1 ; l++) {
@@ -57,7 +59,8 @@ void advection_de  (scalar * qol, scalar * pol,
     scalar po2  = pol[l+1];
     scalar pp  = ppl[l];
     scalar jac1 = tmpl[l];
-    jacobian_de(po1, po2, jac1, 0., po1, pp, dt); // -J(p_l, p_l+1)
+    /* jacobian_de(po1, po2, jac1, 0., po1, pp, dt); // -J(p_l, p_l+1) */
+    jacobian(po1, po2, jac1, 0.); // -J(p_l, p_l+1)
   }
  combine_jac(tmpl, de_j1l, 1., 1. , 1.);
 
@@ -66,7 +69,8 @@ void advection_de  (scalar * qol, scalar * pol,
     scalar pp1  = ppl[l];
     scalar po2  = pol[l+1];
     scalar jac1 = tmpl[l];
-    jacobian_de(pp1, po2, jac1, 0., po1, pp1, dt); // -J(pp_l, p_l+1)
+    /* jacobian_de(pp1, po2, jac1, 0., po1, pp1, dt); // -J(pp_l, p_l+1) */
+    jacobian(pp1, po2, jac1, 0.); // -J(pp_l, p_l+1)
   }
  combine_jac(tmpl, de_j2l, 1., 0., 1.);
  combine_jac(tmpl, de_j3l, 1., 1., 0.);
@@ -77,10 +81,24 @@ void advection_de  (scalar * qol, scalar * pol,
     scalar jac1 = tmpl[l];
     scalar pp1  = ppl[l];
     scalar pp2  = ppl[l+1];
-    jacobian_de(po1, pp2, jac1, 0., po1, pp1, dt); // -J(p_l, pp_l+1)
+    /* jacobian_de(po1, pp2, jac1, 0., po1, pp1, dt); // -J(p_l, pp_l+1) */
+    jacobian(po1, pp2, jac1, 0.); // -J(p_l, pp_l+1)
   }
  combine_jac(tmpl, de_j2l, 1., 1., 0.);
  combine_jac(tmpl, de_j3l, 1., 0., 1.);
+
+ foreach()
+   for (int l = 0; l < nl ; l++) {
+     scalar de_j1 = de_j1l[l];
+     scalar de_j2 = de_j2l[l];
+     scalar de_j3 = de_j3l[l];
+     scalar po_r  = pol[l];
+     scalar pp_r  = ppl[l];
+
+     de_j1[] *=  (-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
+     de_j2[] *=  (-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
+     de_j3[] *=  (-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
+   }
 }
 
 
