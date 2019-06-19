@@ -13,25 +13,85 @@ scalar * de_j3l = NULL;
 scalar * de_ftl = NULL;
 scalar * tmp2l = NULL;
 
-/* trace */
-/* void jacobian_de(scalar po, scalar qo, scalar jac, double add,  */
-/*                  scalar po_r, scalar pp_r, double dt) */
-/* { */
-/*   foreach() */
-/*     jac[] = add*jac[] +  */
-/*     (( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1]) */
-/*      +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ]) */
-/*      + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ]) */
-/*      - qo[-1, 0]*( po[-1,1] - po[-1,-1]) */
-/*      - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ]) */
-/*      + qo[0 ,-1]*( po[1,-1] - po[-1,-1]) */
-/*      + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ]) */
-/*      - po[0 ,-1]*( qo[1,-1] - qo[-1,-1]) */
-/*      - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ]) */
-/*      + po[-1, 0]*( qo[-1,1] - qo[-1,-1])) */
-/*     *Ro[]/(12.*Delta*Delta) */
-/*     *(-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[]; */
-/* } */
+// temporary
+scalar * qol_prev = NULL;
+scalar * de_tol = NULL;
+
+
+trace
+void combine_jac_de(scalar * jac1l, scalar * jacal, double add,
+                 double p0, double p1, scalar * pol)
+{
+  foreach() {
+    if (nl > 1){
+      // upper layer
+      int l = 0;
+      scalar jac1 = jac1l[l];
+      scalar jaca = jacal[l];
+      scalar Fr1 = Frl[l];
+      scalar po_r  = pol[l];
+      scalar pp_r  = ppl[l];
+      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+
+      jaca[] = add*jaca[] + p1*b1*jac1[]*(-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
+
+      // intermediate layers
+      for (int l = 1; l < nl-1 ; l++) {
+       
+        scalar jac0 = jac1l[l-1];
+        scalar jac1 = jac1l[l];
+        scalar jaca = jacal[l];
+        scalar po_r1 = pol[l];
+        scalar pp_r1 = ppl[l];
+        
+        scalar Fr0 = Frl[l-1];
+        scalar Fr1 = Frl[l];
+        
+        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+
+        jaca[] = add*jaca[] + (- p0*b0*jac0[] + p1*b1*jac1[])
+          *(-po_r1[]-ediag*pp_r1[])*Ro[]*dt*Ro[];
+
+      }
+      // lower layer
+      l = nl-1;
+      jac1 = jac1l[l-1];
+      jaca = jacal[l];
+      po_r  = pol[l];
+      pp_r  = ppl[l];
+      scalar Fr0 = Frl[l-1];
+      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+
+      jaca[] = add*jaca[] - p0*b0*jac1[]*(-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
+
+    }
+    else{
+      scalar jaca = jacal[0];
+      jaca[] = 0.;
+    }
+  }
+}
+
+trace
+void jacobian_de(scalar po, scalar qo, scalar jac, double add,
+                 scalar po_r, scalar pp_r, double dt)
+{
+  foreach()
+    jac[] = add*jac[] +
+    (( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1])
+     +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ])
+     + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ])
+     - qo[-1, 0]*( po[-1,1] - po[-1,-1])
+     - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ])
+     + qo[0 ,-1]*( po[1,-1] - po[-1,-1])
+     + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ])
+     - po[0 ,-1]*( qo[1,-1] - qo[-1,-1])
+     - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ])
+     + po[-1, 0]*( qo[-1,1] - qo[-1,-1]))
+    *Ro[]/(12.*Delta*Delta)
+    *(-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
+}
 
 /**
    J1 = j(psi, q)
@@ -48,10 +108,10 @@ void advection_de  (scalar * qol, scalar * pol,
     scalar pp  = ppl[l];
     scalar de_j1 = de_j1l[l];
     scalar de_j2 = de_j2l[l];
-    /* jacobian_de(po, qo, de_j1, 1., po, pp, dt); // -J(p_qg, zeta) */
-    /* jacobian_de(pp, qo, de_j2, 1., po, pp, dt); // -J(p_pg, zeta) */
-    jacobian(po, qo, de_j1, 1.); // -J(p_qg, zeta)
-    jacobian(pp, qo, de_j2, 1.); // -J(p_pg, zeta)
+    jacobian_de(po, qo, de_j1, 1., po, pp, dt); // -J(p_qg, zeta)
+    jacobian_de(pp, qo, de_j2, 1., po, pp, dt); // -J(p_pg, zeta)
+    /* jacobian_de(po, qo, de_j1, 1.); // -J(p_qg, zeta) */
+    /* jacobian_de(pp, qo, de_j2, 1.); // -J(p_pg, zeta) */
   }
   
    for (int l = 0; l < nl-1 ; l++) {
@@ -62,7 +122,7 @@ void advection_de  (scalar * qol, scalar * pol,
     /* jacobian_de(po1, po2, jac1, 0., po1, pp, dt); // -J(p_l, p_l+1) */
     jacobian(po1, po2, jac1, 0.); // -J(p_l, p_l+1)
   }
- combine_jac(tmpl, de_j1l, 1., 1. , 1.);
+ combine_jac_de(tmpl, de_j1l, 1., 1. , 1., pol);
 
    for (int l = 0; l < nl-1 ; l++) {
     scalar po1  = pol[l];
@@ -72,8 +132,8 @@ void advection_de  (scalar * qol, scalar * pol,
     /* jacobian_de(pp1, po2, jac1, 0., po1, pp1, dt); // -J(pp_l, p_l+1) */
     jacobian(pp1, po2, jac1, 0.); // -J(pp_l, p_l+1)
   }
- combine_jac(tmpl, de_j2l, 1., 0., 1.);
- combine_jac(tmpl, de_j3l, 1., 1., 0.);
+ combine_jac_de(tmpl, de_j2l, 1., 0., 1., pol);
+ combine_jac_de(tmpl, de_j3l, 1., 1., 0., pol);
 
 
    for (int l = 0; l < nl-1 ; l++) {
@@ -84,21 +144,8 @@ void advection_de  (scalar * qol, scalar * pol,
     /* jacobian_de(po1, pp2, jac1, 0., po1, pp1, dt); // -J(p_l, pp_l+1) */
     jacobian(po1, pp2, jac1, 0.); // -J(p_l, pp_l+1)
   }
- combine_jac(tmpl, de_j2l, 1., 1., 0.);
- combine_jac(tmpl, de_j3l, 1., 0., 1.);
-
- foreach()
-   for (int l = 0; l < nl ; l++) {
-     scalar de_j1 = de_j1l[l];
-     scalar de_j2 = de_j2l[l];
-     scalar de_j3 = de_j3l[l];
-     scalar po_r  = pol[l];
-     scalar pp_r  = ppl[l];
-
-     de_j1[] *=  (-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
-     de_j2[] *=  (-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
-     de_j3[] *=  (-po_r[]-ediag*pp_r[])*Ro[]*dt*Ro[];
-   }
+ combine_jac_de(tmpl, de_j2l, 1., 1., 0., pol);
+ combine_jac_de(tmpl, de_j3l, 1., 0., 1., pol);
 }
 
 
@@ -115,7 +162,7 @@ void dissip_de  (scalar * zetal, scalar * dqol, scalar * pol, double dt)
       scalar p4 = tmpl[l];
       scalar po = pol[l];
       scalar pp  = ppl[l];
-      dqo[] += p4[]*iRe*po[]*Ro[]*dt*Ro[];
+      dqo[] += p4[]*iRe*(-po[]-ediag*pp[])*Ro[]*dt*Ro[];
       dqo[] += iRe4*(p4[1] + p4[-1] + p4[0,1] + p4[0,-1] - 4*p4[])/(sq(Delta))
         *(-po[]-ediag*pp[])*Ro[]*dt*Ro[];
     }
@@ -144,7 +191,7 @@ void filter_de (scalar * qol, scalar * pol, scalar * de_ftl)
       scalar tmp = tmp2l[l];
       scalar po = pol[l];
       scalar pp   = ppl[l];
-      de_ft[] += tmp[]*(-po[]-ediag*pp[])*Ro[]*Ro[];
+      de_ft[] += tmp[]*(-po[]-ediag*pp[])*Ro[]*dt*Ro[];
     }
 }
 
@@ -157,6 +204,19 @@ void energy_tend (scalar * pol, double dt)
   if (dtflt > 0) {
     filter_de (qol, pol, de_ftl);
   }
+
+  // temporary
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar qo1 = qol[l];
+      scalar qo0 = qol_prev[l];
+      scalar po = pol[l];
+      scalar pp   = ppl[l];
+      scalar de_to = de_tol[l];
+      de_to[] += (qo1[] - qo0[])/dt*(-po[]-ediag*pp[])*Ro[]*dt*Ro[];
+      qo0[] = qo1[];
+    }
+
 }
 
 void set_vars_energy(){
@@ -167,6 +227,10 @@ void set_vars_energy(){
   de_j3l = create_layer_var(de_j3l,nl);
   de_ftl = create_layer_var(de_ftl,nl);
   tmp2l  = create_layer_var(tmp2l, nl);
+  // temporary
+  qol_prev  = create_layer_var(qol_prev, nl);
+  de_tol = create_layer_var(de_tol,nl);
+
 }
 
 void trash_vars_energy(){
@@ -177,6 +241,9 @@ void trash_vars_energy(){
   free(de_j3l), de_j3l = NULL;
   free(de_ftl), de_ftl = NULL;
   free(tmp2l), tmp2l = NULL;
+  // temporary
+  free(qol_prev), qol_prev = NULL;
+  free(de_tol), de_tol = NULL;
 }
 
 event defaults (i = 0){

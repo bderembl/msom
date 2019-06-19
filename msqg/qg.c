@@ -42,6 +42,7 @@ int main() {
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
+      else if (strcmp(tmps1,"RoC")  ==0) { RoC   = atof(tmps2); }
       else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
@@ -115,16 +116,6 @@ event init (i = 0) {
   fclose(fp);
 
   // copy input fields for backup
-  sprintf (name,"%spsipg_%dl_N%d.bas", dpath, nl,N);
-  fp = fopen (name, "w");
-  output_matrixl (ppl, fp);
-  fclose(fp);
-
-  sprintf (name,"%sfrpg_%dl_N%d.bas", dpath, nl,N);
-  fp = fopen (name, "w");
-  output_matrixl (Frl, fp);
-  fclose(fp);
-
   sprintf (name,"%sdh_%dl.bin", dpath, nl);
   fp = fopen (name, "w");
   fwrite(&dh, sizeof(float), nl, fp);
@@ -155,7 +146,7 @@ event writestdout (i++) {
   foreach(reduction(+:ke))
     ke -= 0.5*po[]*zeta[]*sq(Ro[]*Delta);
 
-  fprintf (stdout,"i = %i, dt = %g, t = %g, ke = %g\n", i, dt, t, ke);
+  fprintf (stdout,"i = %i, dt = %g, t = %g, ke_1 = %g\n", i, dt, t, ke);
 }
 
 /**
@@ -172,6 +163,18 @@ event write_const (t = 0) {
   fp = fopen (name, "w");
   output_matrixl ({sig_filt}, fp);
   fclose(fp);
+
+  // copy input field for backup
+  sprintf (name,"%spsipg_%dl_N%d.bas", dpath, nl,N);
+  fp = fopen (name, "w");
+  output_matrixl (ppl, fp);
+  fclose(fp);
+
+  sprintf (name,"%sfrpg_%dl_N%d.bas", dpath, nl,N);
+  fp = fopen (name, "w");
+  output_matrixl (Frl, fp);
+  fclose(fp);
+
 }
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
@@ -253,6 +256,13 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     output_matrixl (de_ftl, fp);
     fclose(fp);
 
+  // temporary
+    sprintf (name,"%sde_to%09d.bas", dpath, i);
+    fp = fopen (name, "w");
+    output_matrixl (de_tol, fp);
+    fclose(fp);
+
+
     reset_layer_var(de_bfl);
     reset_layer_var(de_vdl);
     reset_layer_var(de_bfl);
@@ -260,6 +270,10 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     reset_layer_var(de_j2l);
     reset_layer_var(de_j3l);
     reset_layer_var(de_ftl);
+
+  // temporary
+    reset_layer_var(de_tol);
+
 
   }
 }

@@ -48,6 +48,8 @@ double Re = 1e1; // reynolds number
 double Re4 = 1e3; // bihormonic reynolds number
 double Ek = 1e-2; // Ekman number
 double Rom = 1e-2; // Mean Rossby number
+double RoC = 0; // 1: constant rossby number, 0: variable rossby number
+double Frm = 1e-2; // Mean Froude number
 double beta = 0.5;
 double tau0 = 0.; // wind stress curl
 double sbc = 0.; // slip BC: 0: free slip (OK), big: no slip (TO BE FINISHED)
@@ -576,7 +578,7 @@ void set_vars()
 
   foreach()
     for (scalar Fr in Frl)
-      Fr[] =  1e-3; 
+      Fr[] =  Frm; 
 
   foreach()
     Ro[] = Rom; 
@@ -608,8 +610,7 @@ event init (i = 0)
   /* foreach() */
   /*   Ro[] = uref/((fref + betad*(y-0.5*L0)*lref)*lref); */
   foreach()
-    Ro[] = Rom/(1 + Rom*beta*(y-0.5*L0));
-
+    Ro[] = RoC*Rom + (1-RoC)*Rom/(1 + Rom*beta*(y-0.5*L0));
 
   /**
      Compute vertical stretching coef matrix
