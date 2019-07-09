@@ -8,8 +8,10 @@ import scipy.io.netcdf as netcdf
 
 plt.ion()
 
-dir0 = "../outdir_0006/"
+dir0 = "../outdir_0017/"
 exec(open(dir0 + "params.in").read())
+
+flag_tmp = 0
 
 filep = 'po*'
 fileq = 'qo*'
@@ -60,11 +62,15 @@ x = np.linspace(0.5*Delta, L0 - 0.5*Delta,N)
 xc,yc = np.meshgrid(x,x)
 
 # physical parameters
-Ro = Rom/(1 + Rom*beta*(yc-0.5*L0));
+if 'RoC' not in locals():
+  RoC = 0
+Ro = RoC*Rom + (1-RoC)*Rom/(1 + Rom*beta*(yc-0.5*L0));
 
 # backgroud state
 upg = -np.gradient(ppg, axis = 1)/Delta*Ro.reshape(1,N,N)
 vpg = np.gradient(ppg, axis = 2)/Delta*Ro.reshape(1,N,N)
+# upg = -np.gradient(ppg, axis = 1)/Delta
+# vpg = np.gradient(ppg, axis = 2)/Delta
 
 kepg = 0.5*(upg**2 + vpg**2)
 
@@ -75,10 +81,11 @@ kepg_s = (kepg*dh.reshape(nl,1,1)).sum()*Delta*Delta
 pepg_s = (pepg*dhi.reshape(nl-1,1,1)).sum()*Delta*Delta
   
 imax = nb_files
-#imax = 5
+#imax = 6
 
 ke_all = np.zeros((imax))
 pe_all = np.zeros((imax))
+kp_all = np.zeros((imax))
 
 ebf_all = np.zeros((imax))
 evd_all = np.zeros((imax))
@@ -112,18 +119,23 @@ for ifi in range(0,imax):
     ej3 = ej3[:,1:,1:]
     eft = eft[:,1:,1:]
 
-    ebf_all[ifi] = (ebf*dh.reshape(nl,1,1)).sum()*Delta*Delta
-    evd_all[ifi] = (evd*dh.reshape(nl,1,1)).sum()*Delta*Delta
-    ej1_all[ifi] = (ej1*dh.reshape(nl,1,1)).sum()*Delta*Delta
-    ej2_all[ifi] = (ej2*dh.reshape(nl,1,1)).sum()*Delta*Delta
-    ej3_all[ifi] = (ej3*dh.reshape(nl,1,1)).sum()*Delta*Delta
-    eft_all[ifi] = (eft*dh.reshape(nl,1,1)).sum()*Delta*Delta
+    ebf_all[ifi] = (ebf*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
+    evd_all[ifi] = (evd*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
+    ej1_all[ifi] = (ej1*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
+    ej2_all[ifi] = (ej2*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
+    ej3_all[ifi] = (ej3*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
+    eft_all[ifi] = (eft*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
 
+  if ediag == 1:
+    pt = p + ppg
+  else:
+    pt = p
 
-  pt = p
-
+  # not exact near boundaries but very convenient
   u = -np.gradient(pt, axis = 1)/Delta*Ro.reshape(1,N,N)
   v = np.gradient(pt, axis = 2)/Delta*Ro.reshape(1,N,N)
+  # u = -np.gradient(pt, axis = 1)/Delta
+  # v = np.gradient(pt, axis = 2)/Delta
     
   ke = 0.5*(u**2 + v**2)
   
@@ -132,22 +144,33 @@ for ifi in range(0,imax):
 
   b = np.diff(pt,1,0)/dhi.reshape(nl-1,1,1)
   pe = 0.5*b**2*Fr[:-1,:,:]**2
+#  pe = 0.5*b**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
   
   ke_all[ifi] = (ke*dh.reshape(nl,1,1)).sum()*Delta*Delta
   pe_all[ifi] = (pe*dhi.reshape(nl-1,1,1)).sum()*Delta*Delta
+
+  kp_all[ifi] = 0.5*(-p*Ro.reshape(1,N,N)*q*dh.reshape(nl,1,1)).sum()*Delta*Delta
+  # kp_all[ifi] = 0.5*(-p*q*dh.reshape(nl,1,1)).sum()*Delta*Delta
   
 tt = np.linspace(0,imax-1,imax)*dtout
 
 pe_all = pe_all - pe_all[0]
+ke_all = ke_all - ke_all[0]
+kp_all = kp_all - kp_all[0]
 
 dedt = np.diff(pe_all + ke_all )/dtout
+
+dedt_sum = ebf_all + evd_all + ej1_all + ej2_all + ej3_all + eft_all
 
 plt.figure()
 plt.plot(tt,ke_all, label= 'KE')
 plt.plot(tt,pe_all, label= 'PE')
+plt.plot(tt,ke_all + pe_all, label= 'PE+Ke')
+plt.plot(tt,kp_all, label= 'qp')
 
 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
+plt.grid()
 plt.xlabel("time")
 plt.ylabel("E")
 plt.legend()
@@ -158,13 +181,23 @@ plt.plot(tt, evd_all, label= 'vd')
 plt.plot(tt, ej1_all, label= 'j1')
 plt.plot(tt, ej2_all, label= 'j2')
 plt.plot(tt, ej3_all, label= 'j3')
-#plt.plot(tt, eft_all, label= 'ft')
-#plt.plot((tt[:-1] + 0.5*dtout),dedt,label='dE/dt')
+plt.plot(tt, eft_all, label= 'ft')
 
 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
+plt.grid()
 plt.xlabel("time")
 plt.ylabel("E")
+plt.legend()
+
+plt.figure()
+plt.plot(tt[1:], dedt_sum[1:], label= 'sum')
+plt.plot(tt[1:],dedt,label='dE/dt')
+plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+
+plt.grid()
+plt.xlabel("time")
+plt.ylabel("dE/dt")
 plt.legend()
 
 

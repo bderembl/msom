@@ -463,7 +463,7 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
       qof[] = (qof[]*nbar + (tmp[] - qo[])/dtflt)/(nbar+1);
       //qof[] = (tmp[] - qo[]);
     }
-
+  // for energy diag: restore qo to prefiltered value
   if (dtflt == -1.0){
     list_copy_deep (tmpl, qol);
   }

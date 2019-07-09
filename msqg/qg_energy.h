@@ -13,10 +13,13 @@ scalar * de_j3l = NULL;
 scalar * de_ftl = NULL;
 scalar * tmp2l = NULL;
 
+scalar * po_mft = NULL;
+
 // temporary
 scalar * qol_prev = NULL;
 scalar * de_tol = NULL;
 
+int nme_ft = 0;
 
 trace
 void combine_jac_de(scalar * jac1l, scalar * jacal, double add,
@@ -72,6 +75,66 @@ void combine_jac_de(scalar * jac1l, scalar * jacal, double add,
     }
   }
 }
+
+trace
+void comp_part_stretch_de(scalar * pol, scalar * stretchl, double add, double fac)
+{
+
+  foreach() {
+
+    if (nl > 1){
+      // upper layer
+      int l = 0;
+      scalar po_1 = pol[l];
+      scalar po_2 = pol[l+1];
+      scalar stretch = stretchl[l];
+      scalar Fr1 = Frl[l];
+      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+
+      stretch[] = add*stretch[] - fac*b1*po_1[] ;
+
+      // intermediate layers
+      for (int l = 1; l < nl-1 ; l++) {
+       
+        scalar po_0 = pol[l-1];
+        scalar po_1 = pol[l];
+        scalar po_2 = pol[l+1];
+        scalar stretch = stretchl[l];
+        
+        scalar Fr0 = Frl[l-1];
+        scalar Fr1 = Frl[l];
+        
+        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+
+        stretch[] = add*stretch[] - fac*(b0 + b1)*po_1[] ;
+
+      }
+      // lower layer
+      l = nl-1;
+      scalar po_0 = pol[l-1];
+      po_1 = pol[l];
+      stretch = stretchl[l];
+      scalar Fr0 = Frl[l-1];
+      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+
+      stretch[] = add*stretch[] - fac*b0*po_1[] ;
+
+    }
+    else{
+      scalar stretch = stretchl[0];
+      stretch[] = 0.;
+    }
+  }
+
+  boundary(stretchl);
+}
+
+
+
+
+
+
 
 trace
 void jacobian_de(scalar po, scalar qo, scalar jac, double add,
@@ -146,6 +209,18 @@ void advection_de  (scalar * qol, scalar * pol,
   }
  combine_jac_de(tmpl, de_j2l, 1., 1., 0., pol);
  combine_jac_de(tmpl, de_j3l, 1., 0., 1., pol);
+
+   for (int l = 0; l < nl ; l++) {
+    scalar po1  = pol[l];
+    scalar pp1  = ppl[l];
+    scalar jac1 = tmpl[l];
+    /* jacobian_de(pp1, po2, jac1, 0., po1, pp1, dt); // -J(pp_l, p_l+1) */
+    jacobian_de(po1, pp1, jac1, 0., po1, pp1, dt); // -J(p_l, pp_l)
+  }
+   // add and subtract J(p,pp) in j2 and j3
+   comp_part_stretch_de(tmpl, de_j3l, 1.,  1.);
+   comp_part_stretch_de(tmpl, de_j2l, 1., -1.);
+
 }
 
 
@@ -184,15 +259,22 @@ void bottom_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt)
 trace
 void filter_de (scalar * qol, scalar * pol, scalar * de_ftl)
 {
-  wavelet_filter(qol, pol, tmp2l, -1.0, 0);
+  // use tmp2 here because tmp is used in wavelet_filter
+  int nbar = 0;
+  wavelet_filter(qol, pol, tmp2l, -1.0, nbar);
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar de_ft = de_ftl[l];
       scalar tmp = tmp2l[l];
       scalar po = pol[l];
       scalar pp   = ppl[l];
-      de_ft[] += tmp[]*(-po[]-ediag*pp[])*Ro[]*dt*Ro[];
+      scalar pm = po_mft[l];
+      // no mutliplication by dt here
+      //de_ft[] += tmp[]*(-po[]-ediag*pp[])*Ro[]*Ro[];
+      de_ft[] += tmp[]*(-pm[]-ediag*pp[])*Ro[]*Ro[];
+      pm[] = 0;
     }
+  nme_ft = 0;
 }
 
 void energy_tend (scalar * pol, double dt)
@@ -201,9 +283,16 @@ void energy_tend (scalar * pol, double dt)
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt);
   dissip_de(zetal, de_vdl, pol, dt);
   bottom_friction_de(zetal, de_bfl, pol, dt);
-  if (dtflt > 0) {
-    filter_de (qol, pol, de_ftl);
-  }
+  // filter part in qg.c
+
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar po = pol[l];
+      scalar pm = po_mft[l];
+      pm[] = (pm[]*nme_ft + po[])/(nme_ft+1);
+    }
+  nme_ft += 1;
+
 
   // temporary
   foreach()
@@ -227,6 +316,7 @@ void set_vars_energy(){
   de_j3l = create_layer_var(de_j3l,nl);
   de_ftl = create_layer_var(de_ftl,nl);
   tmp2l  = create_layer_var(tmp2l, nl);
+  po_mft = create_layer_var(po_mft, nl);
   // temporary
   qol_prev  = create_layer_var(qol_prev, nl);
   de_tol = create_layer_var(de_tol,nl);
@@ -241,6 +331,7 @@ void trash_vars_energy(){
   free(de_j3l), de_j3l = NULL;
   free(de_ftl), de_ftl = NULL;
   free(tmp2l), tmp2l = NULL;
+  free(po_mft), po_mft = NULL;
   // temporary
   free(qol_prev), qol_prev = NULL;
   free(de_tol), de_tol = NULL;

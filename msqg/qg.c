@@ -135,6 +135,8 @@ event init (i = 0) {
 
 event filter (t = 0; t <= tend+1e-10;  t += dtflt) {
   fprintf(stdout,"Filter solution\n");
+  if (ediag>-1) 
+    filter_de (qol, pol, de_ftl);
   wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
 
@@ -262,7 +264,6 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     output_matrixl (de_tol, fp);
     fclose(fp);
 
-
     reset_layer_var(de_bfl);
     reset_layer_var(de_vdl);
     reset_layer_var(de_bfl);
@@ -273,8 +274,6 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
 
   // temporary
     reset_layer_var(de_tol);
-
-
   }
 }
 
