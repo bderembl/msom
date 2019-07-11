@@ -272,7 +272,7 @@ void comp_vel(const scalar po, face vector uf)
 
   struct { double x, y; } f = {-1.,1.};
   foreach_face() {
-    uf.x[] = f.x*Ro[]*(po[] - po[0,-1])/(Delta);
+    uf.x[] = f.x*(po[] - po[0,-1])/(Delta);
   }
 }
 
@@ -295,7 +295,7 @@ void jacobian(scalar po, scalar qo, scalar jac, double add)
      - po[0 ,-1]*( qo[1,-1] - qo[-1,-1])
      - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ])
      + po[-1, 0]*( qo[-1,1] - qo[-1,-1]))
-    *Ro[]/(12.*Delta*Delta);
+    /(12.*Delta*Delta);
 }
 
 /**

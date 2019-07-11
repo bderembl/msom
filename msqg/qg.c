@@ -110,6 +110,11 @@ event init (i = 0) {
   input_matrixl (ppl, fp);
   fclose(fp);
 
+  foreach()
+    for (scalar pp in ppl) 
+      pp[] = pp[]*Ro[];
+  boundary(ppl);  
+
   sprintf (name,"frpg_%dl_N%d.bas", nl,N);
   fp = fopen (name, "r");
   input_matrixl (Frl, fp);
@@ -146,7 +151,7 @@ event writestdout (i++) {
   scalar zeta = zetal[0];
   double ke = 0;
   foreach(reduction(+:ke))
-    ke -= 0.5*po[]*zeta[]*sq(Ro[]*Delta);
+    ke -= 0.5*po[]*zeta[]*sq(Delta);
 
   fprintf (stdout,"i = %i, dt = %g, t = %g, ke_1 = %g\n", i, dt, t, ke);
 }
@@ -166,11 +171,24 @@ event write_const (t = 0) {
   output_matrixl ({sig_filt}, fp);
   fclose(fp);
 
+  foreach()
+    for (scalar pp in ppl)
+      pp[] = pp[]/Ro[];
+  boundary(ppl);  
+
+
   // copy input field for backup
   sprintf (name,"%spsipg_%dl_N%d.bas", dpath, nl,N);
   fp = fopen (name, "w");
   output_matrixl (ppl, fp);
   fclose(fp);
+
+  foreach()
+    for (scalar pp in ppl) 
+      pp[] = pp[]*Ro[];
+  boundary(ppl);  
+
+
 
   sprintf (name,"%sfrpg_%dl_N%d.bas", dpath, nl,N);
   fp = fopen (name, "w");
@@ -188,9 +206,9 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /**
    Rescale qo*/
   foreach()
-    for (scalar qo in qol) 
-      qo[] = qo[]*Ro[];
-  boundary(qol);  
+    for (scalar po in pol) 
+      po[] = po[]/Ro[];
+  boundary(pol);  
 
   char name[80];
   sprintf (name,"%spo%09d.bas", dpath, i);
@@ -214,9 +232,9 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /**
    Rescale qo*/
   foreach()
-    for (scalar qo in qol)
-      qo[] = qo[]/Ro[];
-  boundary(qol);
+    for (scalar po in pol)
+      po[] = po[]*Ro[];
+  boundary(pol);
 
 
   /* scalar l[]; */
