@@ -8,7 +8,7 @@ import scipy.io.netcdf as netcdf
 
 plt.ion()
 
-dir0 = "../outdir_0017/"
+dir0 = "../outdir_0009/"
 exec(open(dir0 + "params.in").read())
 
 flag_tmp = 0

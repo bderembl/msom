@@ -10,7 +10,7 @@ L0 = 100
 
 # physical parameters
 Rom   = 0.025
-Ek    = 1.0
+Ek    = 0.01
 Re    = 50.
 Re4   = 500.
 beta  = 0.5
@@ -25,4 +25,4 @@ dtflt = 0.5
 CFL   = 0.6
 
 # misc
-ediag = 1
+ediag = 0
