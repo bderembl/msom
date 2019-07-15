@@ -86,7 +86,8 @@ thc = 0.5*(th[:-1] + th[1:])
 
 
 fr = fr[:,1:,1:]
-psib = po[:,1:,1:]*u_qg*u_qg
+psib = po[:,1:,1:]*u_qg*l_qg
+#psib = po[:,1:,1:]*u_qg*u_qg/f0
 
 gp = 1/fr[:-1,:,:]**2*u_qg**2/H**2*thc.reshape(nl-1,1,1)
 
@@ -109,8 +110,10 @@ if flag_test2lay:
   u3 =  0.01
   du = u2-u1
 
-  psib[0,:,:] = -u1*yc*L*f0
-  psib[1,:,:] = -u2*yc*L*f0
+  #psib[0,:,:] = -u1*yc*L*f0
+  #psib[1,:,:] = -u2*yc*L*f0
+  psib[0,:,:] = -u1*yc*L
+  psib[1,:,:] = -u2*yc*L
   # #psib[2,:,:] = -u3*yg
   # #psib[3:,:,:] = 0.001*yg
   
@@ -124,8 +127,10 @@ dpsibdy = dpsibdy/Deltad
 dpsibdx = dpsibdx/Deltad
 
 for nz in range(0,nl):
-  dpsibdy[nz,:,:] = dpsibdy[nz,:,:]/f0
-  dpsibdx[nz,:,:] = dpsibdx[nz,:,:]/f0
+  #dpsibdy[nz,:,:] = dpsibdy[nz,:,:]/f0
+  #dpsibdx[nz,:,:] = dpsibdx[nz,:,:]/f0
+  dpsibdy[nz,:,:] = dpsibdy[nz,:,:]
+  dpsibdx[nz,:,:] = dpsibdx[nz,:,:]
   
 dqbdy = np.zeros((nl,N,N))
 dqbdx = np.zeros((nl,N,N))
@@ -140,7 +145,8 @@ if flag_gradqbar == 1:
   for nx in range(0,N):
     for ny in range(0,N):
       mata = def_radius.construct_mat(th,gp[:,ny,nx],f0[ny,nx])
-      qbar[:,ny,nx] = -np.dot(mata,psib[:,ny,nx])/f0[ny,nx]
+      #qbar[:,ny,nx] = -np.dot(mata,psib[:,ny,nx])/f0[ny,nx]
+      qbar[:,ny,nx] = -np.dot(mata,psib[:,ny,nx])
   
   
   aux,dqbdy,dqbdx = np.gradient(qbar)

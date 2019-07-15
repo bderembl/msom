@@ -148,8 +148,10 @@ m2lt.astype('f4').tofile('m2lt.bin')
 psi_ls = np.zeros((nlt,N1,N1))
 # compute large scale stream function
 for n2 in range(0,nlt):
-  fu = f0*Us*ut[n2,:,:] 
-  fv = f0*Us*vt[n2,:,:] 
+  #fu = f0*Us*ut[n2,:,:] 
+  #fv = f0*Us*vt[n2,:,:] 
+  fu = Us*ut[n2,:,:] 
+  fv = Us*vt[n2,:,:] 
   zeta = (fv[1:,1:] - fv[1:,:-1] - fu[1:,1:] + fu[:-1,1:])/Deltad
   psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta)
 
@@ -208,7 +210,7 @@ plt.plot(b_proj,z,'r')
 plt.plot(b_proj2,z,'b')
 
 # adim
-psi_ls_a = psi_ls/u_qg**2
+psi_ls_a = psi_ls/(l_qg*u_qg)
 gpt_a    = gpt*l_qg/u_qg**2
 dzt_a    = dzt/l_qg
 Fr = u_qg/(np.sqrt(N2lt)*H)
