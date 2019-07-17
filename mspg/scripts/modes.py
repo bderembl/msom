@@ -224,7 +224,8 @@ psi_ls_o[:,:,0] = 0
 psi_ls_o[:,0,0] = N
 psi_ls_o = np.transpose(psi_ls_o,(0,2,1))
 
-psi_ls_o.astype('f4').tofile('psipg.bas')
+fileppg = 'psipg_' + str(nlt) +'l.bas'
+psi_ls_o.astype('f4').tofile(fileppg)
 
 Fr_o = np.zeros((nlt,N1,N1))
 Fr_o[:-1,1:,1:] = Fr
@@ -232,20 +233,26 @@ Fr_o[:,0,:] = 0
 Fr_o[:,:,0] = 0
 Fr_o[:,0,0] = N
 Fr_o = np.transpose(Fr_o,(0,2,1))
-Fr_o.astype('f4').tofile('frpg.bas')
+fileFr = 'frpg_' + str(nlt) +'l.bas'
+Fr_o.astype('f4').tofile(fileFr)
 
-gp_o = np.zeros((nlt,N1,N1))
-gp_o[:-1,1:,1:] = gpt_a
-gp_o[:,0,:] = 0
-gp_o[:,:,0] = 0
-gp_o[:,0,0] = N
-gp_o = np.transpose(gp_o,(0,2,1))
-gp_o.astype('f4').tofile('gppg.bas')
+# gp_o = np.zeros((nlt,N1,N1))
+# gp_o[:-1,1:,1:] = gpt_a
+# gp_o[:,0,:] = 0
+# gp_o[:,:,0] = 0
+# gp_o[:,0,0] = N
+# gp_o = np.transpose(gp_o,(0,2,1))
+# gp_o.astype('f4').tofile('gppg.bas')
 
 
 plt.figure()
 plt.contourf(xc,yc,psi_ls_o[0,1:,1:].T,20)
 plt.colorbar()
 
+fileh = 'dh_' + str(nlt) +'l.bin'
 #dzt_a.astype('f4').tofile('dh_old.bin')
-dht_a.astype('f4').tofile('dh.bin')
+dht_a.astype('f4').tofile(fileh)
+
+plt.figure()
+plt.contourf(xc,yc,ut[0,:,:],20)
+plt.colorbar()

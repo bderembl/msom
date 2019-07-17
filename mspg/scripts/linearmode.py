@@ -17,9 +17,11 @@ matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 
 
-filepsi = 'psipg.bas'
-filefr  = 'frpg.bas'
-fileh   = 'dh.bin'
+nl = 4
+
+filefr = 'frpg_' + str(nl) +'l.bas'
+filepsi = 'psipg_' + str(nl) +'l.bas'
+fileh = 'dh_' + str(nl) +'l.bin'
 
 file2 = 'stability_data_4.npy'
 
@@ -44,7 +46,7 @@ else:
 b = np.fromfile(filepsi,'f4')
 N = int(b[0])
 N1 = N + 1
-nl = int(len(b)/N1**2)
+#nl = int(len(b)/N1**2)
 
 # PG scales
 L = 5000e3  # m
