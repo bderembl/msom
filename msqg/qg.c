@@ -182,8 +182,7 @@ event write_const (t = 0) {
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
 
-  if (t == 0)
-    invertq(pol,qol);
+  invertq(pol,qol);
 
   char name[80];
   sprintf (name,"%spo%09d.bas", dpath, i);

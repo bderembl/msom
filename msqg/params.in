@@ -10,7 +10,7 @@ L0 = 100
 
 # physical parameters
 Rom   = 0.025
-Ek    = 0.01
+Ek    = 0.05
 Re    = 50.
 Re4   = 500.
 beta  = 0.5
