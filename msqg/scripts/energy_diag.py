@@ -8,7 +8,7 @@ import scipy.io.netcdf as netcdf
 
 plt.ion()
 
-dir0 = "../outdir_0009/"
+dir0 = "../outdir_0015/"
 exec(open(dir0 + "params.in").read())
 
 flag_tmp = 0
@@ -66,22 +66,26 @@ if 'RoC' not in locals():
   RoC = 0
 Ro = RoC*Rom + (1-RoC)*Rom/(1 + Rom*beta*(yc-0.5*L0));
 
+# new eq
+#ppg = ppg*Ro.reshape(1,N,N)
+
 # backgroud state
-upg = -np.gradient(ppg, axis = 1)/Delta*Ro.reshape(1,N,N)
-vpg = np.gradient(ppg, axis = 2)/Delta*Ro.reshape(1,N,N)
-# upg = -np.gradient(ppg, axis = 1)/Delta
-# vpg = np.gradient(ppg, axis = 2)/Delta
+#upg = -np.gradient(ppg, axis = 1)/Delta*Ro.reshape(1,N,N)
+#vpg = np.gradient(ppg, axis = 2)/Delta*Ro.reshape(1,N,N)
+upg = -np.gradient(ppg, axis = 1)/Delta
+vpg = np.gradient(ppg, axis = 2)/Delta
 
 kepg = 0.5*(upg**2 + vpg**2)
 
 bpg = np.diff(ppg,1,0)/dhi.reshape(nl-1,1,1)
-pepg = 0.5*bpg**2*Fr[:-1,:,:]**2
+#pepg = 0.5*bpg**2*Fr[:-1,:,:]**2
+pepg = 0.5*bpg**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
 
 kepg_s = (kepg*dh.reshape(nl,1,1)).sum()*Delta*Delta
 pepg_s = (pepg*dhi.reshape(nl-1,1,1)).sum()*Delta*Delta
   
 imax = nb_files
-#imax = 6
+#imax = 150
 
 ke_all = np.zeros((imax))
 pe_all = np.zeros((imax))
@@ -103,6 +107,10 @@ for ifi in range(0,imax):
   p  = p [:,1:,1:]
   q  = q [:,1:,1:]
   pf = pf[:,1:,1:]
+
+  # new eq
+  #p = p*Ro.reshape(1,N,N)
+
 
   if len(allfilesbf) > 0:
     ebf = np.fromfile(allfilesbf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
@@ -132,10 +140,10 @@ for ifi in range(0,imax):
     pt = p
 
   # not exact near boundaries but very convenient
-  u = -np.gradient(pt, axis = 1)/Delta*Ro.reshape(1,N,N)
-  v = np.gradient(pt, axis = 2)/Delta*Ro.reshape(1,N,N)
-  # u = -np.gradient(pt, axis = 1)/Delta
-  # v = np.gradient(pt, axis = 2)/Delta
+  #u = -np.gradient(pt, axis = 1)/Delta*Ro.reshape(1,N,N)
+  #v = np.gradient(pt, axis = 2)/Delta*Ro.reshape(1,N,N)
+  u = -np.gradient(pt, axis = 1)/Delta
+  v = np.gradient(pt, axis = 2)/Delta
     
   ke = 0.5*(u**2 + v**2)
   
@@ -143,14 +151,14 @@ for ifi in range(0,imax):
 
 
   b = np.diff(pt,1,0)/dhi.reshape(nl-1,1,1)
-  pe = 0.5*b**2*Fr[:-1,:,:]**2
-#  pe = 0.5*b**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
+  #pe = 0.5*b**2*Fr[:-1,:,:]**2
+  pe = 0.5*b**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
   
   ke_all[ifi] = (ke*dh.reshape(nl,1,1)).sum()*Delta*Delta
   pe_all[ifi] = (pe*dhi.reshape(nl-1,1,1)).sum()*Delta*Delta
 
-  kp_all[ifi] = 0.5*(-p*Ro.reshape(1,N,N)*q*dh.reshape(nl,1,1)).sum()*Delta*Delta
-  # kp_all[ifi] = 0.5*(-p*q*dh.reshape(nl,1,1)).sum()*Delta*Delta
+  #kp_all[ifi] = 0.5*(-p*Ro.reshape(1,N,N)*q*dh.reshape(nl,1,1)).sum()*Delta*Delta
+  kp_all[ifi] = 0.5*(-p*q*dh.reshape(nl,1,1)).sum()*Delta*Delta
   
 tt = np.linspace(0,imax-1,imax)*dtout
 
@@ -200,6 +208,8 @@ plt.xlabel("time")
 plt.ylabel("dE/dt")
 plt.legend()
 
-
+n2 = len(ebf_all)//2
 print("Background PE = {0:.1e}".format(pepg_s))
 print("Background KE = {0:.1e}".format(kepg_s))
+print("ave bf = {0:.1e}, vd ={1:.1e}, j1 = {2:.1e}, j2 = {3:.1e}, j3 = {4:.1e}, ft = {5:.1e}".format(ebf_all[n2:].mean(), evd_all[n2:].mean(), ej1_all[n2:].mean(), ej2_all[n2:].mean(), ej3_all[n2:].mean(), eft_all[n2:].mean()))
+print("std bf = {0:.1e}, vd ={1:.1e}, j1 = {2:.1e}, j2 = {3:.1e}, j3 = {4:.1e}, ft = {5:.1e}".format(ebf_all[n2:].std(), evd_all[n2:].std(), ej1_all[n2:].std(), ej2_all[n2:].std(), ej3_all[n2:].std(), eft_all[n2:].std()))
