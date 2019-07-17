@@ -30,7 +30,7 @@ $$
 double tau0 = 0.12;
 
 double taux   (double x, double y){ return (tau0*sin(2*(y-ys)*pi));}
-double taux_y (double x, double y){ return (2*pi*tau0*cos(2*(y-ys)*pi));}
+double taux_y (double x, double y){ return (2*pi*tau0*y*cos(2*(y-ys)*pi));}
 /* double taux   (double x, double y){ return (0.);} */
 /* double taux_y (double x, double y){ return (0.);} */
 double tauy   (double x, double y){ return (0.);}
@@ -53,7 +53,7 @@ int main() {
      friction is $r^* = r \beta L $. tau_surf is the surface
      relaxation time scale. */
 
-  a = sqrt(3.0e-2/k(0,0,0)); 
+  a = sqrt(2.0e-2/k(0,0,0)); 
   r = 0.02; 
   tau_surf = 3.0e-2;
 
