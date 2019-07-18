@@ -8,7 +8,7 @@ import scipy.io.netcdf as netcdf
 
 plt.ion()
 
-dir0 = "../outdir_0015/"
+dir0 = "../outdir_0017/"
 exec(open(dir0 + "params.in").read())
 
 flag_tmp = 0
@@ -127,12 +127,12 @@ for ifi in range(0,imax):
     ej3 = ej3[:,1:,1:]
     eft = eft[:,1:,1:]
 
-    ebf_all[ifi] = (ebf*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
-    evd_all[ifi] = (evd*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
-    ej1_all[ifi] = (ej1*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
-    ej2_all[ifi] = (ej2*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
-    ej3_all[ifi] = (ej3*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
-    eft_all[ifi] = (eft*dh.reshape(nl,1,1)).sum()*Delta*Delta/dtout
+    ebf_all[ifi] = (ebf*dh.reshape(nl,1,1)).sum()*Delta*Delta#/dtout
+    evd_all[ifi] = (evd*dh.reshape(nl,1,1)).sum()*Delta*Delta#/dtout
+    ej1_all[ifi] = (ej1*dh.reshape(nl,1,1)).sum()*Delta*Delta#/dtout
+    ej2_all[ifi] = (ej2*dh.reshape(nl,1,1)).sum()*Delta*Delta#/dtout
+    ej3_all[ifi] = (ej3*dh.reshape(nl,1,1)).sum()*Delta*Delta#/dtout
+    eft_all[ifi] = (eft*dh.reshape(nl,1,1)).sum()*Delta*Delta#/dtout
 
   if ediag == 1:
     pt = p + ppg
