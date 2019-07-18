@@ -309,17 +309,17 @@ void energy_tend (scalar * pol, double dt)
 }
 
 void set_vars_energy(){
-  de_bfl = create_layer_var(de_bfl,nl);
-  de_vdl = create_layer_var(de_vdl,nl);
-  de_j1l = create_layer_var(de_j1l,nl);
-  de_j2l = create_layer_var(de_j2l,nl);
-  de_j3l = create_layer_var(de_j3l,nl);
-  de_ftl = create_layer_var(de_ftl,nl);
-  tmp2l  = create_layer_var(tmp2l, nl);
-  po_mft = create_layer_var(po_mft, nl);
+  de_bfl = create_layer_var(de_bfl,nl,0);
+  de_vdl = create_layer_var(de_vdl,nl,0);
+  de_j1l = create_layer_var(de_j1l,nl,0);
+  de_j2l = create_layer_var(de_j2l,nl,0);
+  de_j3l = create_layer_var(de_j3l,nl,0);
+  de_ftl = create_layer_var(de_ftl,nl,0);
+  tmp2l  = create_layer_var(tmp2l, nl,0);
+  po_mft = create_layer_var(po_mft, nl,0);
   // temporary
-  qol_prev  = create_layer_var(qol_prev, nl);
-  de_tol = create_layer_var(de_tol,nl);
+  qol_prev  = create_layer_var(qol_prev, nl,0);
+  de_tol = create_layer_var(de_tol,nl,0);
 
 }
 

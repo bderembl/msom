@@ -61,6 +61,8 @@ double dtout = 1; // Delat T output
 int nbar = 0;
 int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 
+char dpath[80]; // name of output dir
+
 #include "eigmode.h"
 
 trace
@@ -511,7 +513,7 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
    ## Layerered variables initialization, etc
 */
 
-scalar * create_layer_var (scalar * psil, int nl)
+scalar * create_layer_var (scalar * psil, int nl, int bc_type)
 {
   assert (psil == NULL);
   assert (nl > 0);
@@ -520,10 +522,12 @@ scalar * create_layer_var (scalar * psil, int nl)
     scalar po = new scalar;
     psil = list_append (psil, po);
     
-    po[right]  = dirichlet(0);
-    po[left]   = dirichlet(0);
-    po[top]    = dirichlet(0);
-    po[bottom] = dirichlet(0);
+    if (bc_type == 0){
+      po[right]  = dirichlet(0);
+      po[left]   = dirichlet(0);
+      po[top]    = dirichlet(0);
+      po[bottom] = dirichlet(0);
+    }
   }
 
   foreach() 
@@ -540,28 +544,28 @@ void reset_layer_var(scalar *psil)
 
 void set_vars()
 {
-  pol   = create_layer_var(pol,nl);
-  qol   = create_layer_var(qol,nl);
-  ppl   = create_layer_var(ppl,nl);
-  zetal = create_layer_var(zetal,nl);
-  tmpl  = create_layer_var(tmpl,nl);
-  Frl   = create_layer_var(Frl,nl);
-  iBul  = create_layer_var(iBul,nl);
-  str0l = create_layer_var(str0l,nl);
-  str1l = create_layer_var(str1l,nl);
-  qofl  = create_layer_var(qofl,nl);
+  pol   = create_layer_var(pol,nl,0);
+  qol   = create_layer_var(qol,nl,0);
+  ppl   = create_layer_var(ppl,nl,0);
+  zetal = create_layer_var(zetal,nl,0);
+  tmpl  = create_layer_var(tmpl,nl,0);
+  Frl   = create_layer_var(Frl,nl,1);
+  iBul  = create_layer_var(iBul,nl,1);
+  str0l = create_layer_var(str0l,nl,1);
+  str1l = create_layer_var(str1l,nl,1);
+  qofl  = create_layer_var(qofl,nl,0);
 //  create_layer_var(qosl,nl);
 #if MODE_PV_INVERT
-  pom = create_layer_var(pom,nl);
-  qom = create_layer_var(qom,nl);
+  pom = create_layer_var(pom,nl,0);
+  qom = create_layer_var(qom,nl,0);
 #endif
 
   /**
      Mode to layer inversion matrices (dimesnion: $nl^2$)
   */
   int nl2 = nl*nl;
-  cl2m = create_layer_var(cl2m,nl2);
-  cm2l = create_layer_var(cm2l,nl2);
+  cl2m = create_layer_var(cl2m,nl2,1);
+  cm2l = create_layer_var(cm2l,nl2,1);
 
   evolving = qol;
     
@@ -611,6 +615,12 @@ event init (i = 0)
   /*   Ro[] = uref/((fref + betad*(y-0.5*L0)*lref)*lref); */
   foreach()
     Ro[] = RoC*Rom + (1-RoC)*Rom/(1 + Rom*beta*(y-0.5*L0));
+
+  /* foreach()  */
+  /*   for (int l = 0; l < nl ; l++) { */
+  /*     scalar pp  = ppl[l]; */
+  /*     pp[] = pp[]*Ro[]; */
+  /*   } */
 
   /**
      Compute vertical stretching coef matrix
@@ -689,6 +699,23 @@ event init (i = 0)
   /**
      BC for all fields */
   boundary (all);
+}
+
+
+void write_field(scalar *psil, char name[], double rescale){
+
+  int nl1 = list_len (psil);
+
+  if (rescale != 0)
+    foreach()
+      for (int l = 0; l < nl1 ; l++) {
+        scalar psi  = psil[l];
+        psi[] *= rescale;
+      }
+  
+  FILE * fp = fopen (name, "w");
+  output_matrixl (psil, fp);
+  fclose(fp);
 }
 
 /**

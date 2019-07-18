@@ -15,13 +15,12 @@ mpirun -np 16 ./qg.e
 */
 
 #include "grid/multigrid.h"
-#include "qg.h"
 #include "auxiliar_input.h"
+#include "qg.h"
 
 // for mkdir
 #include <sys/stat.h>
 #include <sys/types.h>
-char dpath[80]; // name of output dir
 
 int main() {
 
@@ -67,6 +66,10 @@ int main() {
 
   char ch;
   char name[80];
+@if _MPI 
+  sprintf(dpath, "outdir_%04d/", 1);
+  int res = mkdir(dpath, 0777);
+@else
   for (int i=1; i<10000; i++) {
     sprintf(dpath, "outdir_%04d/", i);
     if (mkdir(dpath, 0777) == 0) {
@@ -74,6 +77,7 @@ int main() {
       break;
     }
   }
+@endif
 
   sprintf (name,"%sparams.in", dpath);
   FILE * source = fopen("params.in", "r");
@@ -186,20 +190,14 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
 
   char name[80];
   sprintf (name,"%spo%09d.bas", dpath, i);
-  FILE * fp = fopen (name, "w");
-  output_matrixl (pol, fp);
-  fclose(fp);
+  write_field(pol, name, 0.);
 
   sprintf (name,"%sqo%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (qol, fp);
-  fclose(fp);
+  write_field(qol, name, 0.);
 
   invertq(tmpl,qofl);
   sprintf (name,"%spf%09d.bas", dpath, i);
-  fp = fopen (name, "w");
-  output_matrixl (tmpl, fp);
-  fclose(fp);
+  write_field(tmpl, name, 0.);
   
   nbar = 0; // reset filter average
 
@@ -212,41 +210,28 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   /* fclose(fp); */
 
   if (ediag>-1){
+    double idtout = 1/dtout;
     sprintf (name,"%sde_bf%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_bfl, fp);
-    fclose(fp);
+    write_field(de_bfl, name, idtout);
 
     sprintf (name,"%sde_vd%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_vdl, fp);
-    fclose(fp);
+    write_field(de_vdl, name, idtout);
 
     sprintf (name,"%sde_j1%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_j1l, fp);
-    fclose(fp);
+    write_field(de_j1l, name, idtout);
 
     sprintf (name,"%sde_j2%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_j2l, fp);
-    fclose(fp);
+    write_field(de_j2l, name, idtout);
 
     sprintf (name,"%sde_j3%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_j3l, fp);
-    fclose(fp);
+    write_field(de_j3l, name, idtout);
 
     sprintf (name,"%sde_ft%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_ftl, fp);
-    fclose(fp);
+    write_field(de_ftl, name, idtout);
 
   // temporary
     sprintf (name,"%sde_to%09d.bas", dpath, i);
-    fp = fopen (name, "w");
-    output_matrixl (de_tol, fp);
-    fclose(fp);
+    write_field(de_tol, name, idtout);
 
     reset_layer_var(de_bfl);
     reset_layer_var(de_vdl);
