@@ -229,10 +229,6 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     sprintf (name,"%sde_ft%09d.bas", dpath, i);
     write_field(de_ftl, name, idtout);
 
-  // temporary
-    sprintf (name,"%sde_to%09d.bas", dpath, i);
-    write_field(de_tol, name, idtout);
-
     reset_layer_var(de_bfl);
     reset_layer_var(de_vdl);
     reset_layer_var(de_bfl);
@@ -240,9 +236,6 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     reset_layer_var(de_j2l);
     reset_layer_var(de_j3l);
     reset_layer_var(de_ftl);
-
-  // temporary
-    reset_layer_var(de_tol);
   }
 }
 

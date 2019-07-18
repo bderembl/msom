@@ -82,9 +82,6 @@ void invertq(scalar * pol, scalar * qol)
         scalar l2m = cl2m[m*nl+l];
         qm[] += l2m[]*qo[];
         }      
-      /* No rescaling by 1/Ro because we multiply the equation by
-         1/Ro */
-      /* qm[] = qm[]/Ro[]; */
       }
     }
 
@@ -352,8 +349,6 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 trace
 void dissip  (scalar * zetal, scalar * dqol)
 {
-  // no multiplication by Ro because we multiply the entire
-  // equation by Ro
   double iRe = 1/Re;
   comp_del2(zetal, tmpl, 0., 1.);
 

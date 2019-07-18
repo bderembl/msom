@@ -1,8 +1,7 @@
 /**
    Energy dynagnostics of the MSQG model
 
-   We multiply all terms of the PV equation by po/f
-   We also multiply the entire equation by 1/f
+   We multiply all terms of the PV equation by -po
 */
 
 scalar * de_bfl = NULL;
@@ -14,10 +13,6 @@ scalar * de_ftl = NULL;
 scalar * tmp2l = NULL;
 
 scalar * po_mft = NULL;
-
-// temporary
-scalar * qol_prev = NULL;
-scalar * de_tol = NULL;
 
 int nme_ft = 0;
 
@@ -129,12 +124,6 @@ void comp_part_stretch_de(scalar * pol, scalar * stretchl, double add, double fa
 
   boundary(stretchl);
 }
-
-
-
-
-
-
 
 trace
 void jacobian_de(scalar po, scalar qo, scalar jac, double add,
@@ -292,20 +281,6 @@ void energy_tend (scalar * pol, double dt)
       pm[] = (pm[]*nme_ft + po[])/(nme_ft+1);
     }
   nme_ft += 1;
-
-
-  // temporary
-  foreach()
-    for (int l = 0; l < nl ; l++) {
-      scalar qo1 = qol[l];
-      scalar qo0 = qol_prev[l];
-      scalar po = pol[l];
-      scalar pp   = ppl[l];
-      scalar de_to = de_tol[l];
-      de_to[] += (qo1[] - qo0[])/dt*(-po[]-ediag*pp[])*dt;
-      qo0[] = qo1[];
-    }
-
 }
 
 void set_vars_energy(){
@@ -317,10 +292,6 @@ void set_vars_energy(){
   de_ftl = create_layer_var(de_ftl,nl,0);
   tmp2l  = create_layer_var(tmp2l, nl,0);
   po_mft = create_layer_var(po_mft, nl,0);
-  // temporary
-  qol_prev  = create_layer_var(qol_prev, nl,0);
-  de_tol = create_layer_var(de_tol,nl,0);
-
 }
 
 void trash_vars_energy(){
@@ -332,9 +303,6 @@ void trash_vars_energy(){
   free(de_ftl), de_ftl = NULL;
   free(tmp2l), tmp2l = NULL;
   free(po_mft), po_mft = NULL;
-  // temporary
-  free(qol_prev), qol_prev = NULL;
-  free(de_tol), de_tol = NULL;
 }
 
 event defaults (i = 0){
