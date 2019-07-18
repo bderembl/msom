@@ -11,4 +11,6 @@ __pycache__
 *.o
 *.deps
 *.tests
+*.nc
+*.npy*
 outdir_*
