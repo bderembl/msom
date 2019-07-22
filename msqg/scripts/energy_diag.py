@@ -8,7 +8,7 @@ import scipy.io.netcdf as netcdf
 
 plt.ion()
 
-dir0 = "../outdir_0017/"
+dir0 = "../outdir_0004/"
 exec(open(dir0 + "params.in").read())
 
 flag_tmp = 0
@@ -62,9 +62,10 @@ x = np.linspace(0.5*Delta, L0 - 0.5*Delta,N)
 xc,yc = np.meshgrid(x,x)
 
 # physical parameters
-if 'RoC' not in locals():
-  RoC = 0
-Ro = RoC*Rom + (1-RoC)*Rom/(1 + Rom*beta*(yc-0.5*L0));
+if (Rom < 0) :
+  Ro = 0*yc - Rom
+else:
+  Ro = Rom/(1 + Rom*beta*(yc-0.5*L0))
 
 # new eq
 #ppg = ppg*Ro.reshape(1,N,N)
