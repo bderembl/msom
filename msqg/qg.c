@@ -41,7 +41,6 @@ int main() {
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
-      else if (strcmp(tmps1,"RoC")  ==0) { RoC   = atof(tmps2); }
       else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
