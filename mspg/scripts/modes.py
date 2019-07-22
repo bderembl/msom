@@ -13,6 +13,9 @@ dir0 = "../outdir/"
 file_b = 'b*'
 file_u = 'u*'
 
+flag_uniform_strat = 0 # 0: average froude number, 1: variable
+adjust_psi_coef = 0.1  # multiply psi by coef to study weaker flow
+
 allfilesu = sorted(glob.glob(dir0 + file_u));
 allfilesb = sorted(glob.glob(dir0 + file_b));
 nb_files  = len(allfilesu);
@@ -51,19 +54,22 @@ x = np.linspace(0.5*Delta, 1-0.5*Delta,N)
 y = ys + np.linspace(0.5*Delta, 1-0.5*Delta,N)
 xc, yc = np.meshgrid(x,y)
 
-
-ifi = nb_files - 1
-
 #temporary
 dz = H/nl*np.ones(nl)
 z = 0.5*dz - np.cumsum(dz)
 
-b = np.fromfile(allfilesb[-1],'f4').reshape(nl2,N1,N1).transpose(0,2,1)
-uv = np.fromfile(allfilesu[-1],'f4').reshape(2*nl2,N1,N1).transpose(0,2,1)
+# compute mean
+b = np.zeros((nl2,N1,N1))
+uv = np.zeros((2*nl2,N1,N1))
 
-b = b[1:-1,1:,1:]
-u = uv[2:-2:2,1:,1:]
-v = uv[3:-2:2,1:,1:]
+nme = 10
+for ifi in range(nb_files-nme,nb_files): 
+  b += np.fromfile(allfilesb[-1],'f4').reshape(nl2,N1,N1).transpose(0,2,1)
+  uv += np.fromfile(allfilesu[-1],'f4').reshape(2*nl2,N1,N1).transpose(0,2,1)
+
+b = b[1:-1,1:,1:]/nme
+u = uv[2:-2:2,1:,1:]/nme
+v = uv[3:-2:2,1:,1:]/nme
 
 
 # adjust stratification above threshold
@@ -100,6 +106,9 @@ for n2 in range(0,nlt):
   vt[n2,:,:] = np.mean(v[il[n2]:il[n2+1],:,:],0)
 gpt[:,:,:] = -Bs*np.diff(bt,1,0)
 #gpt = np.where(gpt<gpmin,gpmin,gpt)
+
+if flag_uniform_strat:
+  gpt = 0*gpt + gpt.mean(1).mean(1).reshape((nlt-1,1,1))
 
 for n2 in range(0,nlt):
   dzt[n2] = np.sum(dz[il[n2]:il[n2+1]])
@@ -155,7 +164,7 @@ for n2 in range(0,nlt):
   zeta = (fv[1:,1:] - fv[1:,:-1] - fu[1:,1:] + fu[:-1,1:])/Deltad
   psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta)
 
-ir = 2
+ir = 1
 
 ci = [1,2,5,10,20,30,40,50,60,70,80,90]
 plt.figure()
@@ -209,6 +218,9 @@ plt.plot(bt[:,ny,nx],zt,'k+--')
 plt.plot(b_proj,z,'r')
 plt.plot(b_proj2,z,'b')
 
+# adjust psi
+psi_ls = adjust_psi_coef*psi_ls
+
 # adim
 psi_ls_a = psi_ls/(l_qg*u_qg)
 gpt_a    = gpt*l_qg/u_qg**2
@@ -256,3 +268,5 @@ dht_a.astype('f4').tofile(fileh)
 plt.figure()
 plt.contourf(xc,yc,ut[0,:,:],20)
 plt.colorbar()
+
+print('Rom = {0:.2e}'.format(u_qg/f0.mean()/l_qg))
