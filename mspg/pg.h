@@ -21,6 +21,7 @@ double ds;
 double r = 0.1;
 double a = 0.2;
 double kd = 3e-4;
+double nu = 3e-4;
 double ys = 0; // southern latitude
 
 // forcing
@@ -623,7 +624,8 @@ void momentum(scalar * bl, vector * ul, vector * dul)
 
       du.x[] = -(p[] - p[-1])/Delta
         - f.x*y*0.25*(u.y[] + u.y[-1] + u.y[0,1] + u.y[-1,1])
-        - r*u.x[];
+        - r*u.x[]
+        + nu*(u.x[1] + u.x[-1] + u.x[0,1] + u.x[0,-1] - 4*u.x[])/sq(Delta) ;
     }
   }
 }

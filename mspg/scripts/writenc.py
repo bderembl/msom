@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 
 import numpy as np
-import glob,os,re
+import sys,glob,os,re
 import scipy.io.netcdf as netcdf
 
-dir0 = "../outdir/"
+dir0 = "../outdir_"
+
+if len(sys.argv) > 1:
+  dir0 = dir0 + str(format(sys.argv[1])).zfill(4) + '/'
+
+exec(open(dir0 + "params.in").read())
 
 fileb = 'b*'
 fileu = 'u*'
@@ -29,12 +34,14 @@ f.createDimension('z',nl)
 f.createDimension('y',N)
 f.createDimension('x',N)
 
-tpo = f.createVariable('t', 'd', ('t',))
-zpo = f.createVariable('z', 'd', ('z',))
-ypo = f.createVariable('y', 'd', ('y',))
-xpo = f.createVariable('x', 'd', ('x',))
+tpo = f.createVariable('t', 'f', ('t',))
+zpo = f.createVariable('z', 'f', ('z',))
+ypo = f.createVariable('y', 'f', ('y',))
+xpo = f.createVariable('x', 'f', ('x',))
 
-bo  = f.createVariable('b' , 'd', ('t','z','y','x',))
+bo  = f.createVariable('b' , 'f', ('t','z','y','x',))
+uo  = f.createVariable('u' , 'f', ('t','z','y','x',))
+vo  = f.createVariable('v' , 'f', ('t','z','y','x',))
 
 zpo[:] = np.arange(nl)
 ypo[:] = np.arange(N)
@@ -53,6 +60,8 @@ for ifi in range(0,nb_files):
   v = uv[3:-2:2,1:,1:]
   
   bo[ifi,:,:,:] = 1.*b[:,:,:]
+  uo[ifi,:,:,:] = 1.*u[:,:,:]
+  vo[ifi,:,:,:] = 1.*v[:,:,:]
 
 f.close()
 print ("nb points in file: {0}".format(nb_files))
