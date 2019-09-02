@@ -20,11 +20,13 @@ double ds;
 // physical parameters
 double r = 0.1;
 double a = 0.2;
+double kd = 3e-4;
 double ys = 0; // southern latitude
 
 // forcing
 scalar b_surf[];
-double tau_surf = 1e-2;
+double tau_s = 1e-2;
+double tau0 = 0.12;
 
 // timesteping
 double tend = 1; // end time
@@ -47,7 +49,7 @@ vector fonh[];
 double omega = 0.3;
 
 
-char * outdir = "./";
+char outdir[80] = "./";
 
 // user defined diffusivity coeff
 double k (double x, double y, double s);
@@ -447,7 +449,7 @@ void vdiff_implicit(scalar * bl, double dt)
      surface BC */
   scalar b0 = bl[1];
   foreach()
-    b0[] += dt*2*k(x,y,sf[0])/(sq(ds))*b_surf[];
+    b0[] += dt*2*kd*k(x,y,sf[0])/(sq(ds))*b_surf[];
   
   foreach() {
     for (int l = 0; l < nl; l++) {
@@ -455,8 +457,8 @@ void vdiff_implicit(scalar * bl, double dt)
       rhs[l] = b0[];
     }
     
-    double K0 = k(x,y,sf[0]);
-    double K1 = k(x,y,sf[1]);
+    double K0 = kd*k(x,y,sf[0]);
+    double K1 = kd*k(x,y,sf[1]);
     
     // upper layer
     ad[0] = 0.;
@@ -466,7 +468,7 @@ void vdiff_implicit(scalar * bl, double dt)
     for (int l = 1; l < nl-1; l++) {
       
       K0 = K1;
-      K1 = k(x,y,sf[l+1]);
+      K1 = kd*k(x,y,sf[l+1]);
       
       ad[l] = - dt*K0/sq(ds);
       cd[l] = - dt*K1/sq(ds);
@@ -512,7 +514,7 @@ void hdiffusion  (scalar * bl, scalar * dbl)
   for (int l = 1; l < nl+1 ; l++) {
     foreach_face() {
       scalar b = bl[l];
-      hdiff.x[] = sq(a)*k(x,y,sc[l])*((b[] - b[-1])/Delta);
+      hdiff.x[] = sq(a)*kd*k(x,y,sc[l])*((b[] - b[-1])/Delta);
     }
   /**
      no flux side boundary conditions (ok with BC on b)*/
@@ -570,7 +572,7 @@ void forcing_implicit(scalar * bl, double dt)
 
   scalar b = bl[1];
   foreach() 
-    b[] = (b_surf[]*dt + b[]*tau_surf)/(dt + tau_surf);
+    b[] = (b_surf[]*dt + b[]*tau_s)/(dt + tau_s);
 }
 
 /**
@@ -773,7 +775,7 @@ void set_vars()
   }
 
   foreach(){
-    wind_effect[] = taux_y(x,y);  /* Samelson */
+    wind_effect[] = tau0*taux_y(x,y);  /* Samelson */
   }
 
   b_mel = list_clone(bl);
@@ -885,8 +887,8 @@ void vdiff_explicit  (scalar * bl, scalar * dbl) {
       scalar b2 = bl[l-1];
       scalar db = dbl[l];
 
-      db[] +=   (k(x,y,sf[l-1])*(b2[] - b0[])
-               - k(x,y,sf[l])*(b0[] - b1[]))/sq(ds);
+      db[] +=   (kd*k(x,y,sf[l-1])*(b2[] - b0[])
+               - kd*k(x,y,sf[l])*(b0[] - b1[]))/sq(ds);
     }
   }
 }
@@ -921,7 +923,7 @@ void forcing_explicit(scalar * bl, scalar *dbl)
   scalar b = bl[1];
   scalar db = dbl[1];
   foreach()
-    db[] += (b_surf[] - b[])/tau_surf;
+    db[] += (b_surf[] - b[])/tau_s;
 }
 
 
@@ -947,7 +949,7 @@ void pyinit_const(int pynl){
   nl = pynl;
   a = sqrt(3.0e-2/k(0,0,0)); 
   r = 0.02; 
-  tau_surf = 3.0e-2;
+  tau_s = 3.0e-2;
   omega = 0.2;
 
   ys = 0.3;

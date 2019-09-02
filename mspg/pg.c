@@ -8,6 +8,11 @@
 #include "../msqg/auxiliar_input.h"
 #include "pg.h"
 
+// for mkdir
+#include <sys/stat.h>
+#include <sys/types.h>
+
+
 /**
  spatially varying non dimensional diffusivity coef. in dimensional units
 $$
@@ -17,7 +22,8 @@ $$
 \kappa_h^* = \kappa \frac{N^2H^4}{\beta L^3}*a^2*\frac{L^2}{H^2}
 $$
  */
-double k (double x, double y, double s) { return (3e-4);}
+ //shape function, multipy by kd
+double k (double x, double y, double s) { return (1.0);}
 
 /**
    wind stress and wind stress derivative
@@ -27,35 +33,59 @@ $$
 $$
 */
 
-double tau0 = 0.12;
-
-double taux   (double x, double y){ return (tau0*sin(2*(y-ys)*pi));}
-double taux_y (double x, double y){ return (2*pi*tau0*y*cos(2*(y-ys)*pi));}
-/* double taux   (double x, double y){ return (0.);} */
+/* double taux   (double x, double y){ return (sin(2*(y-ys)*pi));} */
+double taux   (double x, double y){ return (0.);}
+double taux_y (double x, double y){ return (2*pi*y*cos(2*(y-ys)*pi));}
 /* double taux_y (double x, double y){ return (0.);} */
 double tauy   (double x, double y){ return (0.);}
 double tauy_x (double x, double y){ return (0.);}
 
 
+int N0 = 64;
 
 
 int main() {
-  N = 64;
-  nl = 30;
 
-  CFL = 0.4;
-  DT = 1.e-2;
-  tend = 1000;
-  dtout = 10;
+/**
+   Read input parameters
+ */
+
+  FILE * fp;
+  if (fp = fopen("params.in", "rt")) {
+    char tempbuff[100];
+    char tmps1[80];
+    char tmps2[80];
+    char tmps3[80];
+
+    while(fgets(tempbuff,100,fp)) {
+      sscanf(tempbuff, "%15s = %15s # %15s", tmps1, tmps2, tmps3);
+      if      (strcmp(tmps1,"N")    ==0) { N0    = atoi(tmps2); }
+      else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
+      else if (strcmp(tmps1,"a")    ==0) { a     = atof(tmps2); }
+      else if (strcmp(tmps1,"r")    ==0) { r     = atof(tmps2); }
+      else if (strcmp(tmps1,"kd")   ==0) { kd    = atof(tmps2); }
+      else if (strcmp(tmps1,"tau_s")==0) { tau_s = atof(tmps2); }
+      else if (strcmp(tmps1,"tau0") ==0) { tau0  = atof(tmps2); }
+      else if (strcmp(tmps1,"ys")   ==0) { ys    = atof(tmps2); }
+      else if (strcmp(tmps1,"omega")==0) { omega = atof(tmps2); }
+      else if (strcmp(tmps1,"DT")   ==0) { DT    = atof(tmps2); }
+      else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
+      else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
+      else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
+    }
+    fclose(fp);
+  } else {
+    fprintf(stdout, "file params.in not found\n");
+    exit(0);
+  }
+
+  N = N0;
+
   /**
      physical parameters : $a$ is the aspect ratio of the basin $H/L$.
      $r$ is the non dimensional friction coefficient. The dimensional
      friction is $r^* = r \beta L $. tau_surf is the surface
      relaxation time scale. */
-
-  a = sqrt(2.0e-2/k(0,0,0)); 
-  r = 0.02; 
-  tau_surf = 3.0e-2;
 
   /**
      We use a pseudo SOR impletation because for small r, the
@@ -63,13 +93,37 @@ int main() {
      recover the default basilisk implementation. omega<1 slows down
      the convergence rate, but at least it converges. */
 
-  omega = 0.2;
-
-  ys = 0.3;
   origin (0.0, ys);
 
-  outdir = "outdir/";
+  /**
+     Create output directory and copy input parameter file for backup
+  */
 
+  char ch;
+  char name[80];
+  int idir;
+  if (pid() == 0) { // master
+    for (idir=1; idir<10000; idir++) {
+      sprintf(outdir, "outdir_%04d/", idir);
+      if (mkdir(outdir, 0777) == 0) {
+        fprintf(stdout,"Writing output in %s\n",outdir);
+        break;
+      }
+    }
+  }
+@if _MPI 
+  MPI_Bcast(&idir, 1, MPI_INT, 0, MPI_COMM_WORLD);
+ sprintf(outdir, "outdir_%04d/", idir);
+@endif
+
+  sprintf (name,"%sparams.in", outdir);
+  FILE * source = fopen("params.in", "r");
+  FILE * target = fopen(name, "w");
+  while ((ch = fgetc(source)) != EOF)
+    fputc(ch, target);
+  fclose(source);
+  fclose(target);
+  
   run(); 
 
 
@@ -81,12 +135,12 @@ event init (t = 0) {
      Initial conditions
   */
   FILE * fp ;
-  if (fp = fopen ("b_init.bas", "r")){
+  if (fp = fopen ("b0.bas", "r")){
     input_matrixl (bl, fp, oy=ys);
     fclose(fp);
   }
 
-  if (fp = fopen ("u_init.bas", "r")) {
+  if (fp = fopen ("u0.bas", "r")) {
   input_matrixl ((scalar *) ul, fp, oy=ys);
   fclose(fp);
   }

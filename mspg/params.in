@@ -1,0 +1,24 @@
+#!sh
+# input parameter files
+# each '=' sign must be surrounded by at least one whitespace on each side
+
+# domain size
+N  = 64
+nl = 30
+ys = 0.3
+
+# physical parameters
+a = 8.1
+r = 0.02
+tau_s = 3.0e-2
+tau0 = 0.12
+kd = 3e-4
+
+# timestepping
+CFL   = 0.4
+DT    = 1.e-2
+tend  = 1000    
+dtout = 10   
+
+# misc
+omega = 0.2
