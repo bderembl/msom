@@ -1,10 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import glob,os,re
+import sys,glob,os,re
 
 plt.ion()
 
-dir0 = "../outdir/"
+dir0 = "../outdir_"
+
+if len(sys.argv) > 1:
+  dir0 = dir0 + str(format(sys.argv[1])).zfill(4) + '/'
+
+exec(open(dir0 + "params.in").read())
 
 file_b = 'b*'
 file_u = 'u*'
