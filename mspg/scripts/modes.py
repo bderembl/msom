@@ -17,8 +17,8 @@ if len(sys.argv) > 1:
 file_b = 'b*'
 file_u = 'u*'
 
-flag_uniform_strat = 0 # 0: average froude number, 1: variable
-adjust_psi_coef = 0.1  # multiply psi by coef to study weaker flow
+flag_uniform_strat = 0 # 0: froude(X,Y), 1: uniform froude
+adjust_psi_coef = 1.0  # multiply psi by coef to study weaker flow
 
 allfilesu = sorted(glob.glob(dir0 + file_u));
 allfilesb = sorted(glob.glob(dir0 + file_b));
