@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import def_radius
 import spoisson
+import sys
 
 plt.ion()
 
