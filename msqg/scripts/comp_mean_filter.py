@@ -2,13 +2,17 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob,os,re
+import sys,glob,os,re
 import scipy.io.netcdf as netcdf
 
 
 plt.ion()
 
-dir0 = "../outdir_0014/"
+dir0 = "../outdir_"
+
+if len(sys.argv) > 1:
+  dir0 = dir0 + str(format(sys.argv[1])).zfill(4) + '/'
+
 #dir0 = "outdir_filt15_newpg/"
 exec(open(dir0 + "params.in").read())
 
@@ -58,7 +62,7 @@ pf_me /= nme
 pf_o = np.transpose(pf_me,(0,2,1))
 pf_o.astype('f4').tofile('pf_qg.bas')
 
-psi = ppg[0,1:,1:]
+psi = pf_me[0,1:,1:]
 #psi = ppg[0,1:,1:] + pf_me[0,1:,1:]
 vmax = 0.5*np.max(np.abs(psi))
 

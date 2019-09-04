@@ -1,11 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import glob
+import sys,glob
 import array
 
-#plt.ion()
+plt.ion()
 
-dir0 = "../outdir_0004/"
+dir0 = "../outdir_"
+
+if len(sys.argv) > 1:
+  dir0 = dir0 + str(format(sys.argv[1])).zfill(4) + '/'
+
 exec(open(dir0 + "params.in").read())
 
 filep = 'po*'
@@ -57,12 +61,12 @@ for ifi in range(ifi0,nb_files):
   p  = np.fromfile(allfilesp[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
   p = p[:,1:,1:]
 
-  plt.figure(2)
+  plt.figure()
   plt.clf()
   vcont = np.linspace(-500,500,50)
 
-#  plt.contour(xc,yc,psipg[l,:,:] + p[l,:,:],colors='k',linewidths=1)
-  plt.contourf(xc,yc,p[l,:,:], vcont,cmap=plt.cm.seismic)
+  plt.contour(xc,yc,psipg[l,:,:] + p[l,:,:],colors='k',linewidths=1)
+#  plt.contourf(xc,yc,psipg[l,:,:], vcont,cmap=plt.cm.seismic)
   plt.colorbar()
   
 #  plt.savefig("psi{0:04d}.png".format(ifi),bbox_inches='tight')

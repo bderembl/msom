@@ -2,13 +2,17 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob,os,re
+import sys,glob,os,re
 import scipy.io.netcdf as netcdf
 
 
 plt.ion()
 
-dir0 = "../outdir_0004/"
+dir0 = "../outdir_"
+
+if len(sys.argv) > 1:
+  dir0 = dir0 + str(format(sys.argv[1])).zfill(4) + '/'
+
 exec(open(dir0 + "params.in").read())
 
 flag_tmp = 0
