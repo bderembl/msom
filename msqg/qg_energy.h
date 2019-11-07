@@ -1,7 +1,7 @@
 /**
    Energy dynagnostics of the MSQG model
 
-   We multiply all terms of the PV equation by -po
+   We multiply all terms of the PV equation by -po*dt
 */
 
 scalar * de_bfl = NULL;
@@ -16,200 +16,100 @@ scalar * po_mft = NULL;
 
 int nme_ft = 0;
 
-trace
-void combine_jac_de(scalar * jac1l, scalar * jacal, double add,
-                 double p0, double p1, scalar * pol)
-{
-  foreach() {
-    if (nl > 1){
-      // upper layer
-      int l = 0;
-      scalar jac1 = jac1l[l];
-      scalar jaca = jacal[l];
-      scalar Fr1 = Frl[l];
-      scalar po_r  = pol[l];
-      scalar pp_r  = ppl[l];
-      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
-
-      jaca[] = add*jaca[] + p1*b1*jac1[]*(-po_r[]-ediag*pp_r[])*dt;
-
-      // intermediate layers
-      for (int l = 1; l < nl-1 ; l++) {
-       
-        scalar jac0 = jac1l[l-1];
-        scalar jac1 = jac1l[l];
-        scalar jaca = jacal[l];
-        scalar po_r1 = pol[l];
-        scalar pp_r1 = ppl[l];
-        
-        scalar Fr0 = Frl[l-1];
-        scalar Fr1 = Frl[l];
-        
-        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
-
-        jaca[] = add*jaca[] + (- p0*b0*jac0[] + p1*b1*jac1[])
-          *(-po_r1[]-ediag*pp_r1[])*dt;
-
-      }
-      // lower layer
-      l = nl-1;
-      jac1 = jac1l[l-1];
-      jaca = jacal[l];
-      po_r  = pol[l];
-      pp_r  = ppl[l];
-      scalar Fr0 = Frl[l-1];
-      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-
-      jaca[] = add*jaca[] - p0*b0*jac1[]*(-po_r[]-ediag*pp_r[])*dt;
-
-    }
-    else{
-      scalar jaca = jacal[0];
-      jaca[] = 0.;
-    }
-  }
-}
-
-trace
-void comp_part_stretch_de(scalar * pol, scalar * stretchl, double add, double fac)
-{
-
-  foreach() {
-
-    if (nl > 1){
-      // upper layer
-      int l = 0;
-      scalar po_1 = pol[l];
-      scalar po_2 = pol[l+1];
-      scalar stretch = stretchl[l];
-      scalar Fr1 = Frl[l];
-      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
-
-      stretch[] = add*stretch[] - fac*b1*po_1[] ;
-
-      // intermediate layers
-      for (int l = 1; l < nl-1 ; l++) {
-       
-        scalar po_0 = pol[l-1];
-        scalar po_1 = pol[l];
-        scalar po_2 = pol[l+1];
-        scalar stretch = stretchl[l];
-        
-        scalar Fr0 = Frl[l-1];
-        scalar Fr1 = Frl[l];
-        
-        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
-
-        stretch[] = add*stretch[] - fac*(b0 + b1)*po_1[] ;
-
-      }
-      // lower layer
-      l = nl-1;
-      scalar po_0 = pol[l-1];
-      po_1 = pol[l];
-      stretch = stretchl[l];
-      scalar Fr0 = Frl[l-1];
-      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-
-      stretch[] = add*stretch[] - fac*b0*po_1[] ;
-
-    }
-    else{
-      scalar stretch = stretchl[0];
-      stretch[] = 0.;
-    }
-  }
-
-  boundary(stretchl);
-}
-
-trace
-void jacobian_de(scalar po, scalar qo, scalar jac, double add,
-                 scalar po_r, scalar pp_r, double dt)
-{
-  foreach()
-    jac[] = add*jac[] +
-    (( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1])
-     +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ])
-     + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ])
-     - qo[-1, 0]*( po[-1,1] - po[-1,-1])
-     - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ])
-     + qo[0 ,-1]*( po[1,-1] - po[-1,-1])
-     + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ])
-     - po[0 ,-1]*( qo[1,-1] - qo[-1,-1])
-     - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ])
-     + po[-1, 0]*( qo[-1,1] - qo[-1,-1]))
-    /(12.*Delta*Delta)
-    *(-po_r[]-ediag*pp_r[])*dt;
-}
-
 /**
    J1 = j(psi, q)
    J2 = j(psi_pg, q)
    J3 = j(psi, q_pg)
  */
 trace
-void advection_de  (scalar * qol, scalar * pol, 
+void advection_de  (scalar * qol, scalar * pol,
                     scalar * de_j1l, scalar * de_j2l, scalar * de_j3l, double dt)
-{  
-  for (int l = 0; l < nl ; l++) {
-    scalar qo  = qol[l];
-    scalar po  = pol[l];
-    scalar pp  = ppl[l];
-    scalar de_j1 = de_j1l[l];
-    scalar de_j2 = de_j2l[l];
-    jacobian_de(po, qo, de_j1, 1., po, pp, dt); // -J(p_qg, zeta)
-    jacobian_de(pp, qo, de_j2, 1., po, pp, dt); // -J(p_pg, zeta)
-    /* jacobian_de(po, qo, de_j1, 1.); // -J(p_qg, zeta) */
-    /* jacobian_de(pp, qo, de_j2, 1.); // -J(p_pg, zeta) */
-  }
-  
-   for (int l = 0; l < nl-1 ; l++) {
-    scalar po1  = pol[l];
-    scalar po2  = pol[l+1];
-    scalar pp  = ppl[l];
-    scalar jac1 = tmpl[l];
-    /* jacobian_de(po1, po2, jac1, 0., po1, pp, dt); // -J(p_l, p_l+1) */
-    jacobian(po1, po2, jac1, 0.); // -J(p_l, p_l+1)
-  }
- combine_jac_de(tmpl, de_j1l, 1., 1. , 1., pol);
+{
+  foreach() {
+    double ju_1,jd_1;
+    double ju_2,jd_2;
+    double ju_3,jd_3;
+    double jc;
+    
+    if (nl > 1){
 
-   for (int l = 0; l < nl-1 ; l++) {
-    scalar po1  = pol[l];
-    scalar pp1  = ppl[l];
-    scalar po2  = pol[l+1];
-    scalar jac1 = tmpl[l];
-    /* jacobian_de(pp1, po2, jac1, 0., po1, pp1, dt); // -J(pp_l, p_l+1) */
-    jacobian(pp1, po2, jac1, 0.); // -J(pp_l, p_l+1)
+      // upper layer
+      int l = 0;
+      scalar qo  = qol[l];
+      scalar po  = pol[l];
+      scalar pp  = ppl[l];
+      scalar po2 = pol[l+1];
+      scalar pp2 = ppl[l+1];
+      scalar de_j1 = de_j1l[l];
+      scalar de_j2 = de_j2l[l];
+      scalar de_j3 = de_j3l[l];
+      scalar s1 = str1l[l];
+      
+      jd_1 = jacobian(po, po2);
+      jd_2 = jacobian(pp, po2);
+      jd_3 = jacobian(po, pp2);
+      jc   = jacobian(po, pp );
+
+      de_j1[] += (jacobian(po, qo) + s1[]*jd_1          )*(-po[]-ediag*pp[])*dt;
+      de_j2[] += (jacobian(pp, qo) + s1[]*jd_2 + s1[]*jc)*(-po[]-ediag*pp[])*dt;
+      de_j3[] += (                   s1[]*jd_3 - s1[]*jc)*(-po[]-ediag*pp[])*dt;
+
+      // intermediate layers
+      for (int l = 1; l < nl-1 ; l++) {
+       
+        qo  = qol[l];
+        po  = pol[l];
+        pp  = ppl[l];
+        po2 = pol[l+1];
+        pp2 = ppl[l+1];
+        de_j1 = de_j1l[l];
+        de_j2 = de_j2l[l];
+        de_j3 = de_j3l[l];
+        scalar s0 = str0l[l];
+        scalar s1 = str1l[l];
+
+        ju_1 = -jd_1;
+        ju_2 = -jd_3; // swap
+        ju_3 = -jd_2; // swap
+        jd_1 = jacobian(po, po2);
+        jd_2 = jacobian(pp, po2);
+        jd_3 = jacobian(po, pp2);
+        jc   = jacobian(po, pp );
+
+        de_j1[] += (jacobian(po, qo) + s0[]*ju_1 + s1[]*jd_1                 )*(-po[]-ediag*pp[])*dt;
+        de_j2[] += (jacobian(pp, qo) + s0[]*ju_2 + s1[]*jd_2 + (s1[]+s0[])*jc)*(-po[]-ediag*pp[])*dt;
+        de_j3[] += (                   s0[]*ju_3 + s1[]*jd_3 - (s1[]+s0[])*jc)*(-po[]-ediag*pp[])*dt;
+      }
+
+      // lower layer
+      l = nl-1;
+
+      qo  = qol[l];
+      po  = pol[l];
+      pp  = ppl[l];
+      de_j1 = de_j1l[l];
+      de_j2 = de_j2l[l];
+      de_j3 = de_j3l[l];
+      scalar s0 = str0l[l];
+
+      ju_1 = -jd_1;
+      ju_2 = -jd_3; // swap
+      ju_3 = -jd_2; // swap
+      jc   = jacobian(po, pp );
+
+      de_j1[] += (jacobian(po, qo) + s0[]*ju_1          )*(-po[]-ediag*pp[])*dt;
+      de_j2[] += (jacobian(pp, qo) + s0[]*ju_2 + s0[]*jc)*(-po[]-ediag*pp[])*dt;
+      de_j3[] += (                   s0[]*ju_3 - s0[]*jc)*(-po[]-ediag*pp[])*dt;
+    }
+    else{
+      scalar de_j1 = de_j1l[0];
+      scalar de_j2 = de_j2l[0];
+      scalar de_j3 = de_j3l[0];
+      de_j1[] = 0;
+      de_j2[] = 0;
+      de_j3[] = 0;
+    }
   }
- combine_jac_de(tmpl, de_j2l, 1., 0., 1., pol);
- combine_jac_de(tmpl, de_j3l, 1., 1., 0., pol);
-
-
-   for (int l = 0; l < nl-1 ; l++) {
-    scalar po1  = pol[l];
-    scalar jac1 = tmpl[l];
-    scalar pp1  = ppl[l];
-    scalar pp2  = ppl[l+1];
-    /* jacobian_de(po1, pp2, jac1, 0., po1, pp1, dt); // -J(p_l, pp_l+1) */
-    jacobian(po1, pp2, jac1, 0.); // -J(p_l, pp_l+1)
-  }
- combine_jac_de(tmpl, de_j2l, 1., 1., 0., pol);
- combine_jac_de(tmpl, de_j3l, 1., 0., 1., pol);
-
-   for (int l = 0; l < nl ; l++) {
-    scalar po1  = pol[l];
-    scalar pp1  = ppl[l];
-    scalar jac1 = tmpl[l];
-    /* jacobian_de(pp1, po2, jac1, 0., po1, pp1, dt); // -J(pp_l, p_l+1) */
-    jacobian_de(po1, pp1, jac1, 0., po1, pp1, dt); // -J(p_l, pp_l)
-  }
-   // add and subtract J(p,pp) in j2 and j3
-   comp_part_stretch_de(tmpl, de_j3l, 1.,  1.);
-   comp_part_stretch_de(tmpl, de_j2l, 1., -1.);
-
 }
 
 

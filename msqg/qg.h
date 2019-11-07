@@ -19,12 +19,15 @@ scalar * pom  = NULL; // stream function on modes
 
 // large scale variables (inversion matrices, etc)
 scalar * ppl  = NULL; // large scale stream function
+scalar * str0l = NULL;
+scalar * str1l = NULL;
+// If PV inversion is done with the tri-diagonal method, 
+// then no need to refine cl2m,cm2l,iBul, Frl, Ro
 scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * Frl = NULL;
-scalar * str0l = NULL;
-scalar * str1l = NULL;
+scalar Ro[];
 scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
@@ -37,8 +40,6 @@ scalar * tmpl = NULL;
 scalar * evolving = NULL;
 
 mgstats mgpsi;
-
-scalar Ro[];
 
 int nl = 1;
 double * dhf;
@@ -164,10 +165,9 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
       scalar po_1 = pol[l];
       scalar po_2 = pol[l+1];
       scalar stretch = stretchl[l];
-      scalar Fr1 = Frl[l];
-      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+      scalar s1 = str1l[l];
 
-      stretch[] = add*stretch[] + b1*po_2[] - b1*po_1[] ;
+      stretch[] = add*stretch[] + s1[]*po_2[] - s1[]*po_1[];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -176,26 +176,19 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
         scalar po_1 = pol[l];
         scalar po_2 = pol[l+1];
         scalar stretch = stretchl[l];
-        
-        scalar Fr0 = Frl[l-1];
-        scalar Fr1 = Frl[l];
-        
-        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+        scalar s0 = str0l[l];
+        scalar s1 = str1l[l];
 
-        stretch[] = add*stretch[] + b0*po_0[] + b1*po_2[] - (b0 + b1)*po_1[] ;
-
+        stretch[] = add*stretch[] + s0[]*po_0[] + s1[]*po_2[] - (s0[] + s1[])*po_1[];
       }
       // lower layer
       l = nl-1;
       scalar po_0 = pol[l-1];
       po_1 = pol[l];
       stretch = stretchl[l];
-      scalar Fr0 = Frl[l-1];
-      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+      scalar s0 = str0l[l];
 
-      stretch[] = add*stretch[] + b0*po_0[] - b0*po_1[] ;
-
+      stretch[] = add*stretch[] + s0[]*po_0[] - s0[]*po_1[];
     }
     else{
       scalar stretch = stretchl[0];
@@ -205,54 +198,115 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
 
   boundary(stretchl);
 }
+/**
+   Arakawa jacobian: Energy/esntrophy conserving scheme
+   This macro computes -J(p,q)
+*/
+
+#define jacobian(po,qo) ((( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1]) \
+     +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ]) \
+     + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ]) \
+     - qo[-1, 0]*( po[-1,1] - po[-1,-1]) \
+     - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ]) \
+     + qo[0 ,-1]*( po[1,-1] - po[-1,-1]) \
+     + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ]) \
+     - po[0 ,-1]*( qo[1,-1] - qo[-1,-1]) \
+     - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ]) \
+     + po[-1, 0]*( qo[-1,1] - qo[-1,-1]))\
+    /(12.*Delta*Delta))
+
+/**
+   - beta v
+   (note the minus sign because it is in the rhs)
+*/
+
+#define beta_effect(po) (beta*(po[-1] - po[1])/(2*Delta))
+
+/**
+   Compute velocity at faces
+*/
+
+trace
+void comp_vel(const scalar po, face vector uf)
+{
+
+  struct { double x, y; } f = {-1.,1.};
+  foreach_face() {
+    uf.x[] = f.x*(po[] - po[0,-1])/Delta;
+  }
+}
 
 
 trace
-void combine_jac(scalar * jac1l, scalar * jacal, double add,
-                 double p0, double p1)
+double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 {
+
   foreach() {
+    double ju,jd;
+
     if (nl > 1){
+
       // upper layer
       int l = 0;
-      scalar jac1 = jac1l[l];
-      scalar jaca = jacal[l];
-      scalar Fr1 = Frl[l];
-      double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+      scalar qo  = qol[l];
+      scalar po  = pol[l];
+      scalar pp  = ppl[l];
+      scalar dqo = dqol[l];
+      scalar po2  = pol[l+1];
+      scalar pp2  = ppl[l+1];
+      scalar s1 = str1l[l];
 
-      jaca[] = add*jaca[] + p1*b1*jac1[];
+      jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
+      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd;
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
        
-        scalar jac0 = jac1l[l-1];
-        scalar jac1 = jac1l[l];
-        scalar jaca = jacal[l];
-        
-        scalar Fr0 = Frl[l-1];
-        scalar Fr1 = Frl[l];
-        
-        double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-        double b1 = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
+        qo  = qol[l];
+        po  = pol[l];
+        pp  = ppl[l];
+        dqo = dqol[l];
+        po2  = pol[l+1];
+        pp2  = ppl[l+1];
+        scalar s0 = str0l[l];
+        scalar s1 = str1l[l];
 
-        jaca[] = add*jaca[] - p0*b0*jac0[] + p1*b1*jac1[];
+        ju = -jd;
+        jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
 
+        dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju + s1[]*jd;
       }
+
       // lower layer
       l = nl-1;
-      jac1 = jac1l[l-1];
-      jaca = jacal[l];
-      scalar Fr0 = Frl[l-1];
-      double b0 = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
 
-      jaca[] = add*jaca[] - p0*b0*jac1[];
+      qo  = qol[l];
+      po  = pol[l];
+      pp  = ppl[l];
+      dqo = dqol[l];
+      scalar s0 = str0l[l];
 
+      ju = -jd;
+      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju;
     }
     else{
-      scalar jaca = jacal[0];
-      jaca[] = 0.;
+      scalar dqo = dqol[0];
+      dqo[] = 0.;
     }
   }
+
+  // compute dtmax
+   for (int l = 0; l < nl ; l++) {
+     face vector uf[];
+     scalar po = pol[l];
+     comp_vel(po, uf);
+     dtmax = timestep (uf, dtmax);
+     po = ppl[l];
+     comp_vel(po, uf);
+     dtmax = timestep (uf, dtmax);
+  //    dtmax = DT;
+}
+  return dtmax;
 }
 
 trace
@@ -264,86 +318,6 @@ void comp_q(scalar * pol, scalar * qol)
   boundary(qol);
 }
 
-trace
-void comp_vel(const scalar po, face vector uf)
-{
-
-  struct { double x, y; } f = {-1.,1.};
-  foreach_face() {
-    uf.x[] = f.x*(po[] - po[0,-1])/(Delta);
-  }
-}
-
-
-/**
-   Arakawa jacobian: J(q,p)
-*/
-trace
-void jacobian(scalar po, scalar qo, scalar jac, double add)
-{
-  foreach()
-    jac[] = add*jac[] + 
-    (( qo[1, 0 ]-qo[-1, 0])*(po[0, 1]-po[ 0 ,-1])
-     +(qo[0 ,-1]-qo[ 0 ,1])*(po[1, 0]-po[-1, 0 ])
-     + qo[1, 0 ]*( po[1,1 ] - po[1,-1 ])
-     - qo[-1, 0]*( po[-1,1] - po[-1,-1])
-     - qo[ 0 ,1]*( po[1,1 ] - po[-1,1 ])
-     + qo[0 ,-1]*( po[1,-1] - po[-1,-1])
-     + po[ 0 ,1]*( qo[1,1 ] - qo[-1,1 ])
-     - po[0 ,-1]*( qo[1,-1] - qo[-1,-1])
-     - po[1, 0 ]*( qo[1,1 ] - qo[1,-1 ])
-     + po[-1, 0]*( qo[-1,1] - qo[-1,-1]))
-    /(12.*Delta*Delta);
-}
-
-/**
-   beta effect times f
- */
-void beta_effect(scalar po, scalar jac)
-{
-    foreach()
-      jac[] -= beta*(po[1] - po[-1])/(2*Delta);
-}
-
-trace
-double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
-{  
-  for (int l = 0; l < nl ; l++) {
-    scalar qo  = qol[l];
-    scalar po  = pol[l];
-    scalar pp  = ppl[l];
-    scalar dqo = dqol[l];
-    jacobian(po, qo, dqo, 1.); // -J(p_qg, zeta)
-    jacobian(pp, qo, dqo, 1.); // -J(p_pg, zeta)
-    beta_effect(po, dqo);
-  }
-  
-   for (int l = 0; l < nl-1 ; l++) {
-    scalar po1  = pol[l];
-    scalar pp1  = ppl[l];
-    scalar po2  = pol[l+1];
-    scalar jac1 = tmpl[l];
-    scalar pp2  = ppl[l+1];
-    jacobian(po1, po2, jac1, 0.); // -J(p_l , p_l+1)
-    jacobian(pp1, po2, jac1, 1.); // -J(pp_l, p_l+1)
-    jacobian(po1, pp2, jac1, 1.); // -J(p_l , pp_l+1)
-  }
- combine_jac(tmpl, dqol, 1., 1., 1.);
-
-  // compute dtmax
-   for (int l = 0; l < nl ; l++) {
-     face vector uf[];
-     scalar po = pol[l]; 
-     comp_vel(po, uf);
-     dtmax = timestep (uf, dtmax);
-     po = ppl[l]; 
-     comp_vel(po, uf);
-     dtmax = timestep (uf, dtmax);
-  //    dtmax = DT;
-}
-
-  return dtmax;
-}
 
 trace
 void dissip  (scalar * zetal, scalar * dqol)
