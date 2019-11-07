@@ -23,9 +23,9 @@ flag_savenc = 1
 # phys consts
 L = 5e3
 
-file2 = 'stability_data_4.npy'
+file2 = 'stability_data_4l.npy'
 
-save_dat = np.load(file2)
+save_dat = np.load(file2,allow_pickle=True)
 
 # with open(file2, "rb") as fp:
 #   save_dat = pickle.load(fp)
