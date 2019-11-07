@@ -12,6 +12,10 @@ export OMP_NUM_THREADS=20 (?)
 MPI:
 CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e -grid=multigrid
 mpirun -np 16 ./qg.e
+
+HPC:
+qcc -D_MPI=1 -D MKL -grid=multigrid -source qg.c
+mpicc -Wall -std=c99 -O2 _qg.c -lm -mkl -o qg.e
 */
 
 #include "grid/multigrid.h"
@@ -98,6 +102,8 @@ event init (i = 0) {
 /**
    Layer thickness and large scale variables
 */
+  fprintf(stdout, "Read input files:\n");
+
   char name[80];
   sprintf (name,"dh_%dl.bin", nl);
   float dh[nl];
@@ -108,15 +114,21 @@ event init (i = 0) {
   for (int l = 0; l < nl ; l++)
     dhf[l] = dh[l];
 
+  fprintf(stdout, "%s .. ok\n", name);
+
   sprintf (name,"psipg_%dl_N%d.bas", nl,N);
   fp = fopen (name, "r");
   input_matrixl (ppl, fp);
   fclose(fp);
 
+  fprintf(stdout, "%s .. ok\n", name);
+
   sprintf (name,"frpg_%dl_N%d.bas", nl,N);
   fp = fopen (name, "r");
   input_matrixl (Frl, fp);
   fclose(fp);
+
+  fprintf(stdout, "%s .. ok\n", name);
 
   // copy input fields for backup
   sprintf (name,"%sdh_%dl.bin", dpath, nl);

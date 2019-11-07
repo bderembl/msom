@@ -3,8 +3,11 @@
    matrix
 */
 
-
+#ifndef MKL
 #include <lapacke.h>
+#else
+#include <mkl_lapacke.h>
+#endif
 #include <stdio.h>
  
 /* Auxiliary routine: printing a matrix */
@@ -235,6 +238,7 @@ Bu = \frac{Ld^2}{l^2}
 $$
     */
 
+#if MODE_PV_INVERT
     for (int m = 0; m < nl ; m++) {
       for (int k = 0; k < nl ; k++) {
         scalar l2m = cl2m[k*nl+m];
@@ -246,6 +250,7 @@ $$
         /* m2l[] = (k == m ? 1.0 : 0.); */
       }
     }
+#endif
 
     // store iBu = -1/Bu 
     for (int l = 0; l < nl ; l++) {
@@ -259,6 +264,7 @@ $$
     scalar iBu = iBul[0];
     iBu[] = 0.;
 
+#if MODE_PV_INVERT
     if (print)
       {
     for (int m = 0; m < nl ; m++) {
@@ -276,9 +282,9 @@ $$
       double ibu = wr[l];
       printf("iBu: %g , def radius: %g\n", ibu, ibu > 0 ? sqrt(1/ibu) : 0);
     }
-
     print = 0;
       }
+#endif
     
 
   free(amat);
@@ -292,9 +298,10 @@ $$
   }
 
   boundary(iBul);
+#if MODE_PV_INVERT
   boundary(cl2m);
   boundary(cm2l);
-
+#endif
 
 }
 

@@ -531,10 +531,11 @@ void set_vars()
   /**
      Mode to layer inversion matrices (dimesnion: $nl^2$)
   */
+#if MODE_PV_INVERT
   int nl2 = nl*nl;
   cl2m = create_layer_var(cl2m,nl2,1);
   cm2l = create_layer_var(cm2l,nl2,1);
-
+#endif
   evolving = qol;
     
   /**
@@ -562,11 +563,12 @@ void set_vars()
 
   advance = advance_qg;
   update = update_qg;
-
 }
 
 event defaults (i = 0){
+  fprintf(stdout,"Create main variables .. ");
   set_vars();
+  fprintf(stdout,"ok\n");
 }
 
 
@@ -624,9 +626,9 @@ event init (i = 0)
     }
   }
 
-  /**
-     compute PV inversion matrices  */
+  fprintf(stdout,"Compute vertical modes .. ");
   eigmod(dhf, dhc, Ro, Frl, cl2m, cm2l, iBul);
+  fprintf(stdout,"ok\n ");
 
   /**
      compute filter length scale and wavelet coeffs*/
@@ -695,12 +697,12 @@ void trash_vars(){
 #if MODE_PV_INVERT
   free (pom), pom = NULL;
   free (qom), qom = NULL;
+  free (cl2m), cl2m = NULL;
+  free (cm2l), cm2l = NULL;
 #endif
   free (zetal), zetal = NULL;
   free (qofl), qofl = NULL;
   free (ppl), ppl = NULL;
-  free (cl2m), cl2m = NULL;
-  free (cm2l), cm2l = NULL;
   free (iBul), iBul = NULL;
   free (Frl), Frl = NULL;
   free (str0l), str0l = NULL;

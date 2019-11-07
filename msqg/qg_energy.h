@@ -206,7 +206,11 @@ void trash_vars_energy(){
 }
 
 event defaults (i = 0){
- if (ediag>-1) set_vars_energy();
+ if (ediag>-1) {
+   fprintf(stdout,"Create variables for energy diagnostics .. ");
+   set_vars_energy();
+   fprintf(stdout,"ok\n");
+ }
 }
 event cleanup (i = end, last) {
  if (ediag>-1) trash_vars_energy();
