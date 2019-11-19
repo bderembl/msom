@@ -66,6 +66,7 @@ void eigmod (double * dhf, double * dhc, scalar Ro, scalar * Frl,
              scalar * cl2m, scalar * cm2l, scalar * iBul)
 {
   
+  fprintf(stdout,"Compute vertical modes .. ");
   double htotal = 1.;
 
   int print = 0;
@@ -303,5 +304,6 @@ $$
   boundary(cm2l);
 #endif
 
+  fprintf(stdout,"ok\n ");
 }
 

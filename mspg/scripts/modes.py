@@ -90,6 +90,7 @@ for nz in range(0,nl-1):
 gp = -Bs*np.diff(b,1,0)
 #gp = np.where(gp<gpmin,gpmin,gp)
 f0 = yc*L*beta
+Ro = u_qg/(f0*l_qg)
 
 # il: layer interface
 il = [0,3,8,16,30]        # 4 layers
@@ -121,6 +122,9 @@ dzi = 0.5*(dzt[:-1] + dzt[1:])
 zt = 0.5*dzt - np.cumsum(dzt)
 
 N2lt = gpt/dzi.reshape((nlt-1,1,1))
+dht_a    = dzt/H
+dzi_a    = dzi/H
+Fr = u_qg/(np.sqrt(N2lt)*H)
 
 rd = np.zeros((nl,N,N))
 l2m = np.zeros((nl,nl,N,N))
@@ -168,6 +172,8 @@ for n2 in range(0,nlt):
   zeta = (fv[1:,1:] - fv[1:,:-1] - fu[1:,1:] + fu[:-1,1:])/Deltad
   psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta)
 
+rd1_est = np.max(Ro/Fr*dzi_a[:,np.newaxis,np.newaxis]*l_qg,axis=0)
+
 ir = 1
 
 ci = [1,2,5,10,20,30,40,50,60,70,80,90]
@@ -182,6 +188,12 @@ plt.contourf(x,y,bt[0,:,:])
 plt.colorbar()
 CS = plt.contour(x,y,rdt[ir,:,:]*1e-3, ci, colors='k')
 plt.clabel(CS, inline=1, fontsize=10)
+
+# plt.figure()
+# plt.contourf(x,y,bt[0,:,:])
+# plt.colorbar()
+# CS = plt.contour(x,y,rd1_est[:,:]*1e-3, ci, colors='k')
+# plt.clabel(CS, inline=1, fontsize=10)
 
 nx = 50
 ny = 50
@@ -229,8 +241,6 @@ psi_ls = adjust_psi_coef*psi_ls
 psi_ls_a = psi_ls/(l_qg*u_qg)
 gpt_a    = gpt*l_qg/u_qg**2
 dzt_a    = dzt/l_qg
-Fr = u_qg/(np.sqrt(N2lt)*H)
-dht_a    = dzt/H
 
 # Export to basilisk format
 psi_ls_o = 0*psi_ls
@@ -251,6 +261,16 @@ Fr_o[:,0,0] = N
 Fr_o = np.transpose(Fr_o,(0,2,1))
 fileFr = 'frpg_' + str(nlt) +'l.bas'
 Fr_o.astype('f4').tofile(fileFr)
+
+# first deformation radius
+Rd_o = np.zeros((N1,N1))
+Rd_o[1:,1:] = rdt[1,:,:]/l_qg
+Rd_o[0,:] = 0
+Rd_o[:,0] = 0
+Rd_o[0,0] = N
+Rd_o = np.transpose(Rd_o,(1,0))
+fileRd = 'rdpg_' + str(nlt) +'l.bas'
+Rd_o.astype('f4').tofile(fileRd)
 
 # gp_o = np.zeros((nlt,N1,N1))
 # gp_o[:-1,1:,1:] = gpt_a

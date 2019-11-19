@@ -40,14 +40,17 @@ frpg = frpg[:,1:,1:]
 
 
 # read constants
-iBu = np.fromfile(dir0 + 'iBu.bas','f4').reshape(nl,N1,N1).transpose(0,2,1)
-iBu = iBu[:,1:,1:]
+#iBu = np.fromfile(dir0 + 'iBu.bas','f4').reshape(nl,N1,N1).transpose(0,2,1)
+#iBu = iBu[:,1:,1:]
+#Rd = np.sqrt(-1/iBu)*lref[1,:,:]
 
-Rd = np.sqrt(-1/iBu)*lref
+rdpg = np.fromfile(dir0 + 'rdpg_' + str(nl) + 'l_N'+ str(N) + '.bas','f4').reshape(N1,N1).transpose(1,0)
+Rd = rdpg[1:,1:]
 
-# plt.figure()
-# CS = plt.contour(xc,yc,Rd[1,:,:]*1e-3,[1,2,5,10,20,30,40,50,60,70,80,90],colors='b')
-# plt.clabel(CS, inline=1, fontsize=10)
+
+plt.figure()
+CS = plt.contour(xc,yc,Rd*lref*1e-3,[1,2,5,10,20,30,40,50,60,70,80,90],colors='b')
+plt.clabel(CS, inline=1, fontsize=10)
 
 # choose vertical level (0= top, nl-1=bottom)
 l = 0

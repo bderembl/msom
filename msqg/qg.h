@@ -28,6 +28,7 @@ scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * Frl = NULL;
 scalar Ro[];
+scalar Rd[];
 scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
@@ -63,7 +64,9 @@ int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 
 char dpath[80]; // name of output dir
 
+#if MODE_PV_INVERT
 #include "eigmode.h"
+#endif
 
 trace
 void invertq(scalar * pol, scalar * qol)
@@ -626,16 +629,18 @@ event init (i = 0)
     }
   }
 
-  fprintf(stdout,"Compute vertical modes .. ");
-  eigmod(dhf, dhc, Ro, Frl, cl2m, cm2l, iBul);
-  fprintf(stdout,"ok\n ");
-
   /**
      compute filter length scale and wavelet coeffs*/
+#if MODE_PV_INVERT
+  eigmod(dhf, dhc, Ro, Frl, cl2m, cm2l, iBul);
+
   scalar iRd = iBul[1];
   foreach()
     sig_filt[] = min(afilt*sqrt(-1/iRd[]),Lfmax);
-
+#else
+  foreach()
+    sig_filt[] = min(afilt*Rd[],Lfmax);
+#endif
 
   restriction({sig_filt});
 
