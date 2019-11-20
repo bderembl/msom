@@ -21,128 +21,22 @@ mpicc -Wall -std=c99 -O2 _qg.c -lm -mkl -o qg.e
 #include "grid/multigrid.h"
 #include "auxiliar_input.h"
 #include "qg.h"
-
-// for mkdir
-#include <sys/stat.h>
-#include <sys/types.h>
+#include "qg_energy.h"
 
 int main() {
 
-/**
-   Read input parameters
- */
-
-  FILE * fp;
-  if (fp = fopen("params.in", "rt")) {
-    char tempbuff[100];
-    char tmps1[16];
-    char tmps2[16];
-
-    while(fgets(tempbuff,100,fp)) {
-      sscanf(tempbuff, "%15s = %15s", tmps1, tmps2);
-      if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
-      else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
-      else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
-      else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
-      else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
-      else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
-      else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
-      else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
-      else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
-      else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
-      else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }
-      else if (strcmp(tmps1,"DT")   ==0) { DT    = atof(tmps2); }
-      else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
-      else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
-      else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
-      else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
-    }
-    fclose(fp);
-  } else {
-    fprintf(stdout, "file params.in not found\n");
-    exit(0);
-  }
-
-  /**
-     Create output directory and copy input parameter file for backup
-  */
-
-  char ch;
-  char name[80];
-@if _MPI 
-  sprintf(dpath, "outdir_%04d/", 1);
-  int res = mkdir(dpath, 0777);
-@else
-  for (int i=1; i<10000; i++) {
-    sprintf(dpath, "outdir_%04d/", i);
-    if (mkdir(dpath, 0777) == 0) {
-      fprintf(stdout,"Writing output in %s\n",dpath);
-      break;
-    }
-  }
-@endif
-
-  sprintf (name,"%sparams.in", dpath);
-  FILE * source = fopen("params.in", "r");
-  FILE * target = fopen(name, "w");
-  while ((ch = fgetc(source)) != EOF)
-    fputc(ch, target);
-  fclose(source);
-  fclose(target);
-
-  fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
+  read_params();
+  create_outdir();
 
   init_grid (N);
   size(L0);
   run();
 }
 
-
-event init (i = 0) {
-/**
-   Layer thickness and large scale variables
-*/
-  fprintf(stdout, "Read input files:\n");
-
-  char name[80];
-  sprintf (name,"dh_%dl.bin", nl);
-  float dh[nl];
-  FILE * fp = fopen (name, "r");
-  fread(&dh, sizeof(float), nl, fp);
-  fclose(fp);
-
-  for (int l = 0; l < nl ; l++)
-    dhf[l] = dh[l];
-
-  fprintf(stdout, "%s .. ok\n", name);
-
-  sprintf (name,"psipg_%dl_N%d.bas", nl,N);
-  fp = fopen (name, "r");
-  input_matrixl (ppl, fp);
-  fclose(fp);
-  fprintf(stdout, "%s .. ok\n", name);
-
-  sprintf (name,"frpg_%dl_N%d.bas", nl,N);
-  fp = fopen (name, "r");
-  input_matrixl (Frl, fp);
-  fclose(fp);
-  fprintf(stdout, "%s .. ok\n", name);
-
-  sprintf (name,"rdpg_%dl_N%d.bas", nl,N);
-  fp = fopen (name, "r");
-  input_matrixl ({Rd}, fp);
-  fclose(fp);
-  fprintf(stdout, "%s .. ok\n", name);
-
-  // copy input fields for backup
-  sprintf (name,"%sdh_%dl.bin", dpath, nl);
-  fp = fopen (name, "w");
-  fwrite(&dh, sizeof(float), nl, fp);
-  fclose(fp);
-
 /**
    Initial conditions
 */
+event init (i = 0) {
   foreach() 
     for (int l = 0; l < nl ; l++) {
       scalar qo  = qol[l];
@@ -152,11 +46,11 @@ event init (i = 0) {
     }
 }
 
-event filter (t = 0; t <= tend+1e-10;  t += dtflt) {
-  fprintf(stdout,"Filter solution\n");
-  if (ediag>-1) 
-    filter_de (qol, pol, de_ftl);
-  wavelet_filter ( qol, pol, qofl, dtflt, nbar)
+/**
+   Write parameters
+ */
+event write_const (t = 0) {
+  backup_config();
 }
 
 event writestdout (i++) {
@@ -170,40 +64,6 @@ event writestdout (i++) {
   fprintf (stdout,"i = %i, dt = %g, t = %g, ke_1 = %g\n", i, dt, t, ke);
 }
 
-/**
-   Write parameters
- */
-event write_const (t = 0) {
-  char name[80];
-  sprintf (name,"%ssig_filt.bas", dpath);
-  FILE * fp = fopen (name, "w");
-  output_matrixl ({sig_filt}, fp);
-  fclose(fp);
-
-#if MODE_PV_INVERT
-  sprintf (name,"%siBu.bas", dpath);
-  fp = fopen (name, "w");
-  output_matrixl (iBul, fp);
-  fclose(fp);
-#else
-  sprintf (name,"%srdpg_%dl_N%d.bas", dpath, nl,N);
-  fp = fopen (name, "w");
-  output_matrixl ({Rd}, fp);
-  fclose(fp);
-#endif
-
-  // copy input field for backup
-  sprintf (name,"%spsipg_%dl_N%d.bas", dpath, nl,N);
-  fp = fopen (name, "w");
-  output_matrixl (ppl, fp);
-  fclose(fp);
-
-  sprintf (name,"%sfrpg_%dl_N%d.bas", dpath, nl,N);
-  fp = fopen (name, "w");
-  output_matrixl (Frl, fp);
-  fclose(fp);
-
-}
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");

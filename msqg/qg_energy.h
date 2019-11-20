@@ -172,7 +172,6 @@ void energy_tend (scalar * pol, double dt)
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt);
   dissip_de(zetal, de_vdl, pol, dt);
   bottom_friction_de(zetal, de_bfl, pol, dt);
-  // filter part in qg.c
 
   foreach()
     for (int l = 0; l < nl ; l++) {
@@ -204,6 +203,15 @@ void trash_vars_energy(){
   free(tmp2l), tmp2l = NULL;
   free(po_mft), po_mft = NULL;
 }
+
+/**
+   Filter
+*/
+event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
+  if (ediag>-1)
+    filter_de (qol, pol, de_ftl);
+}
+
 
 event defaults (i = 0){
  if (ediag>-1) {

@@ -2,10 +2,15 @@
    multiple scale quasi-geostrophic model 
 */
 
+#include "layer.h"
 #include "predictor-corrector.h"
 #include "poisson.h"
 #include "poisson_layer.h"
 #include "timestep.h"
+
+// for mkdir
+#include <sys/stat.h>
+#include <sys/types.h>
 
 // layered variables
 scalar * qol  = NULL; // vorticity on layers
@@ -364,17 +369,6 @@ void surface_forcing  (scalar * dqol)
     dqo[] -= tau0*sin(2*pi*y/L0);
 }
 
-
-void list_copy_deep (scalar * listin, scalar * listout)
-{
-  foreach()
-    for (int l = 0; l < nl ; l++) {
-      scalar listi = listin[l];
-      scalar listo = listout[l];
-      listo[] = listi[];
-    }
-}
-
 trace
 void time_filter (scalar * qol, scalar * qo_mel, double dt)
 {
@@ -438,7 +432,7 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
     }
   // for energy diag: restore qo to prefiltered value
   if (dtflt == -1.0){
-    list_copy_deep (tmpl, qol);
+    list_copy_deep (tmpl, qol, nl);
   }
 
   boundary(qofl);
@@ -480,55 +474,144 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   return dtmax;
 }
 
-/**  
-   ## Layerered variables initialization, etc
+/**
+   Filter
 */
-
-scalar * create_layer_var (scalar * psil, int nl, int bc_type)
-{
-  assert (psil == NULL);
-  assert (nl > 0);
-
-  for (int l = 0; l < nl; l++) {
-    scalar po = new scalar;
-    psil = list_append (psil, po);
-    
-    if (bc_type == 0){
-      po[right]  = dirichlet(0);
-      po[left]   = dirichlet(0);
-      po[top]    = dirichlet(0);
-      po[bottom] = dirichlet(0);
-    }
-  }
-
-  foreach() 
-    for (scalar po in psil) {po[] = 0.0;} 
-
-  return psil;
+event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
+  fprintf(stdout,"Filter solution\n");
+  wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
 
-void reset_layer_var(scalar *psil)
+/**********************************************************************
+*                       End of dynamical core                         *
+***********************************************************************/
+
+/**
+   Read input parameters
+ */
+
+void read_params()
 {
-  foreach()
-    for (scalar po in psil) {po[] = 0.0;}
+  FILE * fp;
+  if (fp = fopen("params.in", "rt")) {
+    char tempbuff[100];
+    char tmps1[16];
+    char tmps2[16];
+
+    while(fgets(tempbuff,100,fp)) {
+      sscanf(tempbuff, "%15s = %15s", tmps1, tmps2);
+      if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
+      else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
+      else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
+      else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
+      else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
+      else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
+      else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
+      else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
+      else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
+      else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
+      else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }
+      else if (strcmp(tmps1,"DT")   ==0) { DT    = atof(tmps2); }
+      else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
+      else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
+      else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
+      else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
+    }
+    fclose(fp);
+  } else {
+    fprintf(stdout, "file params.in not found\n");
+    exit(0);
+  }
+  fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
+}
+
+/**
+   Create output directory and copy input parameter file for backup
+*/
+void create_outdir()
+{
+  char ch;
+  char name[80];
+@if _MPI 
+  sprintf(dpath, "outdir_%04d/", 1);
+  int res = mkdir(dpath, 0777);
+@else
+  for (int i=1; i<10000; i++) {
+    sprintf(dpath, "outdir_%04d/", i);
+    if (mkdir(dpath, 0777) == 0) {
+      fprintf(stdout,"Writing output in %s\n",dpath);
+      break;
+    }
+  }
+@endif
+}
+
+void backup_config()
+{
+  fprintf(stdout, "Backup config\n");
+  char ch;
+  char name[80];
+  sprintf (name,"%sparams.in", dpath);
+  FILE * source = fopen("params.in", "r");
+  FILE * target = fopen(name, "w");
+  while ((ch = fgetc(source)) != EOF)
+    fputc(ch, target);
+  fclose(source);
+  fclose(target);
+
+  sprintf (name,"%ssig_filt.bas", dpath);
+  FILE * fp = fopen (name, "w");
+  output_matrixl ({sig_filt}, fp);
+  fclose(fp);
+
+#if MODE_PV_INVERT
+  sprintf (name,"%siBu.bas", dpath);
+  fp = fopen (name, "w");
+  output_matrixl (iBul, fp);
+  fclose(fp);
+#else
+  sprintf (name,"%srdpg_%dl_N%d.bas", dpath, nl,N);
+  fp = fopen (name, "w");
+  output_matrixl ({Rd}, fp);
+  fclose(fp);
+#endif
+
+  sprintf (name,"%spsipg_%dl_N%d.bas", dpath, nl,N);
+  fp = fopen (name, "w");
+  output_matrixl (ppl, fp);
+  fclose(fp);
+
+  sprintf (name,"%sfrpg_%dl_N%d.bas", dpath, nl,N);
+  fp = fopen (name, "w");
+  output_matrixl (Frl, fp);
+  fclose(fp);
+
+  float dh[nl]; // float instead of double
+  for (int l = 0; l < nl ; l++)
+    dh[l] = dhf[l];
+
+  sprintf (name,"%sdh_%dl.bin", dpath, nl);
+  fp = fopen (name, "w");
+  fwrite(&dh, sizeof(float), nl, fp);
+  fclose(fp);
 }
 
 void set_vars()
 {
+  fprintf(stdout,"Create main variables .. ");
   pol   = create_layer_var(pol,nl,0);
   qol   = create_layer_var(qol,nl,0);
   ppl   = create_layer_var(ppl,nl,0);
   zetal = create_layer_var(zetal,nl,0);
   tmpl  = create_layer_var(tmpl,nl,0);
   Frl   = create_layer_var(Frl,nl,1);
-  iBul  = create_layer_var(iBul,nl,1);
   str0l = create_layer_var(str0l,nl,1);
   str1l = create_layer_var(str1l,nl,1);
   qofl  = create_layer_var(qofl,nl,0);
-//  create_layer_var(qosl,nl);
 #if MODE_PV_INVERT
   pom = create_layer_var(pom,nl,0);
   qom = create_layer_var(qom,nl,0);
+  iBul  = create_layer_var(iBul,nl,1);
 #endif
 
   /**
@@ -566,34 +649,55 @@ void set_vars()
 
   advance = advance_qg;
   update = update_qg;
-}
-
-event defaults (i = 0){
-  fprintf(stdout,"Create main variables .. ");
-  set_vars();
   fprintf(stdout,"ok\n");
 }
 
+event defaults (i = 0){
+  set_vars();
+}
+
+void set_const() {
 
 /**
-The event below will happen after all the other initial events to take
-into account user-defined field initialisations. */
+   Layer thickness and large scale variables
+*/
+  fprintf(stdout, "Read input files:\n");
 
-event init (i = 0)
-{
+  char name[80];
+  sprintf (name,"dh_%dl.bin", nl);
+  float dh[nl];
+  FILE * fp = fopen (name, "r");
+  fread(&dh, sizeof(float), nl, fp);
+  fclose(fp);
+
+  for (int l = 0; l < nl ; l++)
+    dhf[l] = dh[l];
+
+  fprintf(stdout, "%s .. ok\n", name);
+
+  sprintf (name,"psipg_%dl_N%d.bas", nl,N);
+  fp = fopen (name, "r");
+  input_matrixl (ppl, fp);
+  fclose(fp);
+  fprintf(stdout, "%s .. ok\n", name);
+
+  sprintf (name,"frpg_%dl_N%d.bas", nl,N);
+  fp = fopen (name, "r");
+  input_matrixl (Frl, fp);
+  fclose(fp);
+  fprintf(stdout, "%s .. ok\n", name);
+
+  sprintf (name,"rdpg_%dl_N%d.bas", nl,N);
+  fp = fopen (name, "r");
+  input_matrixl ({Rd}, fp);
+  fclose(fp);
+  fprintf(stdout, "%s .. ok\n", name);
+
   for (int l = 0; l < nl-1; l++)
     dhc[l] = 0.5*(dhf[l] + dhf[l+1]);
 
-  /* foreach() */
-  /*   Ro[] = uref/((fref + betad*(y-0.5*L0)*lref)*lref); */
   foreach()
     Ro[] = (Rom > 0) ? Rom/(1 + Rom*beta*(y-0.5*L0)) : -Rom;
-
-  /* foreach()  */
-  /*   for (int l = 0; l < nl ; l++) { */
-  /*     scalar pp  = ppl[l]; */
-  /*     pp[] = pp[]*Ro[]; */
-  /*   } */
 
   /**
      Compute vertical stretching coef matrix
@@ -676,21 +780,13 @@ event init (i = 0)
   boundary (all);
 }
 
+/**
+The event below will happen after all the other initial events to take
+into account user-defined field initialisations. */
 
-void write_field(scalar *psil, char name[], double rescale){
-
-  int nl1 = list_len (psil);
-
-  if (rescale != 0)
-    foreach()
-      for (int l = 0; l < nl1 ; l++) {
-        scalar psi  = psil[l];
-        psi[] *= rescale;
-      }
-  
-  FILE * fp = fopen (name, "w");
-  output_matrixl (psil, fp);
-  fclose(fp);
+event init (i = 0)
+{
+  set_const();
 }
 
 /**
@@ -704,16 +800,15 @@ void trash_vars(){
   free (qom), qom = NULL;
   free (cl2m), cl2m = NULL;
   free (cm2l), cm2l = NULL;
+  free (iBul), iBul = NULL;
 #endif
   free (zetal), zetal = NULL;
   free (qofl), qofl = NULL;
   free (ppl), ppl = NULL;
-  free (iBul), iBul = NULL;
   free (Frl), Frl = NULL;
   free (str0l), str0l = NULL;
   free (str1l), str1l = NULL;
   free (tmpl), tmpl = NULL;
-//  free (qosl), qosl = NULL;
   free(dhf);
   free(dhc);
 }
@@ -723,6 +818,39 @@ event cleanup (i = end, last) {
 }
 
 /**
-   Energy diagnostic routines
-*/
-#include "qg_energy.h"
+   Python interface routines (should be in .i file but I need foreach)
+ */
+
+void pyset_field (scalar * psil, double * val1){
+  int i = 0;
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar psi = psil[l];
+      psi[] =  val1[i];
+      i++;
+    }
+  boundary(psil);
+}
+
+void pyget_field (scalar * psil, double * val1){
+  int i = 0;
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar psi = psil[l];
+      val1[i] = psi[];
+      i++;
+    }
+}
+
+void pystep ( double * val1, int len1, int len2, int len3,
+              double * val2, int len4, int len5, int len6){
+
+  pyset_field(pol,val1);
+  comp_del2(pol, zetal, 0., 1.0);
+
+  /* if (!strcmp (id, "jac1")){ */
+
+  /* } */
+  pyget_field(pol,val2);
+
+}

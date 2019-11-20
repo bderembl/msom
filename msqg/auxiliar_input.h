@@ -138,6 +138,26 @@ void output_matrixl (struct OutputMatrixl p)
 }
 
 
+
+void write_field(scalar *psil, char name[], double rescale){
+
+  int nl1 = list_len (psil);
+
+  if (rescale != 0)
+    foreach()
+      for (int l = 0; l < nl1 ; l++) {
+        scalar psi  = psil[l];
+        psi[] *= rescale;
+      }
+  
+  FILE * fp = fopen (name, "w");
+  output_matrixl (psil, fp);
+  fclose(fp);
+}
+
+
+
+
 /* /\* */
 /* This function is an extension of output_matrix() inside "output.h" which allows */
 /* to write 2D fields in a gnuplot-complatible format when running in MPI by */
