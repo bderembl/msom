@@ -23,7 +23,8 @@ int nme_ft = 0;
  */
 trace
 void advection_de  (scalar * qol, scalar * pol,
-                    scalar * de_j1l, scalar * de_j2l, scalar * de_j3l, double dt)
+                    scalar * de_j1l, scalar * de_j2l, scalar * de_j3l, 
+                    double dt)
 {
   foreach() {
     double ju_1,jd_1;
@@ -146,11 +147,11 @@ void bottom_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt)
 
 
 trace
-void filter_de (scalar * qol, scalar * pol, scalar * de_ftl)
+void filter_de (scalar * qol, scalar * pol, scalar * de_ftl, double dtflt)
 {
   // use tmp2 here because tmp is used in wavelet_filter
   int nbar = 0;
-  wavelet_filter(qol, pol, tmp2l, -1.0, nbar);
+  wavelet_filter(qol, pol, tmp2l, -dtflt, nbar);
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar de_ft = de_ftl[l];
@@ -158,9 +159,8 @@ void filter_de (scalar * qol, scalar * pol, scalar * de_ftl)
       scalar po = pol[l];
       scalar pp   = ppl[l];
       scalar pm = po_mft[l];
-      // no mutliplication by dt here
       //de_ft[] += tmp[]*(-po[]-ediag*pp[])*Ro[]*Ro[];
-      de_ft[] += tmp[]*(-pm[]-ediag*pp[]);
+      de_ft[] += tmp[]*(-pm[]-ediag*pp[])*dtflt;
       pm[] = 0;
     }
   nme_ft = 0;
@@ -209,7 +209,7 @@ void trash_vars_energy(){
 */
 event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
   if (ediag>-1)
-    filter_de (qol, pol, de_ftl);
+    filter_de (qol, pol, de_ftl, dtflt);
 }
 
 
@@ -226,4 +226,43 @@ event cleanup (i = end, last) {
 
 event comp_diag (i++) {
  if (ediag>-1) energy_tend (pol, dt);
+}
+
+/**
+   Python interface routines (should be in .i file but I need foreach)
+ */
+
+void pystep ( double * val1, int len1, int len2, int len3,
+              double * val2, int len4, int len5, int len6,
+              char * id){
+
+  pyset_field(pol,val1);
+  reset_layer_var(qol);
+  comp_del2(pol, zetal, 0., 1.0);
+  if (!strcmp (id, "dissip"))
+    dissip(zetal,qol);
+  else if (!strcmp (id, "bf"))
+    bottom_friction(zetal,qol);
+  else if (!strcmp (id, "j1")){
+    advection_de(qol, pol, de_j1l, de_j2l, de_j3l, 1.0)      
+    foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar po  = pol[l];
+      scalar pp  = ppl[l];
+      scalar po2 = pol[l+1];
+      scalar pp2 = ppl[l+1];
+      scalar de_j1 = de_j1l[l];
+      scalar de_j2 = de_j2l[l];
+
+
+
+      scalar listi = listin[l];
+      scalar listo = listout[l];
+      listo[] = listi[];
+    }
+  }
+  
+
+  pyget_field(qol,val2);
+
 }

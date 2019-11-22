@@ -431,7 +431,7 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
       //qof[] = (tmp[] - qo[]);
     }
   // for energy diag: restore qo to prefiltered value
-  if (dtflt == -1.0){
+  if (dtflt < 0.0){
     list_copy_deep (tmpl, qol, nl);
   }
 
@@ -840,17 +840,4 @@ void pyget_field (scalar * psil, double * val1){
       val1[i] = psi[];
       i++;
     }
-}
-
-void pystep ( double * val1, int len1, int len2, int len3,
-              double * val2, int len4, int len5, int len6){
-
-  pyset_field(pol,val1);
-  comp_del2(pol, zetal, 0., 1.0);
-
-  /* if (!strcmp (id, "jac1")){ */
-
-  /* } */
-  pyget_field(pol,val2);
-
 }
