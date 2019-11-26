@@ -530,7 +530,6 @@ void read_params()
 */
 void create_outdir()
 {
-  char ch;
   char name[80];
 @if _MPI 
   sprintf(dpath, "outdir_%04d/", 1);
@@ -826,7 +825,9 @@ void pyset_field (scalar * psil, double * val1){
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar psi = psil[l];
-      psi[] =  val1[i];
+      // transposed index
+      int j = N*N*(i%nl) + N*((int)floor(i/nl)%N) + (int)floor(i/(N*nl));
+      psi[] =  val1[j];
       i++;
     }
   boundary(psil);
@@ -837,7 +838,11 @@ void pyget_field (scalar * psil, double * val1){
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar psi = psil[l];
-      val1[i] = psi[];
+      // in principle, if the loop were reversed, it should be this line
+//      int j = (i*nl*N)%(nl*N*N) + (nl*(int)floor(i/N))%(nl*N) + (int)floor(i/(N*N));
+      // transposed index
+      int j = N*N*l + N*((int)floor(i/nl)%N) + (int)floor(i/(N*nl));
+      val1[j] = psi[];
       i++;
     }
 }
