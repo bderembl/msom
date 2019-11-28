@@ -29,7 +29,8 @@ void input_matrixl (struct InputMatrixl p) {
     
     if (p.n != width) p.n = (int) width;
     
-    float yp[p.n], xp[p.n], v[p.n][p.n];
+    float yp[p.n], xp[p.n];
+    float ** v = matrix_new (p.n, p.n, sizeof(float));
     fread(&yp, sizeof(float), p.n, p.fp);
     for (int i = 0; i < p.n; i++) {
       fread(&xp[i], sizeof(float), 1, p.fp);
@@ -44,6 +45,7 @@ void input_matrixl (struct InputMatrixl p) {
       else
         s[] = 0.;
     }
+  matrix_free (v);
   }
 }
 

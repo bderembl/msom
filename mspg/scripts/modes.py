@@ -172,7 +172,7 @@ for n2 in range(0,nlt):
   zeta = (fv[1:,1:] - fv[1:,:-1] - fu[1:,1:] + fu[:-1,1:])/Deltad
   psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta)
 
-rd1_est = np.max(Ro/Fr*dzi_a[:,np.newaxis,np.newaxis]*l_qg,axis=0)
+rd1_est = np.max(Ro/Fr*l_qg,axis=0)
 
 ir = 1
 
@@ -189,11 +189,11 @@ plt.colorbar()
 CS = plt.contour(x,y,rdt[ir,:,:]*1e-3, ci, colors='k')
 plt.clabel(CS, inline=1, fontsize=10)
 
-# plt.figure()
-# plt.contourf(x,y,bt[0,:,:])
-# plt.colorbar()
-# CS = plt.contour(x,y,rd1_est[:,:]*1e-3, ci, colors='k')
-# plt.clabel(CS, inline=1, fontsize=10)
+plt.figure()
+plt.contourf(x,y,bt[0,:,:])
+plt.colorbar()
+CS = plt.contour(x,y,rd1_est[:,:]*1e-3, ci, colors='k')
+plt.clabel(CS, inline=1, fontsize=10)
 
 nx = 50
 ny = 50

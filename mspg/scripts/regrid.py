@@ -5,13 +5,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import RectBivariateSpline
+import sys
 
 # new grid
-Nn = 512
+if len(sys.argv) > 2:
+  Nn = int(sys.argv[1])
+  nl = int(sys.argv[2])
+else:
+  print("usage: python regrid.py N nl")
+  print("with N the new grid size and nl the number of layer")
+  sys.exit(1)
 
-filepo = "psipg_4l.bas"
-filefr = "frpg_4l.bas"
-filerd = "rdpg_4l.bas"
+filepo = "psipg_" + str(nl) + "l.bas"
+filefr = "frpg_" + str(nl) + "l.bas"
+filerd = "rdpg_" + str(nl) + "l.bas"
 
 p = np.fromfile(filepo,'f4')
 N = int(p[0])

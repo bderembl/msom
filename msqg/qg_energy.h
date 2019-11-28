@@ -253,7 +253,7 @@ void pystep ( double * qo_py, int len1, int len2, int len3,
   invertq(pol, qol);
   comp_del2(pol, zetal, 0., 1.0);
 
-  int ediag = 0;
+  int ediag = 1;
   double dt = 1.;
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
   dissip_de(zetal, de_vdl, pol, dt, ediag);

@@ -53,6 +53,8 @@ double * dhc;
 
 double Re = 1e1; // reynolds number
 double Re4 = 1e3; // bihormonic reynolds number
+double iRe = 0.0; // inverse reynolds number
+double iRe4 = 0.0; // inverse bihormonic reynolds number
 double Ek = 1e-2; // Ekman number
 double Rom = 1e-2; // Mean Rossby number (if negative: Ro = cte = -Rom)
 double Frm = 1e-2; // Mean Froude number
@@ -244,7 +246,6 @@ void comp_vel(const scalar po, face vector uf)
   }
 }
 
-
 trace
 double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 {
@@ -313,7 +314,7 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
      comp_vel(po, uf);
      dtmax = timestep (uf, dtmax);
   //    dtmax = DT;
-}
+   }
   return dtmax;
 }
 
@@ -330,7 +331,6 @@ void comp_q(scalar * pol, scalar * qol)
 trace
 void dissip  (scalar * zetal, scalar * dqol)
 {
-  double iRe = 1/Re;
   comp_del2(zetal, tmpl, 0., 1.);
 
   foreach() 
@@ -340,7 +340,6 @@ void dissip  (scalar * zetal, scalar * dqol)
       dqo[] += p4[]*iRe;
     }
 
-  double iRe4 = -1/Re4;
   comp_del2(tmpl, dqol, 1., iRe4);
 }
 
@@ -522,6 +521,9 @@ void read_params()
     fprintf(stdout, "file params.in not found\n");
     exit(0);
   }
+  if (Re  == 0) iRe  = 0.; else iRe  =  1/Re;
+  if (Re4 == 0) iRe4 = 0.; else iRe4 = -1/Re4;
+
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
 
@@ -638,8 +640,10 @@ void set_vars()
     for (scalar Fr in Frl)
       Fr[] =  Frm; 
 
-  foreach()
+  foreach(){
     Ro[] = Rom; 
+    Rd[] = 1.; 
+  }
 
   /**
      We overload the default 'advance' and 'update' functions of the
