@@ -44,16 +44,16 @@ void advection_de  (scalar * qol, scalar * pol,
       scalar de_j1 = de_j1l[l];
       scalar de_j2 = de_j2l[l];
       scalar de_j3 = de_j3l[l];
-      scalar s1 = str1l[l];
+      scalar s1 = strl[l];
       
       jd_1 = jacobian(po, po2);
       jd_2 = jacobian(pp, po2);
       jd_3 = jacobian(po, pp2);
       jc   = jacobian(po, pp );
 
-      de_j1[] += (jacobian(po, qo) + s1[]*jd_1          )*(-po[]*dt*(1-ediag)+ediag);
-      de_j2[] += (jacobian(pp, qo) + s1[]*jd_2 + s1[]*jc)*(-po[]*dt*(1-ediag)+ediag);
-      de_j3[] += (                   s1[]*jd_3 - s1[]*jc)*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qo) + s1[]*jd_1*idh1[l]       )*(-po[]*dt*(1-ediag)+ediag);
+      de_j2[] += (jacobian(pp, qo) + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j3[] += (                   s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -66,8 +66,8 @@ void advection_de  (scalar * qol, scalar * pol,
         de_j1 = de_j1l[l];
         de_j2 = de_j2l[l];
         de_j3 = de_j3l[l];
-        scalar s0 = str0l[l];
-        scalar s1 = str1l[l];
+        scalar s0 = strl[l-1];
+        scalar s1 = strl[l];
 
         ju_1 = -jd_1;
         ju_2 = -jd_3; // swap
@@ -77,9 +77,9 @@ void advection_de  (scalar * qol, scalar * pol,
         jd_3 = jacobian(po, pp2);
         jc   = jacobian(po, pp );
 
-        de_j1[] += (jacobian(po, qo) + s0[]*ju_1 + s1[]*jd_1                 )*(-po[]*dt*(1-ediag)+ediag);
-        de_j2[] += (jacobian(pp, qo) + s0[]*ju_2 + s1[]*jd_2 + (s1[]+s0[])*jc)*(-po[]*dt*(1-ediag)+ediag);
-        de_j3[] += (                   s0[]*ju_3 + s1[]*jd_3 - (s1[]+s0[])*jc)*(-po[]*dt*(1-ediag)+ediag);
+        de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l] + s1[]*jd_1*idh1[l]              )*(-po[]*dt*(1-ediag)+ediag);
+        de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+        de_j3[] += (                   s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
       }
 
       // lower layer
@@ -91,16 +91,16 @@ void advection_de  (scalar * qol, scalar * pol,
       de_j1 = de_j1l[l];
       de_j2 = de_j2l[l];
       de_j3 = de_j3l[l];
-      scalar s0 = str0l[l];
+      scalar s0 = strl[l-1];
 
       ju_1 = -jd_1;
       ju_2 = -jd_3; // swap
       ju_3 = -jd_2; // swap
       jc   = jacobian(po, pp );
 
-      de_j1[] += (jacobian(po, qo) + s0[]*ju_1          )*(-po[]*dt*(1-ediag)+ediag);
-      de_j2[] += (jacobian(pp, qo) + s0[]*ju_2 + s0[]*jc)*(-po[]*dt*(1-ediag)+ediag);
-      de_j3[] += (                   s0[]*ju_3 - s0[]*jc)*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l]       )*(-po[]*dt*(1-ediag)+ediag);
+      de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j3[] += (                   s0[]*(ju_3 - jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
     }
     else{
       scalar de_j1 = de_j1l[0];

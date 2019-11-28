@@ -33,8 +33,7 @@ struct Poisson_layer {
   scalar * b;
   (const) face vector alpha;
   (const) scalar lambda;
-  (const) scalar * str0l;
-  (const) scalar * str1l;
+  (const) scalar * strl;
   double tolerance;
   int nrelax, minlevel;
   scalar * res;
@@ -51,8 +50,7 @@ static void relax_layer (scalar * al, scalar * bl, int l, void * data)
   struct Poisson_layer * p = (struct Poisson_layer *) data;
   (const) face vector alpha = p->alpha;
   (const) scalar lambda = p->lambda;
-  (const) scalar * str0l = p->str0l;
-  (const) scalar * str1l = p->str1l;
+  (const) scalar * strl = p->strl;
 
   /**
   We use either Jacobi (under)relaxation or we directly reuse values
@@ -86,11 +84,11 @@ static void relax_layer (scalar * al, scalar * bl, int l, void * data)
       scalar a = al[ll];
       scalar b = bl[ll];
 
-      scalar str1 = str1l[ll];
+      scalar s1 = strl[ll];
 
       rhs[ll] = - sq(Delta)*b[];
-      t1[ll] = sq(Delta)*str1[];
-      t2[ll] = -sq(Delta)*str1[];
+      t2[ll] = -sq(Delta)*s1[]*idh1[ll];
+      t1[ll] = -t2[ll];
       foreach_dimension() {
         rhs[ll] += alpha.x[1]*a[1] + alpha.x[]*a[-1];
         t1[ll] += alpha.x[1] + alpha.x[];
@@ -102,13 +100,13 @@ static void relax_layer (scalar * al, scalar * bl, int l, void * data)
       scalar a = al[ll];
       scalar b = bl[ll];
 
-      scalar str0 = str0l[ll];
-      scalar str1 = str1l[ll];
+      scalar s0 = strl[ll-1];
+      scalar s1 = strl[ll];
 
       rhs[ll] = - sq(Delta)*b[];
-      t1[ll] = sq(Delta)*(str0[] + str1[]);
-      t2[ll] = -sq(Delta)*str1[];
-      t0[ll] = -sq(Delta)*str0[];
+      t0[ll] = -sq(Delta)*s0[]*idh0[ll];
+      t2[ll] = -sq(Delta)*s1[]*idh1[ll];
+      t1[ll] = -t0[ll] - t2[ll];
 
       foreach_dimension() {
         rhs[ll] += alpha.x[1]*a[1] + alpha.x[]*a[-1];
@@ -122,11 +120,11 @@ static void relax_layer (scalar * al, scalar * bl, int l, void * data)
       a = al[ll];
       b = bl[ll];
 
-      scalar str0 = str0l[ll];
+      scalar s0 = strl[ll-1];
 
       rhs[ll] = - sq(Delta)*b[];
-      t1[ll] = sq(Delta)*str0[];
-      t0[ll] = -sq(Delta)*str0[];
+      t0[ll] = -sq(Delta)*s0[]*idh0[ll];
+      t1[ll] = -t0[ll];
       foreach_dimension() {
         rhs[ll] += alpha.x[1]*a[1] + alpha.x[]*a[-1];
         t1[ll] += alpha.x[1] + alpha.x[];
@@ -161,8 +159,7 @@ static double residual_layer (scalar * al, scalar * bl, scalar * resl, void * da
   struct Poisson_layer * p = (struct Poisson_layer *) data;
   (const) face vector alpha = p->alpha;
   (const) scalar lambda = p->lambda;
-  (const) scalar * str0l = p->str0l;
-  (const) scalar * str1l = p->str1l;
+  (const) scalar * strl = p->strl;
   double maxres = 0.;
 
 
@@ -192,10 +189,10 @@ static double residual_layer (scalar * al, scalar * bl, scalar * resl, void * da
     scalar b = bl[l];
     scalar res = resl[l];
     
-    scalar str1 = str1l[l];
+    scalar s1 = strl[l];
     
     
-    res[] = b[] - str1[]*a2[] + str1[]*a1[];
+    res[] = b[] + s1[]*(a1[] - a2[])*idh1[l];
     foreach_dimension()
       res[] += (alpha.x[0]*face_gradient_x (a1, 0) -
 		alpha.x[1]*face_gradient_x (a1, 1))/Delta;  
@@ -212,11 +209,11 @@ static double residual_layer (scalar * al, scalar * bl, scalar * resl, void * da
       scalar b = bl[l];
       scalar res = resl[l];
       
-      scalar str0 = str0l[l];
-      scalar str1 = str1l[l];
+      scalar s0 = strl[l-1];
+      scalar s1 = strl[l];
       
       
-      res[] = b[] - str0[]*a0[] - str1[]*a2[] + (str0[] + str1[])*a1[] ;
+      res[] = b[] + s0[]*(a1[] - a0[])*idh0[l] - s1[]*(a2[] - a1[])*idh1[l] ;
       foreach_dimension()
         res[] += (alpha.x[0]*face_gradient_x (a1, 0) -
                   alpha.x[1]*face_gradient_x (a1, 1))/Delta;  
@@ -233,9 +230,9 @@ static double residual_layer (scalar * al, scalar * bl, scalar * resl, void * da
     b = bl[l];
     res = resl[l];
     
-    scalar str0 = str0l[l];
+    scalar s0 = strl[l-1];
     
-    res[] = b[] - str0[]*a0[] + str0[]*a1[];
+    res[] = b[] + s0[]*(a1[] - a0[])*idh0[l];
     foreach_dimension()
       res[] += (alpha.x[0]*face_gradient_x (a1, 0) -
 		alpha.x[1]*face_gradient_x (a1, 1))/Delta;  
@@ -283,10 +280,8 @@ mgstats poisson_layer (struct Poisson_layer p)
   scalar lambda = p.lambda;
   restriction ({alpha,lambda});
 
-  scalar * str0l = p.str0l;
-  scalar * str1l = p.str1l;
-  restriction (str0l);
-  restriction (str1l);
+  scalar * strl = p.strl;
+  restriction (strl);
 
   /**
   If *tolerance* is set it supersedes the default of the multigrid

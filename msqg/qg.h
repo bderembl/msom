@@ -2,6 +2,11 @@
    multiple scale quasi-geostrophic model 
 */
 
+double * dhf;
+double * dhc;
+double * idh0;
+double * idh1;
+
 #include "layer.h"
 #include "predictor-corrector.h"
 #include "poisson.h"
@@ -24,8 +29,7 @@ scalar * pom  = NULL; // stream function on modes
 
 // large scale variables (inversion matrices, etc)
 scalar * ppl  = NULL; // large scale stream function
-scalar * str0l = NULL;
-scalar * str1l = NULL;
+scalar * strl = NULL; // vertical stretching (f^2/N^2)
 // If PV inversion is done with the tri-diagonal method, 
 // then no need to refine cl2m,cm2l,iBul, Frl, Ro
 scalar * cl2m  = NULL;
@@ -48,8 +52,6 @@ scalar * evolving = NULL;
 mgstats mgpsi;
 
 int nl = 1;
-double * dhf;
-double * dhc;
 
 double Re = 1e1; // reynolds number
 double Re4 = 1e3; // bihormonic reynolds number
@@ -121,7 +123,7 @@ void invertq(scalar * pol, scalar * qol)
     }
   }
 #else
-  mgpsi = poisson_layer (pol, qol, str0l = str0l, str1l = str1l, tolerance = 1e-3);
+  mgpsi = poisson_layer (pol, qol, strl = strl, tolerance = 1e-3);
 #endif
 
   boundary(pol);
@@ -175,9 +177,9 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
       scalar po_1 = pol[l];
       scalar po_2 = pol[l+1];
       scalar stretch = stretchl[l];
-      scalar s1 = str1l[l];
+      scalar s1 = strl[l];
 
-      stretch[] = add*stretch[] + s1[]*po_2[] - s1[]*po_1[];
+      stretch[] = add*stretch[] + s1[]*(po_2[] - po_1[])*idh1[l];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -186,19 +188,19 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
         scalar po_1 = pol[l];
         scalar po_2 = pol[l+1];
         scalar stretch = stretchl[l];
-        scalar s0 = str0l[l];
-        scalar s1 = str1l[l];
+        scalar s0 = strl[l-1];
+        scalar s1 = strl[l];
 
-        stretch[] = add*stretch[] + s0[]*po_0[] + s1[]*po_2[] - (s0[] + s1[])*po_1[];
+        stretch[] = add*stretch[] + s0[]*(po_0[] - po_1[])*idh0[l] + s1[]*(po_2[] - po_1[])*idh1[l];
       }
       // lower layer
       l = nl-1;
       scalar po_0 = pol[l-1];
       po_1 = pol[l];
       stretch = stretchl[l];
-      scalar s0 = str0l[l];
+      scalar s0 = strl[l-1];
 
-      stretch[] = add*stretch[] + s0[]*po_0[] - s0[]*po_1[];
+      stretch[] = add*stretch[] + s0[]*(po_0[] - po_1[])*idh0[l];
     }
     else{
       scalar stretch = stretchl[0];
@@ -263,10 +265,10 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
       scalar dqo = dqol[l];
       scalar po2  = pol[l+1];
       scalar pp2  = ppl[l+1];
-      scalar s1 = str1l[l];
+      scalar s1 = strl[l];
 
       jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
-      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd;
+      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd*idh1[l];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -277,13 +279,13 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
         dqo = dqol[l];
         po2  = pol[l+1];
         pp2  = ppl[l+1];
-        scalar s0 = str0l[l];
-        scalar s1 = str1l[l];
+        scalar s0 = strl[l-1];
+        scalar s1 = strl[l];
 
         ju = -jd;
         jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
 
-        dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju + s1[]*jd;
+        dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
       }
 
       // lower layer
@@ -293,10 +295,10 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
       po  = pol[l];
       pp  = ppl[l];
       dqo = dqol[l];
-      scalar s0 = str0l[l];
+      scalar s0 = strl[l-1];
 
       ju = -jd;
-      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju;
+      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l];
     }
     else{
       scalar dqo = dqol[0];
@@ -606,8 +608,7 @@ void set_vars()
   zetal = create_layer_var(zetal,nl,0);
   tmpl  = create_layer_var(tmpl,nl,0);
   Frl   = create_layer_var(Frl,nl,1);
-  str0l = create_layer_var(str0l,nl,1);
-  str1l = create_layer_var(str1l,nl,1);
+  strl = create_layer_var(strl,nl,1);
   qofl  = create_layer_var(qofl,nl,0);
 #if MODE_PV_INVERT
   pom = create_layer_var(pom,nl,0);
@@ -633,6 +634,8 @@ void set_vars()
   */
   dhc = malloc ((nl-1)*sizeof(double));
   dhf = malloc (nl*sizeof(double));
+  idh0 = malloc (nl*sizeof(double));
+  idh1 = malloc (nl*sizeof(double));
   for (int l = 0; l < nl; l++)
     dhf[l] = 1/nl;
 
@@ -699,42 +702,29 @@ void set_const() {
   for (int l = 0; l < nl-1; l++)
     dhc[l] = 0.5*(dhf[l] + dhf[l+1]);
 
+  idh0[0] = 0.;
+  idh1[0] = 1./(dhc[0]*dhf[0]);
+  for (int l = 1; l < nl-1 ; l++) {
+    idh0[l] = 1./(dhc[l-1]*dhf[l]);
+    idh1[l] = 1./(dhc[l]*dhf[l]);
+  }
+  idh0[nl-1] = 1./(dhc[nl-2]*dhf[nl-1]);
+  idh1[nl-1] = 0.;
+
+
   foreach()
     Ro[] = (Rom > 0) ? Rom/(1 + Rom*beta*(y-0.5*L0)) : -Rom;
 
   /**
-     Compute vertical stretching coef matrix
+     Compute vertical stretching coef matrix (inverse burger number squared)
    */
 
-  foreach() {
-
-    if (nl > 1){
-      // upper layer
-      int l = 0;
-      scalar Fr1 = Frl[l];
-      scalar str1 = str1l[l];
-      str1[] = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
-
-      // intermediate layers
-      for (int l = 1; l < nl-1 ; l++) {
-        
-        scalar Fr0 = Frl[l-1];
-        scalar Fr1 = Frl[l];
-        
-        scalar str0 = str0l[l];
-        scalar str1 = str1l[l];
-
-        str0[] = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
-        str1[] = sq(Fr1[]/Ro[])/( dhc[l]*dhf[l]);
-
-      }
-      // lower layer
-      l = nl-1;
-      scalar Fr0 = Frl[l-1];
-      scalar str0 = str0l[l];
-      str0[] = sq(Fr0[]/Ro[])/( dhc[l-1]*dhf[l]);
+  foreach()
+    for (int l = 0; l < nl-1 ; l++) {
+      scalar Fr = Frl[l];
+      scalar s = strl[l];      
+      s[] = sq(Fr[]/Ro[]);
     }
-  }
 
   /**
      compute filter length scale and wavelet coeffs*/
@@ -809,11 +799,12 @@ void trash_vars(){
   free (qofl), qofl = NULL;
   free (ppl), ppl = NULL;
   free (Frl), Frl = NULL;
-  free (str0l), str0l = NULL;
-  free (str1l), str1l = NULL;
+  free (strl), strl = NULL;
   free (tmpl), tmpl = NULL;
   free(dhf);
   free(dhc);
+  free(idh0);
+  free(idh1);
 }
 
 event cleanup (i = end, last) {
