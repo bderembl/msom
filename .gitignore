@@ -15,3 +15,5 @@ __pycache__
 *.npy*
 *.bak
 outdir_*
+qg.py
+*.pdf
