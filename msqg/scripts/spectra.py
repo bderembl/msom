@@ -2,8 +2,10 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob,os,re
-import PowerSpec as ps
+import glob,os,re,sys
+import fftlib as myfftlib
+
+plt.ion()
 
 #dir0 = "/home/bderembl/work/basilisk/myrun/msom_run/msqg/run04/outdir/"
 dir0 = "../outdir_"
@@ -104,11 +106,15 @@ ke = 0.5*(u**2 + v**2)
 b = np.diff(p,1,0)/dhi.reshape(nl-1,1,1)
 pe = 0.5*b**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
 
-nmax = 1 # 1: just surface level, nl: all levels
+nmax = nl # 1: just surface level, nl: all levels
 flag_plot = [2,3,4,5,6,7] # 0: PE, 1: KE, 2: 
-flag_plot = [1] # 0: PE, 1: KE, 2: 
+flag_plot = [4] # 0: PE, 1: KE, 2: 
+
+Nkr = myfftlib.get_len_wavenumber(N)
+
 plt.figure()
 for plotvar in flag_plot:
+  eflux = np.zeros((nl,Nkr))
   for il in range(0,nmax):
 
     #plt.clf()
@@ -139,9 +145,9 @@ for plotvar in flag_plot:
       psi = 0
       # don't plot
     else:
-      kspec,pspec = ps.get_spectrum(psi,xc,yc,window=None,detrend=None)
-      lam = 2*np.pi/kspec*lref
-      
+      kspec,pspec = myfftlib.get_spec_1D(psi,psi,Delta)
+      kspec,flux = myfftlib.get_flux(-p[il,:,:],psi,Delta)
+      eflux[il,:] = flux*dh[il]      
       
       ki = 1.
       k0 = np.argmin(np.abs(kspec-ki))
@@ -149,15 +155,10 @@ for plotvar in flag_plot:
       
       k3 = np.array([3e-1,3e0])
       s3 = (k3/ki)**-(3)*ps0 # k-5  QG
-      lam3 = 2*np.pi/k3*lref
       
       k5 = np.array([3e-1,3e0])
       s5 = (k5/ki)**-(5/3)*ps0 # k-5  QG
-      lam5 = 2*np.pi/k5*lref
       
-      #plt.loglog(lam,pspec,'k-',label=r'PE')
-      #plt.loglog(lam3,s3,'k--',label=r'$k^{-3}$')
-      #plt.loglog(lam5,s5,'k-.',label=r'$k^{-5/3}$')
       if plotvar == 0:
         tag = 'PE'+str(il+1)
       elif plotvar == 1:
@@ -175,17 +176,19 @@ for plotvar in flag_plot:
       elif plotvar == 7: # ft
         tag = 'ft'+str(il+1)
 
-      plt.loglog(kspec,pspec,'-',label=tag)
-#      plt.loglog(kspec,pspec,'r-',label=tag)
-      
+      plt.semilogx(kspec,flux,'-',label=tag)
+
+#      plt.loglog(kspec,pspec,'r-',label=tag)      
 #      plt.loglog(k3,s3,'k--',label=r'$k^{-3}$', linewidth=1)
 #      plt.loglog(k5,s5,'k-.',label=r'$k^{-5/3}$', linewidth=1)
-      plt.xlabel('k')
+      plt.xlabel('k (cycle/l)')
       plt.legend()
       plt.grid()
       print(tag)
-
       plt.savefig('figures/' + tag + '.png', bbox_inches='tight')
   
+plt.semilogx(kspec,np.sum(eflux,axis=0),'-', label='sum');
+plt.legend()
+
 #plt.gca().invert_xaxis()
 #plt.savefig('figures/' + 'PE_all' +'.pdf', bbox_inches='tight')
