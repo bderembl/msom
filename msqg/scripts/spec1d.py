@@ -5,6 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import fftpack
+import fftlib as myfftlib
 
 
 plt.ion()
@@ -22,7 +23,6 @@ def radial_profile(data, center=None):
     radialprofile = tbin / nr
     return radialprofile 
 
-
 Lt = 2000
 N = 512
 
@@ -35,17 +35,26 @@ kk = 0.02
 psi = np.sin(2*np.pi*kk*x)
 psi2 = np.sin(2*np.pi*kk*xx)*np.sin(2*np.pi*kk*yy)
 
-
-F1 = np.fft.fft(psi)
-F2 = np.fft.fftshift( F1 )
-psd2D = np.abs( F2 )**2
+#1d
+F1 = np.fft.fft(psi)*Delta
+F1s = np.fft.fftshift( F1 )
+psd1D = np.abs( F1s )**2
 kx = np.fft.fftshift(np.fft.fftfreq(N,Delta)) 
+dk = kx[1] - kx[0]
 
+#2d
+F2 = np.fft.fft2(psi2)*Delta**2
+F2s = np.fft.fftshift( F2 )
+psd2D = np.abs( F2s )**2
+psd2D_r = radial_profile(psd2D)
 
-# F1 = np.fft.fft2(psi2)
-# F2 = np.fft.fftshift( F1 )
-# psd2D = np.abs( F2 )**2
-# psd1D = radial_profile(psd2D)
+kr,spec_1D = myfftlib.radial_average(psd2D,Delta)
+kr2,spec_1D2 = myfftlib.get_spec_1D(psi2,psi2,Delta)
+psd_tmp = myfftlib.get_spec_2D(psi2,psi2,Delta)
+
+# parseval: E = np.sum(psi**2)*Delta = np.sum(F1*F1.conj())*dk
+# parseval: E = np.sum(psi2**2)*Delta**2 = np.sum(F2*F2.conj()).real*dk**2 ~= np.sum(spec_1D)*dk*2*np.pi
+
 
 #kx = np.fft.fftshift(np.fft.fftfreq(N,Delta)) 
 
@@ -60,5 +69,6 @@ kx = np.fft.fftshift(np.fft.fftfreq(N,Delta))
 # kr = radial_profile(psi)
 
 plt.figure()
-plt.loglog(kx,psd2D,'k-',label=r'PE')
+#plt.loglog(kx,psd2D/N/Delta,'k-',label=r'PE')
+plt.plot(kx,psd1D,'k-',label=r'PE')
 #plt.loglog(kr,psd1D,'k-',label=r'PE')
