@@ -17,3 +17,5 @@ __pycache__
 outdir_*
 qg.py
 *.pdf
+_qg.c
+_pg.c
