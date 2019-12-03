@@ -37,13 +37,18 @@ int main() {
    Initial conditions
 */
 event init (i = 0) {
+
+  FILE * fp;
+  if ((fp = fopen("p0.bas", "r"))) {
+    input_matrixl (pol, fp);
+    fclose(fp);
+  } else {
   foreach() 
-    for (int l = 0; l < nl ; l++) {
-      scalar qo  = qol[l];
-      scalar po  = pol[l];
-      qo[] = noise();
-      po[] = 0.;
-    }
+    for (scalar po in pol)
+      po[] = 1e-3*noise();
+  }
+  boundary(pol);
+  // invert PV at the end of other init event
 }
 
 /**

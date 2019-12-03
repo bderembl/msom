@@ -494,7 +494,7 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
 void read_params()
 {
   FILE * fp;
-  if (fp = fopen("params.in", "rt")) {
+  if ((fp = fopen("params.in", "rt"))) {
     char tempbuff[100];
     char tmps1[16];
     char tmps2[16];
@@ -534,7 +534,6 @@ void read_params()
 */
 void create_outdir()
 {
-  char name[80];
 @if _MPI 
   sprintf(dpath, "outdir_%04d/", 1);
   int res = mkdir(dpath, 0777);
@@ -682,22 +681,25 @@ void set_const() {
   fprintf(stdout, "%s .. ok\n", name);
 
   sprintf (name,"psipg_%dl_N%d.bas", nl,N);
-  fp = fopen (name, "r");
-  input_matrixl (ppl, fp);
-  fclose(fp);
-  fprintf(stdout, "%s .. ok\n", name);
+  if ((fp = fopen (name, "r"))) {
+    input_matrixl (ppl, fp);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
 
   sprintf (name,"frpg_%dl_N%d.bas", nl,N);
-  fp = fopen (name, "r");
-  input_matrixl (Frl, fp);
-  fclose(fp);
-  fprintf(stdout, "%s .. ok\n", name);
+  if ((fp = fopen (name, "r"))) {
+    input_matrixl (Frl, fp);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
 
   sprintf (name,"rdpg_%dl_N%d.bas", nl,N);
-  fp = fopen (name, "r");
-  input_matrixl ({Rd}, fp);
-  fclose(fp);
-  fprintf(stdout, "%s .. ok\n", name);
+  if ((fp = fopen (name, "r"))) {
+    input_matrixl ({Rd}, fp);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
 
   for (int l = 0; l < nl-1; l++)
     dhc[l] = 0.5*(dhf[l] + dhf[l+1]);
@@ -767,6 +769,8 @@ void set_const() {
       sig_lev[] = 1 - sig_lev[];
     boundary_level ({sig_lev}, l);  
   }
+
+  comp_q(pol,qol);
 
   /**
      BC for all fields */
