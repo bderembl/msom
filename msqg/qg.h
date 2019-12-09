@@ -534,17 +534,17 @@ void read_params()
 */
 void create_outdir()
 {
-@if _MPI 
-  sprintf(dpath, "outdir_%04d/", 1);
-  int res = mkdir(dpath, 0777);
-@else
-  for (int i=1; i<10000; i++) {
-    sprintf(dpath, "outdir_%04d/", i);
-    if (mkdir(dpath, 0777) == 0) {
-      fprintf(stdout,"Writing output in %s\n",dpath);
-      break;
+  if (pid() == 0) {
+    for (int i=1; i<10000; i++) {
+      sprintf(dpath, "outdir_%04d/", i);
+      if (mkdir(dpath, 0777) == 0) {
+        fprintf(stdout,"Writing output in %s\n",dpath);
+        break;
+      }
     }
   }
+@if _MPI
+  MPI_Bcast(&dpath, 80, MPI_CHAR, 0, MPI_COMM_WORLD);
 @endif
 }
 
