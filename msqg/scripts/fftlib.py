@@ -15,8 +15,8 @@ def radial_average(spec_2D,Delta):
   return kr,spec_1D
 
 
-def get_len_wavenumber(N):
-  kx = np.fft.fftshift(np.fft.fftfreq(N))
+def get_len_wavenumber(N,Delta):
+  kx = np.fft.fftshift(np.fft.fftfreq(N,Delta))
   dk = np.abs(kx[2]-kx[1])
   return (int(kx.max()/dk)-1)
 

@@ -87,14 +87,14 @@ else:
   Ro = Rom/(1 + Rom*beta*(yc-0.5*L0))
 
 
-Nkr = myfftlib.get_len_wavenumber(N)
+Nkr = myfftlib.get_len_wavenumber(N,Delta)
 
-eflux_bf = np.zeros(Nkr)
-eflux_vd = np.zeros(Nkr)
-eflux_j1 = np.zeros(Nkr)
-eflux_j2 = np.zeros(Nkr)
-eflux_j3 = np.zeros(Nkr)
-eflux_ft = np.zeros(Nkr)
+eflux_bf = np.zeros((nl,Nkr))
+eflux_vd = np.zeros((nl,Nkr))
+eflux_j1 = np.zeros((nl,Nkr))
+eflux_j2 = np.zeros((nl,Nkr))
+eflux_j3 = np.zeros((nl,Nkr))
+eflux_ft = np.zeros((nl,Nkr))
 
 nme = 0
 
@@ -102,15 +102,17 @@ nt0 = -2
 nt1 = -1
 for nt in range (nt0,nt1):
 
-  p  = np.fromfile(allfilesp[nt],'f4').reshape(nl,N1,N1).transpose(0,2,1)
-  q  = np.fromfile(allfilesq[nt],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+  p  = np.fromfile(allfilesp[-1],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+  q  = np.fromfile(allfilesq[-1],'f4').reshape(nl,N1,N1).transpose(0,2,1)
   p  = p[:,1:,1:]
   q  = q[:,1:,1:]
 
-  bas.pystep(q,bf,vd,j1,j2,j3,ft)
+  bas.pystep(p,bf,vd,j1,j2,j3,ft,1)
+  print("end step")
   nme += 1
 
   for il in range(0,nl):
+    print("layer {0}".format(il))
     kspec,flux_bf  = myfftlib.get_flux(-p[il,:,:],bf[il,:,:],Delta)
     kspec,flux_vd  = myfftlib.get_flux(-p[il,:,:],vd[il,:,:],Delta)
     kspec,flux_j1  = myfftlib.get_flux(-p[il,:,:],j1[il,:,:],Delta)
@@ -118,12 +120,12 @@ for nt in range (nt0,nt1):
     kspec,flux_j3  = myfftlib.get_flux(-p[il,:,:],j3[il,:,:],Delta)
     kspec,flux_ft  = myfftlib.get_flux(-p[il,:,:],ft[il,:,:],Delta)
     
-    eflux_bf +=  flux_bf*dh[il]
-    eflux_vd +=  flux_vd*dh[il]
-    eflux_j1 +=  flux_j1*dh[il]
-    eflux_j2 +=  flux_j2*dh[il]
-    eflux_j3 +=  flux_j3*dh[il]
-    eflux_ft +=  flux_ft*dh[il]
+    eflux_bf[il,:] +=  flux_bf*dh[il]
+    eflux_vd[il,:] +=  flux_vd*dh[il]
+    eflux_j1[il,:] +=  flux_j1*dh[il]
+    eflux_j2[il,:] +=  flux_j2*dh[il]
+    eflux_j3[il,:] +=  flux_j3*dh[il]
+    eflux_ft[il,:] +=  flux_ft*dh[il]
 
 eflux_bf /= nme
 eflux_vd /= nme
@@ -133,15 +135,15 @@ eflux_j3 /= nme
 eflux_ft /= nme
 
 plt.figure()
-plt.plot(np.log10(kspec), eflux_bf, label= 'bf')
-plt.plot(np.log10(kspec), eflux_vd, label= 'vd')
-plt.plot(np.log10(kspec), eflux_j1, label= 'j1')
-plt.plot(np.log10(kspec), eflux_j2, label= 'j2')
-plt.plot(np.log10(kspec), eflux_j3, label= 'j3')
-plt.plot(np.log10(kspec), eflux_ft, label= 'ft')
+plt.plot(np.log10(kspec), np.sum(eflux_bf,0), label= 'bf')
+plt.plot(np.log10(kspec), np.sum(eflux_vd,0), label= 'vd')
+plt.plot(np.log10(kspec), np.sum(eflux_j1,0), label= 'j1')
+plt.plot(np.log10(kspec), np.sum(eflux_j2,0), label= 'j2')
+plt.plot(np.log10(kspec), np.sum(eflux_j3,0), label= 'j3')
+plt.plot(np.log10(kspec), np.sum(eflux_ft,0), label= 'ft')
 
 plt.legend()
-
+plt.show()
 
 bas.trash_vars()
 bas.trash_vars_energy()

@@ -233,15 +233,19 @@ event comp_diag (i++) {
    Python interface routines (should be in .i file but I need foreach)
  */
 
-void pystep ( double * qo_py, int len1, int len2, int len3,
+void pystep ( double * po_py, int len1, int len2, int len3,
               double * de_bf_py, int len4, int len5, int len6,
               double * de_vd_py, int len7, int len8, int len9,
               double * de_j1_py, int len10, int len11, int len12,
               double * de_j2_py, int len13, int len14, int len15,
               double * de_j3_py, int len16, int len17, int len18,
-              double * de_ft_py, int len19, int len20, int len21) {
+              double * de_ft_py, int len19, int len20, int len21,
+              int onlyKE) {
 
-  pyset_field(qol,qo_py);
+  int ediag = 1;
+  double dt = 1.;
+
+  pyset_field(pol,po_py);
 
   reset_layer_var(de_bfl);
   reset_layer_var(de_vdl);
@@ -250,14 +254,21 @@ void pystep ( double * qo_py, int len1, int len2, int len3,
   reset_layer_var(de_j3l);
   reset_layer_var(de_ftl);
 
-  invertq(pol, qol);
   comp_del2(pol, zetal, 0., 1.0);
+  comp_q(pol,qol);
 
-  int ediag = 1;
-  double dt = 1.;
+  if (onlyKE == 1) {
+  foreach()
+    for (int l = 0; l < nl-1 ; l++) {
+      scalar s = strl[l];
+      s[] = 0.;
+    }
+  }
+
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
   dissip_de(zetal, de_vdl, pol, dt, ediag);
   bottom_friction_de(zetal, de_bfl, pol, dt, ediag);
+  //todo: wrong filter if onlyKE = 1
   filter_de (qol, pol, de_ftl, pol, dtflt, ediag);
   
 

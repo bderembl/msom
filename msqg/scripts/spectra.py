@@ -108,9 +108,9 @@ pe = 0.5*b**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
 
 nmax = nl # 1: just surface level, nl: all levels
 flag_plot = [2,3,4,5,6,7] # 0: PE, 1: KE, 2: 
-flag_plot = [4] # 0: PE, 1: KE, 2: 
+flag_plot = [1] # 0: PE, 1: KE, 2: 
 
-Nkr = myfftlib.get_len_wavenumber(N)
+Nkr = myfftlib.get_len_wavenumber(N, Delta)
 
 plt.figure()
 for plotvar in flag_plot:
@@ -176,18 +176,18 @@ for plotvar in flag_plot:
       elif plotvar == 7: # ft
         tag = 'ft'+str(il+1)
 
-      plt.semilogx(kspec,flux,'-',label=tag)
-
-#      plt.loglog(kspec,pspec,'r-',label=tag)      
-#      plt.loglog(k3,s3,'k--',label=r'$k^{-3}$', linewidth=1)
-#      plt.loglog(k5,s5,'k-.',label=r'$k^{-5/3}$', linewidth=1)
+#      plt.semilogx(kspec,flux,'-',label=tag)
+      
+      plt.loglog(kspec,pspec,'r-',label=tag)      
+      plt.loglog(k3,s3,'k--',label=r'$k^{-3}$', linewidth=1)
+      plt.loglog(k5,s5,'k-.',label=r'$k^{-5/3}$', linewidth=1)
       plt.xlabel('k (cycle/l)')
       plt.legend()
       plt.grid()
       print(tag)
       plt.savefig('figures/' + tag + '.png', bbox_inches='tight')
   
-plt.semilogx(kspec,np.sum(eflux,axis=0),'-', label='sum');
+#plt.semilogx(kspec,np.sum(eflux,axis=0),'-', label='sum');
 plt.legend()
 
 #plt.gca().invert_xaxis()
