@@ -7,6 +7,8 @@ import scipy.linalg as la
 import scipy.optimize
 import os.path
 import matplotlib
+from skimage.feature import peak_local_max
+from scipy.ndimage.filters import gaussian_filter
 
 from scipy import sparse
 
@@ -16,7 +18,7 @@ matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
 
-nl = 10
+nl = 30
 
 filefr = 'frpg_' + str(nl) +'l.bas'
 filepsi = 'psipg_' + str(nl) +'l.bas'
@@ -26,11 +28,12 @@ file2 = 'stability_data_' + str(nl) + 'l.npy'
 
 flag_test2lay = 0
 flag_gradqbar = 0 # format of the large scale advection of PV 0: L grad psi, 1: grad L psi
-flag_plot = 0
+flag_plot = 1
 flag_print = 1
 flag_klmap = 1
-flag_savedat = 1
-flag_dim = 1
+flag_savedat = 0
+flag_dim = 1 #
+flag_localRd = 0 # rescale by local Rd (flag=1) or global Rd (Flag=0)
 
 if flag_savedat:
   if os.path.isfile(file2):
@@ -88,17 +91,17 @@ f0 = yc*L*beta
 # read data
 fr = np.fromfile(filefr,'f4').reshape(nl,N1,N1).transpose(0,2,1)
 po = np.fromfile(filepsi,'f4').reshape(nl,N1,N1).transpose(0,2,1)
-th = np.fromfile(fileh,'f4')
+dh = np.fromfile(fileh,'f4')
 
-th = th*H
-thc = 0.5*(th[:-1] + th[1:])
-
+dh = dh*H
+dhi = 0.5*(dh[:-1] + dh[1:])
+hh = np.cumsum(dh)
 
 fr = fr[:,1:,1:]
 psib = po[:,1:,1:]*u_qg*l_qg
 #psib = po[:,1:,1:]*u_qg*u_qg/f0
 
-gp = 1/fr[:-1,:,:]**2*u_qg**2/H**2*thc.reshape(nl-1,1,1)
+gp = 1/fr[:-1,:,:]**2*u_qg**2/H**2*dhi.reshape(nl-1,1,1)
 
 ##### TESTING PART
 # make a 2 layer problem
@@ -107,7 +110,7 @@ if flag_test2lay:
   po = po[:nl,:,:]
   psib = psib[:nl,:,:]
   
-  th = th[:nl]
+  dh = dh[:nl]
   gp = gp[:nl,:,:]
   
   
@@ -126,7 +129,7 @@ if flag_test2lay:
   # #psib[2,:,:] = -u3*yg
   # #psib[3:,:,:] = 0.001*yg
   
-  th = 0*th + 200.0
+  dh = 0*dh + 200.0
   gp = 0*gp + 1.0e-4
 ##### end testing part
 
@@ -138,7 +141,7 @@ dqbdy = np.zeros((nl,N,N))
 dqbdx = np.zeros((nl,N,N))
 for nx in range(0,N):
   for ny in range(0,N):
-    mata = def_radius.construct_mat(th,gp[:,ny,nx],f0[ny,nx])
+    mata = def_radius.construct_mat(dh,gp[:,ny,nx],f0[ny,nx])
     dqbdy[:,ny,nx] = -np.dot(mata,dpsibdy[:,ny,nx])
     dqbdx[:,ny,nx] = -np.dot(mata,dpsibdx[:,ny,nx])
       
@@ -146,7 +149,7 @@ if flag_gradqbar == 1:
   qbar = np.zeros((nl,N,N))
   for nx in range(0,N):
     for ny in range(0,N):
-      mata = def_radius.construct_mat(th,gp[:,ny,nx],f0[ny,nx])
+      mata = def_radius.construct_mat(dh,gp[:,ny,nx],f0[ny,nx])
       #qbar[:,ny,nx] = -np.dot(mata,psib[:,ny,nx])/f0[ny,nx]
       qbar[:,ny,nx] = -np.dot(mata,psib[:,ny,nx])
   
@@ -181,17 +184,17 @@ if len(save_dat) == 0:
   
 # # specific location
 # figure middle domain: 320,320
-# nx1 = 32
-# ny1 = 32
-# nx2 = nx1+1
-# ny2 = ny1+1
-# nsk = 1
-
-nx1 = 0
-ny1 = 0
-nx2 = N
-ny2 = N
+nx1 = 20
+ny1 = 20
+nx2 = nx1+1
+ny2 = ny1+1
 nsk = 1
+
+# nx1 = 0
+# ny1 = 0
+# nx2 = N
+# ny2 = N
+# nsk = 1
 
 k_grid = np.zeros((N,N))
 l_grid = np.zeros((N,N))
@@ -229,21 +232,15 @@ for nx in range(nx1,nx2,nsk):
       if nx2-nx1 > 1 or ny2-ny1 > 1:
         print (nco,'; ',nco1, '/', ntot, '  ', ny + N*nx)
       # compute deformation radius
-      Rd = def_radius.cal_rad(th,gp[:,ny,nx],f0[ny,nx])
+      Rd = def_radius.cal_rad(dh,gp[:,ny,nx],f0[ny,nx])
       Rd1 = Rd[1]
       
-      mata = def_radius.construct_mat(th,gp[:,ny,nx],f0[ny,nx],sparse=True)
-#      l2m,m2l = def_radius.cal_transfo(th,gp[:,ny,nx],f0[ny,nx])
+      mata = def_radius.construct_mat(dh,gp[:,ny,nx],f0[ny,nx],sparse=True)
+#      l2m,m2l = def_radius.cal_transfo(dh,gp[:,ny,nx],f0[ny,nx])
            
       Rd2 = Rd1**2
       # si_k = 75
       # si_l = 37
-
-      # figure middle of the domain
-      #modes = 2*np.array([[48,8],[38,8],[43,2]],np.int32)
-
-      modes = 2*np.array([[48,8]],np.int32)
-      nmodes,naux = modes.shape
       
       # size of the k-l window
       if doit == 1:
@@ -281,7 +278,7 @@ for nx in range(nx1,nx2,nsk):
         omegar_th = (u2+u1)*0.5*kt
       
       omegai_c = np.zeros((si_l,si_k))
-      eivec_c  = np.zeros((si_l,si_k,nl))
+      eivec_c  = np.zeros((si_l,si_k,nl),dtype='complex')
       
       if flag_klmap:
         # ke = 0.1/(Rd[1]*1e3)
@@ -299,7 +296,7 @@ for nx in range(nx1,nx2,nsk):
             eival,eivec = la.eig(mat1_sp,mat2_sp)
             idx = np.argsort(np.imag(eival))[::-1]
             omegai_c[il,ik] = np.imag(eival[idx])[0]
-            eivec_c[il,ik,:] = np.real(eivec[:,idx])[:,0]
+            eivec_c[il,ik,:] = eivec[:,idx][:,0]
 
 
               
@@ -401,23 +398,33 @@ for nx in range(nx1,nx2,nsk):
   
       # 2d plot
       if flag_plot and flag_klmap:
+
+        Rda = l_qg/(2*np.pi)
         plt.figure()
-        plt.contourf(ktg*Rd1,ltg*Rd1,(omegai_c[:,:].real*86400),20,cmap=plt.cm.hot_r)
-        plt.contourf(ktg*Rd1,-ltg*Rd1,(omegai_c[:,::-1].real*86400),20,cmap=plt.cm.hot_r)
-        cb = plt.colorbar(label=r'$\omega$ (day$^{-1}$)')
-        cb.formatter.set_powerlimits((0, 0))
-        cb.update_ticks()
-        
-        plt.xlabel('k x Rd')
-        plt.ylabel('l x Rd')
+        plt.contourf(ktg*Rda,ltg*Rda,(omegai_c[:,:].real*l_qg/u_qg),20,cmap=plt.cm.hot_r)
+        if (nu == 0 and nu4 == 0 and Ek == 0):
+          plt.contourf(ktg*Rda,-ltg*Rda,(omegai_c[:,::-1].real*l_qg/u_qg),20,cmap=plt.cm.hot_r)
+        cb = plt.colorbar(label=r'$\omega$ (t$^{-1}$)',format='%.1f')
+        plt.xlabel('k (cycle/l)')
+        plt.ylabel('l (cycle/l)')
+
+        # figure middle of the domain
+        #modes = 2*np.array([[48,8],[38,8],[43,2]],np.int32)
+
+        modes = 2*np.array([[48,8]],np.int32)
 
         modes[0,0] = ikmax
         modes[0,1] = ilmax
+
+#        omegai_cs = gaussian_filter(omegai_c, 3, mode='constant')
+        modes = peak_local_max(omegai_c, min_distance=3)
+        nmodes,naux = modes.shape
+
         for i in range(0,nmodes):
-          ikmax2 = modes[i,0]
-          ilmax2 = modes[i,1]
-          plt.plot(kt[ikmax2]*Rd1,lt[ilmax2]*Rd1,'wo',markersize=10)
-          plt.text(kt[ikmax2]*Rd1,lt[ilmax2]*Rd1,str(i+1),ha='center',va='center')
+          ikmax2 = modes[i,1]
+          ilmax2 = modes[i,0]
+          plt.plot(kt[ikmax2]*Rda,lt[ilmax2]*Rda,'wo',markersize=10)
+          plt.text(kt[ikmax2]*Rda,lt[ilmax2]*Rda,str(i+1),ha='center',va='center')
 
           
           kmax2 = kt[ikmax2]
@@ -430,8 +437,24 @@ for nx in range(nx1,nx2,nsk):
             print ('kmax x Rd1 = ',kmax2*Rd1)
             print ('lmax x Rd1 = ',lmax2*Rd1)
             print ('time scale = ',np.real(1/omax2/86400), ' days')
-#            print ('projection on vert modes:', np.dot(l2m[:,:],eivecmax2.real))
+            #            print ('projection on vert modes:', np.dot(l2m[:,:],eivecmax2.real))
             
+        ip = 100
+        xp = np.linspace(0,2*np.pi,ip)
+        psi_cos = np.repeat(np.cos(xp)[np.newaxis,:], nl, axis=0) 
+        psi_sin = np.repeat(np.sin(xp)[np.newaxis,:], nl, axis=0) 
+        x_tick = [0, 3.14,6.28]
+        x_label = [r"$0$", r"$\pi$", r"$2\pi$"]
+
+        for i in range(0,nmodes):
+          plt.figure()
+          psi = np.real(eivec_c[modes[i,0],modes[i,1],:][:,np.newaxis]*(psi_cos + 1j*psi_sin))
+          plt.contourf(xp,-hh/H,psi,30,cmap=plt.cm.bwr,)
+          plt.gca().set_xticks(x_tick)
+          plt.gca().set_xticklabels(x_label)
+          plt.xlabel("Phase")
+          plt.ylabel("Depth")
+          plt.title("Mode "+str(i+1))
         #plt.savefig('klo_map.png',bbox_inches='tight')
         #plt.savefig('klo_map_340_340.pdf',bbox_inches='tight')
         #plt.savefig('klo_map_340_340_30l_1.pdf',bbox_inches='tight')
@@ -447,15 +470,5 @@ for nx in range(nx1,nx2,nsk):
         plt.xlabel('k x Rd')
         plt.ylabel(r'$\omega (day^{-1})$')
   
-
-# if nx2-nx1 > 1 and ny2 - ny1>1:
-#   plt.figure()
-#   timescale = 1/o_grid[::nsk,::nsk]/86400.0
-#   maxtimesc = 200.0
-#   timescale2 = np.where(timescale>maxtimesc,maxtimesc,timescale)
-#   plt.contourf(xx[::nsk]*1e-3,yy[::nsk]*1e-3,timescale2,100,cmap=plt.cm.hot)
-#   plt.colorbar()
-#   #plt.savefig('timescale_instab.png',bbox_inches='tight')
-
 if flag_savedat:
   np.save(file2, save_dat)

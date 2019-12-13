@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from scipy import interpolate
 import matplotlib as mpl
-import scipy.io.netcdf as netcdf
 from scipy.ndimage.filters import gaussian_filter
 import matplotlib
 
@@ -14,14 +13,16 @@ plt.ion()
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
 matplotlib.rcParams['text.usetex'] = True
+matplotlib.rcParams['hatch.linewidth'] = 0.1
 
-
-flag_savefig = 1
-
-flag_savenc = 1
+flag_savefig = 0
+flag_adim_local = 0 #0: adim with l_qg, 1: adim with local deformation radius
 
 # phys consts
-L = 5e3
+L = 100
+# qg scales
+u_qg = 0.1  # m/s
+l_qg = 50e3 # m
 
 file2 = 'stability_data_4l.npy'
 
@@ -83,114 +84,73 @@ k_norm = np.sqrt(k_grid**2 + l_grid**2)
 o_grid2  = interpolate.griddata((x_comp, y_comp), o_grid,  (xg, yg), method='linear')
 k_grid2  = interpolate.griddata((x_comp, y_comp), k_grid,  (xg, yg), method='linear')
 l_grid2  = interpolate.griddata((x_comp, y_comp), l_grid,  (xg, yg), method='linear')
-k_norm3  = interpolate.griddata((x_comp, y_comp), k_norm,  (xg, yg), method='linear')
+k_norm2  = interpolate.griddata((x_comp, y_comp), k_norm,  (xg, yg), method='linear')
 Rd_grid2 = interpolate.griddata((x_comp, y_comp), Rd_grid, (xg, yg), method='linear')
 
 # fix nan interpolation
 o_grid2_n  = interpolate.griddata((x_comp, y_comp), o_grid,  (xg, yg), method='nearest')
 k_grid2_n  = interpolate.griddata((x_comp, y_comp), k_grid,  (xg, yg), method='nearest')
 l_grid2_n  = interpolate.griddata((x_comp, y_comp), l_grid,  (xg, yg), method='nearest')
-k_norm3_n  = interpolate.griddata((x_comp, y_comp), k_norm,  (xg, yg), method='nearest')
+k_norm2_n  = interpolate.griddata((x_comp, y_comp), k_norm,  (xg, yg), method='nearest')
 Rd_grid2_n = interpolate.griddata((x_comp, y_comp), Rd_grid, (xg, yg), method='nearest')
 
 o_grid2  = np.where(np.isnan(o_grid2),o_grid2_n,o_grid2)
 k_grid2  = np.where(np.isnan(k_grid2),k_grid2_n,k_grid2)
 l_grid2  = np.where(np.isnan(l_grid2),l_grid2_n,l_grid2)
-k_norm3  = np.where(np.isnan(k_norm3),k_norm3_n,k_norm3)
+k_norm2  = np.where(np.isnan(k_norm2),k_norm2_n,k_norm2)
 Rd_grid2 = np.where(np.isnan(Rd_grid2),Rd_grid2_n,Rd_grid2)
 
-lam = 2*np.pi/k_norm3
-
 #o_grid2 = np.where(o_grid2 <= 0, np.NaN, o_grid2)
-# in days^-1
-o_grid2 = o_grid2*86400.0
-
-# in km^-1
-k_grid2 = k_grid2*1e3
-l_grid2 = l_grid2*1e3
-
-k_norm2 = np.sqrt(k_grid2**2 + l_grid2**2)
+if flag_adim_local == 0:
+  o_grid2 = o_grid2*l_qg/u_qg
+  k_norm2 = k_norm2*l_qg/(2*np.pi)
+  file_app = 'glob'
+else:
+  o_grid2 = o_grid2*Rd_grid2/u_qg
+  k_norm2 = k_norm2*Rd_grid2/(2*np.pi)
+  file_app = 'loc'
 
 nb_cont = 40
 
+# plot omega
 plt.figure()
-timescale = 1/o_grid2
-maxtimesc = 200.0
-timescale2 = np.where(timescale>maxtimesc,maxtimesc,timescale)
-timescale2 = np.where(timescale2<1e-1,1e-1,timescale2)
 cf = plt.contourf(xx*L,yy*L,o_grid2,nb_cont,cmap=plt.cm.hot_r)
 for c in cf.collections:
   c.set_edgecolor("face")
 
-cbar = plt.colorbar(label=r'day$^{-1}$',ticks=[0.1, 0.2, 0.3, 0.4, 0.5])
-# cbar = plt.colorbar(label=r'day$^{-1}$',ticks=[0.05, 0.2, 0.5])
-# cbar.ax.set_yticklabels([r'$\frac{1}{20}$', r'$\frac{1}{5}$', r'$\frac{1}{2}$'])
-plt.contour(xx*L,yy*L,timescale,[-1000,25,100,1e10],colors='k')
-plt.contourf(xx*L,yy*L,timescale,[-1000,25,100,1e10],colors='none',hatches=['.', '/', None, '\\\\', '*'],  extend='lower')
-plt.text(2500,4100,'1')
-plt.text(2500,2050,'2')
-plt.text(2500,300,'3')
-plt.xlim(0,L)
-plt.ylim(0,L)
-plt.xlabel('x (km)')
-plt.ylabel('y (km)')
-
+cbar = plt.colorbar(label=r'$\omega$ (t$^{-1}$)',format='%.1f')
+plt.contour(xx*L,yy*L,o_grid2,[-1000,0.1,0.5,1e10],colors='k',linewidths=0.5)
+plt.contourf(xx*L,yy*L,o_grid2,[-1000,0.1,0.5,1e10],colors='none',hatches=['x', '/', None, '\\\\', '*'],  extend='lower')
+plt.text(70,70,'1')
+plt.text(50,40,'2')
+plt.text(50,6,'3')
+plt.xlabel('x')
+plt.ylabel('y')
 if flag_savefig:
-  plt.savefig('omax.pdf',bbox_inches='tight')
+  plt.savefig('omax_' + file_app + '.pdf',bbox_inches='tight')
 
+# plot k
 plt.figure()
-cf = plt.contourf(xx*L,yy*L,k_norm3*1e3,nb_cont,cmap=plt.cm.hot_r)
+cf = plt.contourf(xx*L,yy*L,k_norm2,nb_cont,cmap=plt.cm.hot_r)
 for c in cf.collections:
   c.set_edgecolor("face")
 
-plt.colorbar(label=r'km$^{-1}$',ticks=[0.05, 0.1, 0.15, 0.2])
+plt.colorbar(label=r'$k$ (cycle/l)',format='%.1f')
 
-plt.contour(xx*L,yy*L,timescale,[-1000,25,100,1e10],colors='k')
-plt.contourf(xx*L,yy*L,timescale,[-1000,25,100,1e10],colors='none',hatches=['.', '/', None, '\\\\', '*'],  extend='lower')
-
-
-## define sigma filter
-omax = np.nanmax(o_grid2)
-
-omax = 0.25
-sigma = o_grid2/omax
-sigma = np.where(sigma>1,1,sigma)
-
-sigma = sigma*10 + (1-sigma)*60
-sigma_f = gaussian_filter(sigma,5.0)
-
-# plt.contourf(xx*L,yy*L,sigma)
-# plt.colorbar(label='km')
-
-plt.xlim(0,L)
-plt.ylim(0,L)
-plt.xlabel('x (km)')
-plt.ylabel('y (km)')
+plt.contour(xx*L,yy*L,o_grid2,[-1000,0.1,0.5,1e10],colors='k',linewidths=0.5)
+plt.contourf(xx*L,yy*L,o_grid2,[-1000,0.1,0.5,1e10],colors='none',hatches=['x', '/', None, '\\\\', '*'],  extend='lower')
+plt.xlabel('x')
+plt.ylabel('y')
 if flag_savefig:
-  plt.savefig('k2_omax.pdf',bbox_inches='tight')
+  plt.savefig('k2_omax_' + file_app + '.pdf',bbox_inches='tight')
 
-plt.figure()
-cf = plt.contourf(xx*L,yy*L,2*np.pi/(Rd_grid2*k_norm3),nb_cont,cmap=plt.cm.hot_r)
-for c in cf.collections:
-  c.set_edgecolor("face")
-
-plt.colorbar(ticks=[2.5, 5,7.5,10,12.5])
-plt.xlim(0,L)
-plt.ylim(0,L)
-plt.xlabel('x (km)')
-plt.ylabel('y (km)')
-if flag_savefig:
-  plt.savefig('k2Rd_omax.pdf',bbox_inches='tight')
-
-
-
+# clickable plot
 fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.set_title('click on points')
 
 psi = 1.0*k_norm
-
-plt.scatter(x_comp,y_comp,c=psi, picker=5,cmap=plt.cm.hot_r)
+plt.scatter(x_comp*si_x,y_comp*si_x,c=psi, picker=5,cmap=plt.cm.hot_r)
 
 
 def onpick(event):
@@ -207,36 +167,14 @@ def onpick(event):
   Rd1 = Rd[1]
   
   plt.figure()
-  plt.contourf(ktg*Rd1,ltg*Rd1,(omegai_c[:,:].real*86400),20)
-  plt.contourf(ktg*Rd1,-ltg*Rd1,(omegai_c[:,::-1].real*86400),20)
+  plt.contourf(ktg*Rd1,ltg*l_qg/(2*np.pi),(omegai_c[:,:].real*l_qg/u_qg),20)
+  plt.contourf(ktg*Rd1,-ltg*l_qg/(2*np.pi),(omegai_c[:,::-1].real*l_qg/u_qg),20)
   plt.colorbar(label=r'$\omega (day^{-1}$)')
-  plt.xlabel('k x Rd/2pi')
-  plt.ylabel('l x Rd/2pi')
+  plt.xlabel('k (cycle/l)')
+  plt.ylabel('l (cycle/l)')
 
   print ('onpick scatter:', ind, np.take(x_comp, ind), np.take(y_comp, ind), np.take(psi, ind), Rd1)
     
 fig.canvas.mpl_connect('pick_event', onpick)
 
 plt.show()
-
-# smooth
-
-if flag_savenc:
-  fileout = 'sigma.nc'
-
-  f3 = netcdf.netcdf_file(fileout,'w')
-  
-  f3.createDimension('ypo',si_y)
-  f3.createDimension('xpo',si_x)
-    
-  ypo = f3.createVariable('ypo', 'd', ('ypo',))
-  xpo = f3.createVariable('xpo', 'd', ('xpo',))
-  
-  sigma_o = f3.createVariable('sigma' , 'd', ('ypo','xpo',))
-
-  ypo[:] = np.arange(si_y)
-  xpo[:] = np.arange(si_x)
-  
-  sigma_o [:,:] = sigma_f
-  
-  f3.close()

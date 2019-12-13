@@ -17,7 +17,7 @@ if len(sys.argv) > 1:
 file_b = 'b*'
 file_u = 'u*'
 
-flag_uniform_strat = 0 # 0: froude(X,Y), 1: uniform froude
+flag_uniform_strat = 0 # 0: froude(X,Y), 1: uniform froude (mean) 2: specific location
 adjust_psi_coef = 1.0  # multiply psi by coef to study weaker flow
 
 allfilesu = sorted(glob.glob(dir0 + file_u));
@@ -58,6 +58,20 @@ x = np.linspace(0.5*Delta, 1-0.5*Delta,N)
 y = ys + np.linspace(0.5*Delta, 1-0.5*Delta,N)
 xc, yc = np.meshgrid(x,y)
 
+# specific location
+#nx1 = 17
+#ny1 = 48
+# 
+nx1 = 50
+ny1 = 50
+# WBC
+#nx1 = 1
+#ny1 = 30
+# tropics
+#nx1 = 35
+#ny1 = 10
+
+
 #temporary
 dz = H/nl*np.ones(nl)
 z = 0.5*dz - np.cumsum(dz)
@@ -75,9 +89,15 @@ b = b[1:-1,1:,1:]/nme
 u = uv[2:-2:2,1:,1:]/nme
 v = uv[3:-2:2,1:,1:]/nme
 
+# find max mixed layer depth Hm
+Hm = np.zeros((N,N))
+# increase N2 everywhere above Hm
+# reduce shear above Hm (u = s*u + (1-s)*u_Hm)
 
 # adjust stratification above threshold
 N2_min = 2e-7
+#N2_min = 1e-6
+#N2_min = 3e-6
 N2_l = Bs*np.diff(b,1,0)/np.diff(z).reshape(nl-1,1,1)
 for nz in range(0,nl-1):
   for nx in range(0,N):
@@ -85,19 +105,33 @@ for nz in range(0,nl-1):
       if (N2_l[nz,ny,nx] <  N2_min):
         dN = N2_min - N2_l[nz,ny,nx]
         b[nz+1:,ny,nx] -= (dN*(z[nz] - z[nz+1]))/Bs
+      elif (Hm[ny,nx] == 0):
+        Hm[ny,nx] = z[nz]
+
+N2_min = 1e-6
+N2_l = Bs*np.diff(b,1,0)/np.diff(z).reshape(nl-1,1,1)
+for nz in range(0,nl-1):
+  for nx in range(0,N):
+    for ny in range(0,N):
+        dN = N2_min + N2_l[nz,ny,nx]
+        b[nz+1:,ny,nx] -= (dN*(z[nz] - z[nz+1]))/Bs
 
 #gpmin = 3e-4
 gp = -Bs*np.diff(b,1,0)
 #gp = np.where(gp<gpmin,gpmin,gp)
 f0 = yc*L*beta
+if flag_uniform_strat == 1:
+  f0 = yc*L*beta*0 + np.mean(yc)*L*beta
+elif flag_uniform_strat == 2:
+  f0 = yc*L*beta*0 + yc[ny1,nx1]*L*beta
 Ro = u_qg/(f0*l_qg)
 
 # il: layer interface
-il = [0,3,8,16,30]        # 4 layers
-#il = [0,3,6,9,12,15,18,21,24,27,30] # 10 layers
+#il = [0,3,8,16,30]        # 4 layers
+#il = [0,1,2,3,4,5,8,12,17,23,30] # 10 layers
 #il = [0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30]  # 15 layers
 #il = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,20,22,24,26,28,30] # 23 layers
-#il = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30] # 30 layers
+il = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30] # 30 layers
 nlt = len(il)-1
 bt = np.zeros((nlt,N,N))
 ut = np.zeros((nlt,N,N))
@@ -112,8 +146,10 @@ for n2 in range(0,nlt):
 gpt[:,:,:] = -Bs*np.diff(bt,1,0)
 #gpt = np.where(gpt<gpmin,gpmin,gpt)
 
-if flag_uniform_strat:
+if flag_uniform_strat == 1:
   gpt = 0*gpt + gpt.mean(1).mean(1).reshape((nlt-1,1,1))
+if flag_uniform_strat == 2:
+  gpt = 0*gpt + gpt[:,ny1,nx1][:,np.newaxis,np.newaxis]
 
 for n2 in range(0,nlt):
   dzt[n2] = np.sum(dz[il[n2]:il[n2+1]])
@@ -164,75 +200,82 @@ m2lt.astype('f4').tofile('m2lt.bin')
 
 psi_ls = np.zeros((nlt,N1,N1))
 # compute large scale stream function
+fu = Us*ut
+fv = Us*vt
+zeta = (fv[:,1:,1:] - fv[:,1:,:-1] - fu[:,1:,1:] + fu[:,:-1,1:])/Deltad
 for n2 in range(0,nlt):
-  #fu = f0*Us*ut[n2,:,:] 
-  #fv = f0*Us*vt[n2,:,:] 
-  fu = Us*ut[n2,:,:] 
-  fv = Us*vt[n2,:,:] 
-  zeta = (fv[1:,1:] - fv[1:,:-1] - fu[1:,1:] + fu[:-1,1:])/Deltad
-  psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta)
+  psi_ls[n2,1:-1,1:-1] = Deltad**2*spoisson.sol(zeta[n2,:,:])
 
 rd1_est = np.max(Ro/Fr*l_qg,axis=0)
 
+dudz2 = (np.diff(fu,1,0)/dzi[:,np.newaxis,np.newaxis])**2 + (np.diff(fv,1,0)/dzi[:,np.newaxis,np.newaxis])**2
+Ri = N2lt/dudz2
+Ric = 500
+Ri2 = np.where(Ri>Ric,Ric,Ri)
+
+plt.figure()
+plt.imshow(Ri2[0,:,:],origin='lower')
+plt.colorbar()
+
+
 ir = 1
 
-ci = [1,2,5,10,20,30,40,50,60,70,80,90]
-plt.figure()
-plt.contourf(x,y,b[0,:,:])
-plt.colorbar()
-CS = plt.contour(x,y,rd[ir,:,:]*1e-3, ci, colors='k')
-plt.clabel(CS, inline=1, fontsize=10)
+# ci = [1,2,5,10,20,30,40,50,60,70,80,90]
+# plt.figure()
+# plt.contourf(x,y,b[0,:,:])
+# plt.colorbar()
+# CS = plt.contour(x,y,rd[ir,:,:]*1e-3, ci, colors='k')
+# plt.clabel(CS, inline=1, fontsize=10)
 
-plt.figure()
-plt.contourf(x,y,bt[0,:,:])
-plt.colorbar()
-CS = plt.contour(x,y,rdt[ir,:,:]*1e-3, ci, colors='k')
-plt.clabel(CS, inline=1, fontsize=10)
+# plt.figure()
+# plt.contourf(x,y,bt[0,:,:])
+# plt.colorbar()
+# CS = plt.contour(x,y,rdt[ir,:,:]*1e-3, ci, colors='k')
+# plt.clabel(CS, inline=1, fontsize=10)
 
-plt.figure()
-plt.contourf(x,y,bt[0,:,:])
-plt.colorbar()
-CS = plt.contour(x,y,rd1_est[:,:]*1e-3, ci, colors='k')
-plt.clabel(CS, inline=1, fontsize=10)
+# plt.figure()
+# plt.contourf(x,y,bt[0,:,:])
+# plt.colorbar()
+# CS = plt.contour(x,y,rd1_est[:,:]*1e-3, ci, colors='k')
+# plt.clabel(CS, inline=1, fontsize=10)
 
-nx = 50
-ny = 50
+# plt.figure()
+# for nm in range(0,nlt):
+#   plt.plot(m2l[:,nm,ny1,nx1],z)
 
-plt.figure()
-for nm in range(0,nlt):
-  plt.plot(m2l[:,nm,ny,nx],z)
-
-plt.figure()
-for nm in range(0,nlt):
-  plt.plot(m2lt[:,nm,ny,nx],zt)
+# plt.figure()
+# for nm in range(0,nlt):
+#   plt.plot(m2lt[:,nm,ny1,nx1],zt)
 
 
 u_mod = np.zeros(nl)
-u_mod[:nlt] = np.dot(l2mt[:,:,ny,nx],ut[:,ny,nx])
-u_proj = np.dot(m2l[:,:,ny,nx],u_mod)
+u_mod[:nlt] = np.dot(l2mt[:,:,ny1,nx1],ut[:,ny1,nx1])
+u_proj = np.dot(m2l[:,:,ny1,nx1],u_mod)
 
-u_mod2 = np.dot(l2m[:,:,ny,nx],u[:,ny,nx])
+u_mod2 = np.dot(l2m[:,:,ny1,nx1],u[:,ny1,nx1])
 u_mod2[nlt:] = 0.
-u_proj2 = np.dot(m2l[:,:,ny,nx],u_mod2)
+u_proj2 = np.dot(m2l[:,:,ny1,nx1],u_mod2)
 
+umod = np.sqrt(u**2 + v**2)
+utmod = np.sqrt(ut**2 + vt**2)
 plt.figure()
-plt.plot(u[:,ny,nx],z,'k+-')
-plt.plot(ut[:,ny,nx],zt,'k+--')
-plt.plot(u_proj,z,'r')
-plt.plot(u_proj2,z,'b')
+plt.plot(umod[:,ny1,nx1],z,'k+-')
+plt.plot(utmod[:,ny1,nx1],zt,'k+--')
+# plt.plot(u_proj,z,'r')
+# plt.plot(u_proj2,z,'b')
 
 b_mod = np.zeros(nl)
-b_mod[:nlt] = np.dot(l2mt[:,:,ny,nx],bt[:,ny,nx])
-b_proj = np.dot(m2l[:,:,ny,nx],b_mod)
+b_mod[:nlt] = np.dot(l2mt[:,:,ny1,nx1],bt[:,ny1,nx1])
+b_proj = np.dot(m2l[:,:,ny1,nx1],b_mod)
 
-b_mod2 = np.dot(l2m[:,:,ny,nx],b[:,ny,nx])
+b_mod2 = np.dot(l2m[:,:,ny1,nx1],b[:,ny1,nx1])
 b_mod2[nlt:] = 0.
-b_proj2 = np.dot(m2l[:,:,ny,nx],b_mod2)
+b_proj2 = np.dot(m2l[:,:,ny1,nx1],b_mod2)
 
-plt.plot(b[:,ny,nx],z,'k+-')
-plt.plot(bt[:,ny,nx],zt,'k+--')
-plt.plot(b_proj,z,'r')
-plt.plot(b_proj2,z,'b')
+plt.plot(b[:,ny1,nx1],z,'k+-')
+plt.plot(bt[:,ny1,nx1],zt,'k+--')
+# plt.plot(b_proj,z,'r')
+# plt.plot(b_proj2,z,'b')
 
 # adjust psi
 psi_ls = adjust_psi_coef*psi_ls
@@ -289,8 +332,12 @@ fileh = 'dh_' + str(nlt) +'l.bin'
 #dzt_a.astype('f4').tofile('dh_old.bin')
 dht_a.astype('f4').tofile(fileh)
 
+# plt.figure()
+# plt.contourf(xc,yc,ut[0,:,:],20)
+# plt.colorbar()
+
 plt.figure()
-plt.contourf(xc,yc,ut[0,:,:],20)
+plt.imshow(Hm,origin='lower')
 plt.colorbar()
 
 print('Rom = {0:.2e}'.format(u_qg/f0.mean()/l_qg))
