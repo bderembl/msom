@@ -30,7 +30,24 @@ N = int(b[0])
 N1 = N + 1
 nl = int(len(b)/N1**2)
 
-x = L0*np.arange(N)/N
+# create grid
+Delta = L0/N
+
+x = np.linspace(0.5*Delta, L0 - 0.5*Delta,N)
+xc,yc = np.meshgrid(x,x)
+
+
+fileh = 'dh_' + str(nl) +'l.bin'
+
+dh = np.fromfile(dir0 + fileh,'f4')
+dhi = 0.5*(dh[:-1] + dh[1:])
+
+
+# physical parameters
+if (Rom < 0) :
+  Ro = 0*yc - Rom
+else:
+  Ro = Rom/(1 + Rom*beta*(yc-0.5*L0))
 
 
 fileppg = 'psipg_' + str(nl) +'l_N' + str(N) + '.bas'
@@ -59,6 +76,9 @@ for ifi in range(0,nb_files):
 p_me  /= nme
 pf_me /= nme
 
+bf = np.diff(pf_me,1,0)/dhi.reshape(nl-1,1,1)/Ro.reshape(1,N,N)
+
+
 pf_o = np.transpose(pf_me,(0,2,1))
 pf_o.astype('f4').tofile('pf_qg.bas')
 
@@ -67,4 +87,7 @@ psi = pf_me[0,1:,1:]
 vmax = 0.5*np.max(np.abs(psi))
 
 plt.figure()
-plt.contour(psi,15, colors='k', linewidths=1)
+plt.contourf(bf[10,:,:],50,cmap=plt.cm.bwr,extend='both')
+plt.colorbar()
+#plt.contour(psi,15, colors='k', linewidths=1)
+

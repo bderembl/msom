@@ -32,8 +32,9 @@ x = np.linspace(0.5*Delta, Lt-0.5*Delta,N)
 xx,yy = np.meshgrid(x,x)
 
 kk = 0.02
+ll = 0.002
 psi = np.sin(2*np.pi*kk*x)
-psi2 = np.sin(2*np.pi*kk*xx)*np.sin(2*np.pi*kk*yy)
+psi2 = np.sin(2*np.pi*kk*xx)*np.sin(2*np.pi*ll*yy)
 
 #1d
 F1 = np.fft.fft(psi)*Delta
@@ -48,9 +49,12 @@ F2s = np.fft.fftshift( F2 )
 psd2D = np.abs( F2s )**2
 psd2D_r = radial_profile(psd2D)
 
-kr,spec_1D = myfftlib.radial_average(psd2D,Delta)
-kr2,spec_1D2 = myfftlib.get_spec_1D(psi2,psi2,Delta)
+spec_1D = myfftlib.radial_average(psd2D,Delta)
+spec_1D2 = myfftlib.get_spec_1D(psi2,psi2,Delta)
 psd_tmp = myfftlib.get_spec_2D(psi2,psi2,Delta)
+k,l,K,kr =  myfftlib.get_wavenumber(N,Delta)
+
+
 
 # parseval: E = np.sum(psi**2)*Delta = np.sum(F1*F1.conj())*dk
 # parseval: E = np.sum(psi2**2)*Delta**2 = np.sum(F2*F2.conj()).real*dk**2 ~= np.sum(spec_1D)*dk*2*np.pi

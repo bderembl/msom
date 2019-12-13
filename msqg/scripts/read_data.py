@@ -2,21 +2,19 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import glob,os,re
+import glob,os,re,sys
 
 plt.ion()
 
-dir0 = "./"
+dir0 = "../outdir_"
+
+if len(sys.argv) > 1:
+  dir0 = dir0 + str(format(sys.argv[1])).zfill(4) + '/'
+
+exec(open(dir0 + "params.in").read())
+
+
 filep = 'po*'
-
-# Non dimensional parameters
-Lt = 100  # size of the domain (adim)
-Rom = 0.025  # rossby number in the middle of the domain
-beta = 0.5   # beta (adim)
-
-# reference length scale and velocity scale
-lref = 50e3 # m
-uref = 0.1  # m/s
 
 allfilesp = sorted(glob.glob(dir0 + filep));
 nb_files  = len(allfilesp);
@@ -27,16 +25,19 @@ N1 = N + 1
 nl = int(len(p)/N1**2)
 
 # grid
-Delta = Lt/N
-x = np.linspace(0.5*Delta, Lt-0.5*Delta,N)
-y = np.linspace(0.5*Delta, Lt-0.5*Delta,N)
+Delta = L0/N
+x = np.linspace(0.5*Delta, L0-0.5*Delta,N)
+y = np.linspace(0.5*Delta, L0-0.5*Delta,N)
 xc, yc = np.meshgrid(x,y)
 
 # Rossby number (function of latitude)
-Ro = Rom/(1 + Rom*beta*(yc-0.5*Lt))
+if (Rom < 0) :
+  Ro = 0*yc - Rom
+else:
+  Ro = Rom/(1 + Rom*beta*(yc-0.5*L0))
 
 # choose iteration (-1: last) and layer (0: upper layer)
-nt = -1
+nt = 2
 il = 0
 
 # load non dimensional pressure p(z,y,x)

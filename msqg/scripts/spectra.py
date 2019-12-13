@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import glob,os,re,sys
 import fftlib as myfftlib
+from matplotlib import colors
 
 plt.ion()
 
@@ -45,6 +46,7 @@ allfilesft = sorted(glob.glob(dir0 + fileft));
 b = np.fromfile(allfilesp[0],'f4')
 N = int(b[0])
 N1 = N + 1
+N2 = N + 2
 nl = int(len(b)/N1**2)
 
 fileh = 'dh_' + str(nl) +'l.bin'
@@ -54,18 +56,33 @@ dhi = 0.5*(dh[:-1] + dh[1:])
 
 fileFr = 'frpg_' + str(nl) +'l_N' + str(N) + '.bas'
 
-nt = -1
+nt = -10
 il = 0
 
 p  = np.fromfile(allfilesp[nt],'f4').reshape(nl,N1,N1).transpose(0,2,1)
 q  = np.fromfile(allfilesq[nt],'f4').reshape(nl,N1,N1).transpose(0,2,1)
-pf = np.fromfile(allfilesf[nt],'f4').reshape(nl,N1,N1).transpose(0,2,1)
 Fr = np.fromfile(dir0 + fileFr,'f4').reshape(nl,N1,N1).transpose(0,2,1)
 
 p  = p[:,1:,1:]
 q  = q[:,1:,1:]
-pf = pf[:,1:,1:]
 Fr = Fr[:,1:,1:]
+
+# padded p
+po2 = np.zeros((nl,N2,N2))
+po2[:,1:-1,1:-1] = p
+
+po2[:,0,:]  = -po2[:,1,:]
+po2[:,-1,:] = -po2[:,-2,:]
+po2[:,:,0]  = -po2[:,:,1]
+po2[:,:,-1] = -po2[:,:,-2]
+
+# corners
+po2[:,0,0]   = -po2[:,0,1]   - po2[:,1,0]   - po2[:,1,1]
+po2[:,-1,0]  = -po2[:,-1,1]  - po2[:,-2,0]  - po2[:,-2,1]
+po2[:,0,-1]  = -po2[:,1,-1]  - po2[:,0,-2]  - po2[:,1,-2]
+po2[:,-1,-1] = -po2[:,-1,-2] - po2[:,-2,-2] - po2[:,-2,-1]
+
+
 
 if len(allfilesbf) > 0:
   ebf = np.fromfile(allfilesbf[nt],'f4').reshape(nl,N1,N1).transpose(0,2,1)
@@ -93,102 +110,89 @@ if (Rom < 0) :
 else:
   Ro = Rom/(1 + Rom*beta*(yc-0.5*L0))
 
-u = np.gradient(p, axis = 1)/Delta
-v = np.gradient(p, axis = 2)/Delta
-# u = np.gradient(p, axis = 1)/Delta*Ro.reshape(1,N,N)
-# v = np.gradient(p, axis = 2)/Delta*Ro.reshape(1,N,N)
+u = -(po2[:,2:,1:-1] - po2[:,:-2,1:-1])/(2*Delta)
+v =  (po2[:,1:-1,2:] - po2[:,1:-1,:-2])/(2*Delta)
 
-omega = np.gradient(np.gradient(p, axis = 1), axis = 1)/Delta**2 \
-  +     np.gradient(np.gradient(p, axis = 2), axis = 2)/Delta**2
+omega = (po2[:,2:,1:-1] + po2[:,:-2,1:-1] + po2[:,1:-1,2:] + po2[:,1:-1,:-2] - 4*p)/Delta**2
 
 ke = 0.5*(u**2 + v**2)
 
-b = np.diff(p,1,0)/dhi.reshape(nl-1,1,1)
-pe = 0.5*b**2*Fr[:-1,:,:]**2/(Ro.reshape(1,N,N))**2
-
-nmax = nl # 1: just surface level, nl: all levels
-flag_plot = [2,3,4,5,6,7] # 0: PE, 1: KE, 2: 
-flag_plot = [1] # 0: PE, 1: KE, 2: 
+b = np.diff(p,1,0)/dhi.reshape(nl-1,1,1)/Ro.reshape(1,N,N)
+pe = 0.5*b**2*Fr[:-1,:,:]**2
 
 Nkr = myfftlib.get_len_wavenumber(N, Delta)
+k,l,K,kr = myfftlib.get_wavenumber(N,Delta)
+
+kespec = np.zeros((nl,Nkr))
+pespec = np.zeros((nl,Nkr))
+
+for il in range(0,nl):
+
+#  kepspec = myfftlib.get_spec_1D(-p[il,:,:],omega[il,:,:],Delta)
+#  kespec[il,:] = 0.5*kepspec*dh[il]      
+  upspec = myfftlib.get_spec_1D(u[il,:,:],u[il,:,:],Delta)
+  vpspec = myfftlib.get_spec_1D(v[il,:,:],v[il,:,:],Delta)
+  kespec[il,:] = 0.5*(upspec + vpspec)*dh[il]      
+
+  if il < nl-1:
+    pepspec = myfftlib.get_spec_1D(b[il,:,:]*Fr[il,:,:],b[il,:,:]*Fr[il,:,:],Delta)
+    pespec[il,:] = 0.5*pepspec*dhi[il]
+      
+ke_all = np.sum(kespec,axis=0)
+pe_all = np.sum(pespec,axis=0)
+
+ki = 1.
+k0 = np.argmin(np.abs(kr-ki))
+ps0 = ke_all[k0]
+
+k5 = np.array([3e-1,3e0])
+s5 = (k5/ki)**-(5/3)*ps0 # k-5/3  SQG
+
+ki = 0.2
+k0 = np.argmin(np.abs(kr-ki))
+ps0 = ke_all[k0]
+
+k3 = np.array([1e-1,1.])
+s3 = (k3/ki)**-(3)*ps0 # k-3  QG
+
 
 plt.figure()
-for plotvar in flag_plot:
-  eflux = np.zeros((nl,Nkr))
-  for il in range(0,nmax):
-
-    #plt.clf()
-
-    if plotvar == 0: # PE
-      if il < nl-1:
-        psi = pe[il,:,:]
-      else:
-        psi = 0
-    elif plotvar == 1: # KE
-#      psi = ke[il,:,:]
-      psi = p[il,:,:]*omega[il,:,:]
-    elif plotvar == 2: # bf
-      psi = ebf[il,:,:]
-    elif plotvar == 3: # vd
-      psi = evd[il,:,:]
-    elif plotvar == 4: # j1
-      psi = ej1[il,:,:]
-    elif plotvar == 5: # j2
-      psi = ej2[il,:,:]
-    elif plotvar == 6: # j3
-      psi = ej3[il,:,:]
-    elif plotvar == 7: # ft
-      psi = eft[il,:,:]
-
-    #psi = np.sin(2*np.pi*0.1*xc)*np.sin(2*np.pi*0.1*yc)
-    if plotvar == 0 and il == nl-1:
-      psi = 0
-      # don't plot
-    else:
-      kspec,pspec = myfftlib.get_spec_1D(psi,psi,Delta)
-      kspec,flux = myfftlib.get_flux(-p[il,:,:],psi,Delta)
-      eflux[il,:] = flux*dh[il]      
-      
-      ki = 1.
-      k0 = np.argmin(np.abs(kspec-ki))
-      ps0 = pspec[k0]
-      
-      k3 = np.array([3e-1,3e0])
-      s3 = (k3/ki)**-(3)*ps0 # k-5  QG
-      
-      k5 = np.array([3e-1,3e0])
-      s5 = (k5/ki)**-(5/3)*ps0 # k-5  QG
-      
-      if plotvar == 0:
-        tag = 'PE'+str(il+1)
-      elif plotvar == 1:
-        tag = 'KE'+str(il+1)
-      elif plotvar == 2: # bf
-        tag = 'bf'+str(il+1)
-      elif plotvar == 3: # vd
-        tag = 'vd'+str(il+1)
-      elif plotvar == 4: # j1
-        tag = 'j1'+str(il+1)
-      elif plotvar == 5: # j2
-        tag = 'j2'+str(il+1)
-      elif plotvar == 6: # j3
-        tag = 'j3'+str(il+1)
-      elif plotvar == 7: # ft
-        tag = 'ft'+str(il+1)
-
-#      plt.semilogx(kspec,flux,'-',label=tag)
-      
-      plt.loglog(kspec,pspec,'r-',label=tag)      
-      plt.loglog(k3,s3,'k--',label=r'$k^{-3}$', linewidth=1)
-      plt.loglog(k5,s5,'k-.',label=r'$k^{-5/3}$', linewidth=1)
-      plt.xlabel('k (cycle/l)')
-      plt.legend()
-      plt.grid()
-      print(tag)
-      plt.savefig('figures/' + tag + '.png', bbox_inches='tight')
-  
-#plt.semilogx(kspec,np.sum(eflux,axis=0),'-', label='sum');
+plt.loglog(kr,ke_all,'k-',label="KE")
+#plt.loglog(kr,kespec[0,:],'k-',label="KE")
+plt.loglog(kr,pe_all,'r-',label="PE")
+plt.loglog(k3,s3,'k--',label=r'$k^{-3}$', linewidth=1)
+plt.loglog(k5,s5,'k-.',label=r'$k^{-5/3}$', linewidth=1)
+plt.xlabel('|K| (cycle/l)')
+plt.ylabel('E density (l^3/t^2)')
 plt.legend()
+plt.grid()
 
-#plt.gca().invert_xaxis()
-#plt.savefig('figures/' + 'PE_all' +'.pdf', bbox_inches='tight')
+#k = np.delete(k,int(N/2),axis=0)
+#k = np.delete(k,int(N/2),axis=1)
+#l = np.delete(l,int(N/2),axis=0)
+#l = np.delete(l,int(N/2),axis=1)
+#
+#klog = np.sign(k)*np.log10(np.abs(k))
+#llog = np.sign(l)*np.log10(np.abs(l))
+#
+#il = 0
+#spec2d_u = myfftlib.get_spec_2D(u[il,:,:],u[il,:,:],Delta)
+#spec2d_u = np.delete(spec2d_u,int(N/2),axis=1)
+#spec2d_u = np.delete(spec2d_u,int(N/2),axis=0)
+#spec2d_u = np.where(spec2d_u<1,1,spec2d_u)
+#
+#spec2d_v = myfftlib.get_spec_2D(v[il,:,:],v[il,:,:],Delta)
+#spec2d_v = np.delete(spec2d_v,int(N/2),axis=1)
+#spec2d_v = np.delete(spec2d_v,int(N/2),axis=0)
+#spec2d_v = np.where(spec2d_v<1,1,spec2d_v)
+#
+#spec2d_ke = 0.5*(spec2d_u + spec2d_v)*dhi[il]
+
+#plt.figure()
+#plt.contourf(k,l,spec2d_u + spec2d_v,norm = colors.LogNorm())
+#plt.xscale('symlog')
+#plt.yscale('symlog')
+#plt.colorbar()
+
+#plt.gca().set_xscale('log')
+#plt.gca().set_yscale('log')
