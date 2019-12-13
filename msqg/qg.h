@@ -57,7 +57,8 @@ double Re = 1e1; // reynolds number
 double Re4 = 1e3; // bihormonic reynolds number
 double iRe = 0.0; // inverse reynolds number
 double iRe4 = 0.0; // inverse bihormonic reynolds number
-double Ek = 1e-2; // Ekman number
+double Ekb = 1e-2; // Ekman number (bottom)
+double Eks = 1e-2; // Ekman number (surface)
 double Rom = 1e-2; // Mean Rossby number (if negative: Ro = cte = -Rom)
 double Frm = 1e-2; // Mean Froude number
 double beta = 0.5;
@@ -346,16 +347,21 @@ void dissip  (scalar * zetal, scalar * dqol)
 }
 
 /**
-   Ekman Friction on bottom layer
+   Bottom and surface Ekman Friction
 */
 
 trace
-void bottom_friction  (scalar * zetal, scalar * dqol)
+void ekman_friction  (scalar * zetal, scalar * dqol)
 {
-  scalar dqo = dqol[nl-1];
-  scalar zeta = zetal[nl-1];
-  foreach()
-    dqo[] -= Ek*zeta[];
+  foreach() {
+    scalar dqos = dqol[0];
+    scalar zetas = zetal[0];
+
+    scalar dqob = dqol[nl-1];
+    scalar zetab = zetal[nl-1];
+    dqos[] -= Eks*zetas[];
+    dqob[] -= Ekb*zetab[];
+  }
 }
 
 /**
@@ -469,7 +475,7 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   comp_del2(pol, zetal, 0., 1.0);
   dtmax = advection(zetal, pol, updates, dtmax);
   dissip(zetal, updates);
-  bottom_friction(zetal, updates);
+  ekman_friction(zetal, updates);
   surface_forcing(updates);
 
   return dtmax;
@@ -506,7 +512,8 @@ void read_params()
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
-      else if (strcmp(tmps1,"Ek")   ==0) { Ek    = atof(tmps2); }
+      else if (strcmp(tmps1,"Ekb")  ==0) { Ekb   = atof(tmps2); }
+      else if (strcmp(tmps1,"Eks")  ==0) { Eks   = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
       else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }

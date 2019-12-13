@@ -134,15 +134,20 @@ void dissip_de  (scalar * zetal, scalar * dqol, scalar * pol, double dt, double 
 }
 
 trace
-void bottom_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt, double ediag)
+void ekman_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt, double ediag)
 {
-  scalar dqo  = dqol[nl-1];
-  scalar zeta = zetal[nl-1];
-  scalar po   = pol[nl-1];
-//  scalar pp   = ppl[nl-1];
 
-  foreach()
-    dqo[] -= Ek*zeta[]*(-po[]*dt*(1-ediag)+ediag);
+  foreach(){
+    scalar dqos = dqol[0];
+    scalar zetas = zetal[0];
+    scalar pos   = pol[0];
+
+    scalar dqob = dqol[nl-1];
+    scalar zetab = zetal[nl-1];
+    scalar pob   = pol[nl-1];
+    dqos[] -= Eks*zetas[]*(-pos[]*dt*(1-ediag)+ediag);
+    dqob[] -= Ekb*zetab[]*(-pob[]*dt*(1-ediag)+ediag);
+  }
 }
 
 
@@ -172,7 +177,7 @@ void energy_tend (scalar * pol, double dt)
   comp_del2(pol, zetal, 0., 1.0);
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
   dissip_de(zetal, de_vdl, pol, dt, ediag);
-  bottom_friction_de(zetal, de_bfl, pol, dt, ediag);
+  ekman_friction_de(zetal, de_bfl, pol, dt, ediag);
 
   foreach()
     for (int l = 0; l < nl ; l++) {
@@ -267,7 +272,7 @@ void pystep ( double * po_py, int len1, int len2, int len3,
 
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
   dissip_de(zetal, de_vdl, pol, dt, ediag);
-  bottom_friction_de(zetal, de_bfl, pol, dt, ediag);
+  ekman_friction_de(zetal, de_bfl, pol, dt, ediag);
   //todo: wrong filter if onlyKE = 1
   filter_de (qol, pol, de_ftl, pol, dtflt, ediag);
   
