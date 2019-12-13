@@ -548,6 +548,8 @@ void convection(scalar * bl)
     int l = 1;
     scalar b0 = bl[l];
     scalar b1 = bl[l+1];
+//    face vector u0 = ul[l];
+//    face vector u1 = ul[l+1];
 
     while(  l < nl) {
       if( b1[] > b0[]) {
@@ -555,10 +557,17 @@ void convection(scalar * bl)
            layer equaly spaced: standard averaging */
         b1[] = 0.5*(b0[] + b1[]);
         b0[] = b1[];
+
+        /* u1.x[] = 0.5*(u0.x[] + u1.x[]); */
+        /* u1.y[] = 0.5*(u0.y[] + u1.y[]); */
+        /* u0.x[] = u1.x[]; */
+        /* u0.y[] = u1.y[]; */
       }
       l++;
       b0 = bl[l];
       b1 = bl[l+1];
+      /* u0 = ul[l]; */
+      /* u1 = ul[l+1]; */
     }
   }
 }
@@ -683,10 +692,6 @@ static void advance_pg (scalar * output, scalar * input,
     }
   }
 
-  forcing_implicit(bol,dt);
-  vdiff_implicit(bol,dt);
-  convection(bol);
-
   foreach_face() {
     for (int l = 1; l < nl+1 ; l++) {
       face vector ui = uil[l];
@@ -695,6 +700,10 @@ static void advance_pg (scalar * output, scalar * input,
       uo.x[] = ui.x[] + du.x[]*dt;
     }
   }
+
+  forcing_implicit(bol,dt);
+  vdiff_implicit(bol,dt);
+  convection(bol);
 
   adjust_bt_velocity(uol,1);
 
@@ -905,7 +914,6 @@ void convection_tend(scalar * bl, scalar * dbl, double dt)
       b_sav[] = 1.0*b[];
     }
   }
-
   convection(bl);
 
   foreach() {
