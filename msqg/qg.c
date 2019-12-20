@@ -14,7 +14,7 @@ CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e -grid=multigri
 mpirun -np 16 ./qg.e
 
 HPC:
-qcc -D_MPI=1 -D MKL -grid=multigrid -source qg.c
+qcc -D_MPI=1 -grid=multigrid -source qg.c     (-D MKL)
 mpicc -Wall -std=c99 -O2 _qg.c -lm -mkl -o qg.e
 */
 
@@ -61,10 +61,9 @@ event write_const (t = 0) {
 event writestdout (i++) {
 /* event writestdout (i=1) { */
   scalar po = pol[0];
-  scalar zeta = zetal[0];
   double ke = 0;
   foreach(reduction(+:ke))
-    ke -= 0.5*po[]*zeta[]*sq(Delta);
+    ke -= 0.5*po[]*laplacian(po)*sq(Delta);
 
   fprintf (stdout,"i = %i, dt = %g, t = %g, ke_1 = %g\n", i, dt, t, ke);
 }

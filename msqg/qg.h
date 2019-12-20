@@ -53,10 +53,12 @@ mgstats mgpsi;
 
 int nl = 1;
 
-double Re = 1e1; // reynolds number
-double Re4 = 1e3; // bihormonic reynolds number
+double Re  = 0.; // reynolds number
+double Re4 = 0.; // bihormonic reynolds number
+double Re6 = 0.; // bihormonic reynolds number
 double iRe = 0.0; // inverse reynolds number
 double iRe4 = 0.0; // inverse bihormonic reynolds number
+double iRe6 = 0.0; // inverse bihormonic reynolds number
 double Ekb = 1e-2; // Ekman number (bottom)
 double Eks = 1e-2; // Ekman number (surface)
 double Rom = 1e-2; // Mean Rossby number (if negative: Ro = cte = -Rom)
@@ -130,6 +132,12 @@ void invertq(scalar * pol, scalar * qol)
   boundary(pol);
 }
 
+/**
+   relative vorticity
+*/
+
+#define laplacian(po) (po[1] + po[-1] + po[0,1] + po[0,-1] - 4*po[])/(sq(Delta))
+
 trace
 void comp_del2(scalar * pol, scalar * zetal, double add, double fac)
 {
@@ -137,8 +145,7 @@ void comp_del2(scalar * pol, scalar * zetal, double add, double fac)
     for (int l = 0; l < nl ; l++) {
       scalar po = pol[l];
       scalar zeta = zetal[l];
-      zeta[] = add*zeta[] 
-        + fac*(po[1] + po[-1] + po[0,1] + po[0,-1] - 4*po[])/(sq(Delta));
+      zeta[] = add*zeta[] + fac*laplacian(po);
     }
 
   boundary(zetal);
@@ -250,8 +257,10 @@ void comp_vel(const scalar po, face vector uf)
 }
 
 trace
-double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
+double advection  (scalar * pol, scalar * dqol, double dtmax)
 {
+
+  comp_del2(pol, zetal, 0., 1.0);
 
   foreach() {
     double ju,jd;
@@ -260,7 +269,7 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 
       // upper layer
       int l = 0;
-      scalar qo  = qol[l];
+      scalar zo  = zetal[l];
       scalar po  = pol[l];
       scalar pp  = ppl[l];
       scalar dqo = dqol[l];
@@ -269,12 +278,12 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
       scalar s1 = strl[l];
 
       jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
-      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd*idh1[l];
+      dqo[] += jacobian(po, zo) + jacobian(pp, zo) + beta_effect(po) + s1[]*jd*idh1[l];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
        
-        qo  = qol[l];
+        zo  = zetal[l];
         po  = pol[l];
         pp  = ppl[l];
         dqo = dqol[l];
@@ -286,20 +295,20 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
         ju = -jd;
         jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
 
-        dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
+        dqo[] += jacobian(po, zo) + jacobian(pp, zo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
       }
 
       // lower layer
       l = nl-1;
 
-      qo  = qol[l];
+      zo  = zetal[l];
       po  = pol[l];
       pp  = ppl[l];
       dqo = dqol[l];
       scalar s0 = strl[l-1];
 
       ju = -jd;
-      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l];
+      dqo[] += jacobian(po, zo) + jacobian(pp, zo) + beta_effect(po) + s0[]*ju*idh0[l];
     }
     else{
       scalar dqo = dqol[0];
@@ -332,18 +341,27 @@ void comp_q(scalar * pol, scalar * qol)
 
 
 trace
-void dissip  (scalar * zetal, scalar * dqol)
+void dissip  (scalar * qol, scalar * dqol)
 {
-  comp_del2(zetal, tmpl, 0., 1.);
+  comp_del2(qol, tmpl, 0., 1.);
 
   foreach() 
     for (int l = 0; l < nl ; l++) {
       scalar dqo = dqol[l];
-      scalar p4 = tmpl[l];
-      dqo[] += p4[]*iRe;
+      scalar q2 = tmpl[l];
+      dqo[] += q2[]*iRe;
     }
 
-  comp_del2(tmpl, dqol, 1., iRe4);
+  comp_del2(tmpl, zetal, 0., 1.);
+
+  foreach() 
+    for (int l = 0; l < nl ; l++) {
+      scalar dqo = dqol[l];
+      scalar q4 = zetal[l];
+      dqo[] += q4[]*iRe4;
+    }
+
+  comp_del2(zetal, dqol, 1., iRe6);
 }
 
 /**
@@ -351,16 +369,16 @@ void dissip  (scalar * zetal, scalar * dqol)
 */
 
 trace
-void ekman_friction  (scalar * zetal, scalar * dqol)
+void ekman_friction  (scalar * pol, scalar * dqol)
 {
   foreach() {
     scalar dqos = dqol[0];
-    scalar zetas = zetal[0];
+    scalar pos = pol[0];
 
     scalar dqob = dqol[nl-1];
-    scalar zetab = zetal[nl-1];
-    dqos[] -= Eks*zetas[];
-    dqob[] -= Ekb*zetab[];
+    scalar pob = pol[nl-1];
+    dqos[] -= Eks*laplacian(pos);
+    dqob[] -= Ekb*laplacian(pob);
   }
 }
 
@@ -472,10 +490,9 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
       s[] = 0.;
 
   invertq(pol, evolving);
-  comp_del2(pol, zetal, 0., 1.0);
-  dtmax = advection(zetal, pol, updates, dtmax);
+  dtmax = advection(pol, updates, dtmax);
   dissip(evolving, updates);
-  ekman_friction(zetal, updates);
+  ekman_friction(pol, updates);
   surface_forcing(updates);
 
   return dtmax;
@@ -516,6 +533,7 @@ void read_params()
       else if (strcmp(tmps1,"Eks")  ==0) { Eks   = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
+      else if (strcmp(tmps1,"Re6")  ==0) { Re6   = atof(tmps2); }
       else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
       else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
       else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }
@@ -532,6 +550,7 @@ void read_params()
   }
   if (Re  == 0) iRe  = 0.; else iRe  =  1/Re;
   if (Re4 == 0) iRe4 = 0.; else iRe4 = -1/Re4;
+  if (Re6 == 0) iRe6 = 0.; else iRe6 =  1/Re6;
 
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
