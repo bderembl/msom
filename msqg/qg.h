@@ -474,7 +474,7 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   invertq(pol, evolving);
   comp_del2(pol, zetal, 0., 1.0);
   dtmax = advection(zetal, pol, updates, dtmax);
-  dissip(zetal, updates);
+  dissip(evolving, updates);
   ekman_friction(zetal, updates);
   surface_forcing(updates);
 
@@ -668,6 +668,9 @@ event defaults (i = 0){
   set_vars();
 }
 
+double shape(double x,double sigma){ return (1-exp(-0.5*sq(x/sigma)));}
+
+
 void set_const() {
 
 /**
@@ -747,6 +750,12 @@ void set_const() {
   foreach()
     sig_filt[] = min(afilt*Rd[],Lfmax);
 #endif
+  // sponge
+  /* foreach() */
+  /*   sig_filt[] = min(Lfmax*shape(x,5.)*shape(x-L0,5.)*shape(y,5.0)*shape(y-L0,5.0),Lfmax); */
+  /* foreach() */
+  /*   sig_filt[] = min(Lfmax*shape(x,10.)*shape(x-L0,10.)*shape(y,10.0)*shape(y-L0,10.0),sig_filt[]); */
+    
 
   restriction({sig_filt});
 

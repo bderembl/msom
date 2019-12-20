@@ -176,7 +176,8 @@ void energy_tend (scalar * pol, double dt)
 {
   comp_del2(pol, zetal, 0., 1.0);
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
-  dissip_de(zetal, de_vdl, pol, dt, ediag);
+  comp_q(pol, tmp2l)
+  dissip_de(temp2l, de_vdl, pol, dt, ediag);
   ekman_friction_de(zetal, de_bfl, pol, dt, ediag);
 
   foreach()
@@ -271,7 +272,7 @@ void pystep ( double * po_py, int len1, int len2, int len3,
   }
 
   advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
-  dissip_de(zetal, de_vdl, pol, dt, ediag);
+  dissip_de(qol, de_vdl, pol, dt, ediag);
   ekman_friction_de(zetal, de_bfl, pol, dt, ediag);
   //todo: wrong filter if onlyKE = 1
   filter_de (qol, pol, de_ftl, pol, dtflt, ediag);
