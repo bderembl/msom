@@ -22,6 +22,7 @@ struct InputMatrixl {
 };
 
 void input_matrixl (struct InputMatrixl p) {
+//  int il = 0;
   for (scalar s in p.sl){
     if (p.width == 0.) p.width = L0;
     float width=0;
@@ -38,14 +39,21 @@ void input_matrixl (struct InputMatrixl p) {
         fread(&v[i][j], sizeof(float), 1, p.fp);
       }
     }
+
     foreach() {
       int i = (x - p.ox)*width/p.width, j = (y - p.oy)*width/p.width;
-      if (i >= 0 && i < width && j >= 0 && j < width)
+      if (i >= 0 && i < width && j >= 0 && j < width){
+//        fseek( p.fp, sizeof(float)*(j+1 + (p.n+1)*(i+1) + il*(p.n+1)*(p.n+1)), SEEK_SET);
+//        float vt;
+//        fread(&vt, sizeof(float), 1, p.fp);
+//        s[] = vt;
         s[] = v[i][j];
+      }
       else
         s[] = 0.;
     }
   matrix_free (v);
+//  il += 1;
   }
 }
 

@@ -5,12 +5,12 @@ This is the driver file for qg.h.  We define the grid, the topography,
 the initial conditions and the output routines.
 
 compile with (openmp)
-qcc -lm -llapacke qg.c -O3 -o qg.e -fopenmp
+qcc -lm qg.c -O3 -o qg.e -fopenmp (-llapacke)
 export OMP_NUM_THREADS=20 (?)
 ./qg.e
 
 MPI:
-CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 -llapacke qg.c -o qg.e -grid=multigrid
+CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -O3 qg.c -o qg.e -grid=multigrid (-llapacke)
 mpirun -np 16 ./qg.e
 
 HPC:

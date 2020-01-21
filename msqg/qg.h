@@ -434,7 +434,6 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
     w[right] = 0;
     w[left] = 0;
 
-
     wavelet(po,w);
     for (int l = 0; l <= depth(); l++) {
       foreach_level (l)
