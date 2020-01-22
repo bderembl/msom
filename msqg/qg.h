@@ -53,12 +53,10 @@ mgstats mgpsi;
 
 int nl = 1;
 
-double Re  = 0.; // reynolds number
+double Re = 0.; // reynolds number
 double Re4 = 0.; // bihormonic reynolds number
-double Re6 = 0.; // bihormonic reynolds number
 double iRe = 0.0; // inverse reynolds number
 double iRe4 = 0.0; // inverse bihormonic reynolds number
-double iRe6 = 0.0; // inverse bihormonic reynolds number
 double Ekb = 1e-2; // Ekman number (bottom)
 double Eks = 1e-2; // Ekman number (surface)
 double Rom = 1e-2; // Mean Rossby number (if negative: Ro = cte = -Rom)
@@ -174,7 +172,7 @@ void comp_del2(scalar * pol, scalar * zetal, double add, double fac)
 }
 
 trace
-void comp_stretch(scalar * pol, scalar * stretchl, double add)
+void comp_stretch(scalar * pol, scalar * stretchl, double add, double fac)
 {
 
   foreach() {
@@ -187,7 +185,7 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
       scalar stretch = stretchl[l];
       scalar s1 = strl[l];
 
-      stretch[] = add*stretch[] + s1[]*(po_2[] - po_1[])*idh1[l];
+      stretch[] = add*stretch[] + fac*s1[]*(po_2[] - po_1[])*idh1[l];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -199,7 +197,7 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
         scalar s0 = strl[l-1];
         scalar s1 = strl[l];
 
-        stretch[] = add*stretch[] + s0[]*(po_0[] - po_1[])*idh0[l] + s1[]*(po_2[] - po_1[])*idh1[l];
+        stretch[] = add*stretch[] + fac*(s0[]*(po_0[] - po_1[])*idh0[l] + s1[]*(po_2[] - po_1[])*idh1[l]);
       }
       // lower layer
       l = nl-1;
@@ -208,7 +206,7 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add)
       stretch = stretchl[l];
       scalar s0 = strl[l-1];
 
-      stretch[] = add*stretch[] + s0[]*(po_0[] - po_1[])*idh0[l];
+      stretch[] = add*stretch[] + fac*s0[]*(po_0[] - po_1[])*idh0[l];
     }
     else{
       scalar stretch = stretchl[0];
@@ -257,10 +255,8 @@ void comp_vel(const scalar po, face vector uf)
 }
 
 trace
-double advection  (scalar * pol, scalar * dqol, double dtmax)
+double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 {
-
-  comp_del2(pol, zetal, 0., 1.0);
 
   foreach() {
     double ju,jd;
@@ -269,7 +265,7 @@ double advection  (scalar * pol, scalar * dqol, double dtmax)
 
       // upper layer
       int l = 0;
-      scalar zo  = zetal[l];
+      scalar qo  = qol[l];
       scalar po  = pol[l];
       scalar pp  = ppl[l];
       scalar dqo = dqol[l];
@@ -278,12 +274,12 @@ double advection  (scalar * pol, scalar * dqol, double dtmax)
       scalar s1 = strl[l];
 
       jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
-      dqo[] += jacobian(po, zo) + jacobian(pp, zo) + beta_effect(po) + s1[]*jd*idh1[l];
+      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd*idh1[l];
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
        
-        zo  = zetal[l];
+        qo  = qol[l];
         po  = pol[l];
         pp  = ppl[l];
         dqo = dqol[l];
@@ -295,20 +291,20 @@ double advection  (scalar * pol, scalar * dqol, double dtmax)
         ju = -jd;
         jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
 
-        dqo[] += jacobian(po, zo) + jacobian(pp, zo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
+        dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
       }
 
       // lower layer
       l = nl-1;
 
-      zo  = zetal[l];
+      qo  = qol[l];
       po  = pol[l];
       pp  = ppl[l];
       dqo = dqol[l];
       scalar s0 = strl[l-1];
 
       ju = -jd;
-      dqo[] += jacobian(po, zo) + jacobian(pp, zo) + beta_effect(po) + s0[]*ju*idh0[l];
+      dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l];
     }
     else{
       scalar dqo = dqol[0];
@@ -334,34 +330,28 @@ trace
 void comp_q(scalar * pol, scalar * qol)
 {
   comp_del2  (pol, qol, 0., 1.);
-  comp_stretch(pol, qol, 1.);
+  comp_stretch(pol, qol, 1., 1.);
   // TODO: not the rigght BC if partial or no slip
   boundary(qol);
 }
 
 
 trace
-void dissip  (scalar * qol, scalar * dqol)
+void dissip  (scalar * zetal, scalar * dqol)
 {
-  comp_del2(qol, tmpl, 0., 1.);
+  comp_stretch(zetal, dqol, 1., iRe);
+
+  comp_del2(zetal, tmpl, 0., 1.);
 
   foreach() 
     for (int l = 0; l < nl ; l++) {
       scalar dqo = dqol[l];
-      scalar q2 = tmpl[l];
-      dqo[] += q2[]*iRe;
+      scalar p4 = tmpl[l];
+      dqo[] += p4[]*iRe;
     }
 
-  comp_del2(tmpl, zetal, 0., 1.);
-
-  foreach() 
-    for (int l = 0; l < nl ; l++) {
-      scalar dqo = dqol[l];
-      scalar q4 = zetal[l];
-      dqo[] += q4[]*iRe4;
-    }
-
-  comp_del2(zetal, dqol, 1., iRe6);
+  comp_stretch(tmpl, dqol, 1., iRe4);
+  comp_del2(tmpl, dqol, 1., iRe4);
 }
 
 /**
@@ -369,16 +359,16 @@ void dissip  (scalar * qol, scalar * dqol)
 */
 
 trace
-void ekman_friction  (scalar * pol, scalar * dqol)
+void ekman_friction  (scalar * zetal, scalar * dqol)
 {
   foreach() {
     scalar dqos = dqol[0];
-    scalar pos = pol[0];
+    scalar zetas = zetal[0];
 
     scalar dqob = dqol[nl-1];
-    scalar pob = pol[nl-1];
-    dqos[] -= Eks*laplacian(pos);
-    dqob[] -= Ekb*laplacian(pob);
+    scalar zetab = zetal[nl-1];
+    dqos[] -= Eks*zetas[];
+    dqob[] -= Ekb*zetab[];
   }
 }
 
@@ -433,6 +423,7 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
     w[bottom] = 0;
     w[right] = 0;
     w[left] = 0;
+
 
     wavelet(po,w);
     for (int l = 0; l <= depth(); l++) {
@@ -489,9 +480,10 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
       s[] = 0.;
 
   invertq(pol, evolving);
-  dtmax = advection(pol, updates, dtmax);
-  dissip(evolving, updates);
-  ekman_friction(pol, updates);
+  comp_del2(pol, zetal, 0., 1.0);
+  dtmax = advection(zetal, pol, updates, dtmax);
+  dissip(zetal, updates);
+  ekman_friction(zetal, updates);
   surface_forcing(updates);
 
   return dtmax;
@@ -532,7 +524,6 @@ void read_params()
       else if (strcmp(tmps1,"Eks")  ==0) { Eks   = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
-      else if (strcmp(tmps1,"Re6")  ==0) { Re6   = atof(tmps2); }
       else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
       else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
       else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }
@@ -549,7 +540,6 @@ void read_params()
   }
   if (Re  == 0) iRe  = 0.; else iRe  =  1/Re;
   if (Re4 == 0) iRe4 = 0.; else iRe4 = -1/Re4;
-  if (Re6 == 0) iRe6 = 0.; else iRe6 =  1/Re6;
 
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
@@ -686,9 +676,6 @@ event defaults (i = 0){
   set_vars();
 }
 
-double shape(double x,double sigma){ return (1-exp(-0.5*sq(x/sigma)));}
-
-
 void set_const() {
 
 /**
@@ -768,12 +755,6 @@ void set_const() {
   foreach()
     sig_filt[] = min(afilt*Rd[],Lfmax);
 #endif
-  // sponge
-  /* foreach() */
-  /*   sig_filt[] = min(Lfmax*shape(x,5.)*shape(x-L0,5.)*shape(y,5.0)*shape(y-L0,5.0),Lfmax); */
-  /* foreach() */
-  /*   sig_filt[] = min(Lfmax*shape(x,10.)*shape(x-L0,10.)*shape(y,10.0)*shape(y-L0,10.0),sig_filt[]); */
-    
 
   restriction({sig_filt});
 

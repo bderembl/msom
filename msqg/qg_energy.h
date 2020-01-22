@@ -22,12 +22,10 @@ int nme_ft = 0;
    J3 = j(psi, q_pg)
  */
 trace
-void advection_de  (scalar * pol,
+void advection_de  (scalar * qol, scalar * pol,
                     scalar * de_j1l, scalar * de_j2l, scalar * de_j3l, 
                     double dt, double ediag)
 {
-  comp_del2(pol, zetal, 0., 1.0);
-
   foreach() {
     double ju_1,jd_1;
     double ju_2,jd_2;
@@ -38,7 +36,7 @@ void advection_de  (scalar * pol,
 
       // upper layer
       int l = 0;
-      scalar zo  = zetal[l];
+      scalar qo  = qol[l];
       scalar po  = pol[l];
       scalar pp  = ppl[l];
       scalar po2 = pol[l+1];
@@ -53,14 +51,14 @@ void advection_de  (scalar * pol,
       jd_3 = jacobian(po, pp2);
       jc   = jacobian(po, pp );
 
-      de_j1[] += (jacobian(po, zo) + s1[]*jd_1*idh1[l]       )*(-po[]*dt*(1-ediag)+ediag);
-      de_j2[] += (jacobian(pp, zo) + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qo) + s1[]*jd_1*idh1[l]       )*(-po[]*dt*(1-ediag)+ediag);
+      de_j2[] += (jacobian(pp, qo) + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
       de_j3[] += (                   s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
        
-        zo  = zetal[l];
+        qo  = qol[l];
         po  = pol[l];
         pp  = ppl[l];
         po2 = pol[l+1];
@@ -79,15 +77,15 @@ void advection_de  (scalar * pol,
         jd_3 = jacobian(po, pp2);
         jc   = jacobian(po, pp );
 
-        de_j1[] += (jacobian(po, zo) + s0[]*ju_1*idh0[l] + s1[]*jd_1*idh1[l]              )*(-po[]*dt*(1-ediag)+ediag);
-        de_j2[] += (jacobian(pp, zo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+        de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l] + s1[]*jd_1*idh1[l]              )*(-po[]*dt*(1-ediag)+ediag);
+        de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
         de_j3[] += (                   s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
       }
 
       // lower layer
       l = nl-1;
 
-      zo  = zetal[l];
+      qo  = qol[l];
       po  = pol[l];
       pp  = ppl[l];
       de_j1 = de_j1l[l];
@@ -100,8 +98,8 @@ void advection_de  (scalar * pol,
       ju_3 = -jd_2; // swap
       jc   = jacobian(po, pp );
 
-      de_j1[] += (jacobian(po, zo) + s0[]*ju_1*idh0[l]       )*(-po[]*dt*(1-ediag)+ediag);
-      de_j2[] += (jacobian(pp, zo) + s0[]*(ju_2 + jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l]       )*(-po[]*dt*(1-ediag)+ediag);
+      de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
       de_j3[] += (                   s0[]*(ju_3 - jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
     }
     else{
@@ -117,43 +115,51 @@ void advection_de  (scalar * pol,
 
 
 trace
-void dissip_de  (scalar * qol, scalar * dqol, scalar * pol, double dt, double ediag)
+void dissip_de  (scalar * zetal, scalar * dqol, scalar * pol, double dt, double ediag)
 {
-  comp_del2(qol, tmpl, 0., 1.);
+  comp_del2(zetal, tmpl, 0., 1.);
+  comp_stretch(zetal, tmp2l, 0., 1.);
 
   foreach() 
     for (int l = 0; l < nl ; l++) {
       scalar dqo = dqol[l];
-      scalar q2 = tmpl[l];
+      scalar p4 = tmpl[l];
+      scalar str = tmp2l[l];
       scalar po = pol[l];
-      dqo[] += iRe *q2[]*(-po[]*dt*(1-ediag)+ediag);
-      dqo[] += iRe4*laplacian(q2)*(-po[]*dt*(1-ediag)+ediag);
+//      scalar pp  = ppl[l];
+      dqo[] += (p4[] + str[])*iRe*(-po[]*dt*(1-ediag)+ediag);
+      dqo[] += iRe4*laplacian(p4)
+        *(-po[]*dt*(1-ediag)+ediag);
     }
-
-  comp_del2(tmpl, zetal, 0., 1.);
-
+  comp_stretch(tmpl, tmp2l, 0., 1.);
   foreach() 
     for (int l = 0; l < nl ; l++) {
       scalar dqo = dqol[l];
-      scalar q4 = zetal[l];
+      scalar str = tmp2l[l];
       scalar po = pol[l];
-      dqo[] += iRe6*laplacian(q4)*(-po[]*dt*(1-ediag)+ediag);
+//      scalar pp  = ppl[l];
+      dqo[] += iRe4*(str[])
+        *(-po[]*dt*(1-ediag)+ediag);
     }
+
+
 
 }
 
 trace
-void ekman_friction_de (scalar * pol, scalar * dqol, double dt, double ediag)
+void ekman_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt, double ediag)
 {
 
   foreach(){
     scalar dqos = dqol[0];
+    scalar zetas = zetal[0];
     scalar pos   = pol[0];
 
     scalar dqob = dqol[nl-1];
+    scalar zetab = zetal[nl-1];
     scalar pob   = pol[nl-1];
-    dqos[] -= Eks*laplacian(pos)*(-pos[]*dt*(1-ediag)+ediag);
-    dqob[] -= Ekb*laplacian(pob)*(-pob[]*dt*(1-ediag)+ediag);
+    dqos[] -= Eks*zetas[]*(-pos[]*dt*(1-ediag)+ediag);
+    dqob[] -= Ekb*zetab[]*(-pob[]*dt*(1-ediag)+ediag);
   }
 }
 
@@ -181,10 +187,10 @@ void filter_de (scalar * qol, scalar * pol, scalar * de_ftl,
 
 void energy_tend (scalar * pol, double dt)
 {
-  advection_de(pol, de_j1l, de_j2l, de_j3l, dt, ediag);
-  comp_q(pol, tmp2l);
-  dissip_de(tmp2l, de_vdl, pol, dt, ediag);
-  ekman_friction_de(pol, de_bfl, dt, ediag);
+  comp_del2(pol, zetal, 0., 1.0);
+  advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
+  dissip_de(zetal, de_vdl, pol, dt, ediag);
+  ekman_friction_de(zetal, de_bfl, pol, dt, ediag);
 
   foreach()
     for (int l = 0; l < nl ; l++) {
@@ -266,6 +272,7 @@ void pystep ( double * po_py, int len1, int len2, int len3,
   reset_layer_var(de_j3l);
   reset_layer_var(de_ftl);
 
+  comp_del2(pol, zetal, 0., 1.0);
   comp_q(pol,qol);
 
   if (onlyKE == 1) {
@@ -276,9 +283,9 @@ void pystep ( double * po_py, int len1, int len2, int len3,
     }
   }
 
-  advection_de(pol, de_j1l, de_j2l, de_j3l, dt, ediag);
-  dissip_de(qol, de_vdl, pol, dt, ediag);
-  ekman_friction_de(pol, de_bfl, dt, ediag);
+  advection_de(zetal, pol, de_j1l, de_j2l, de_j3l, dt, ediag);
+  dissip_de(zetal, de_vdl, pol, dt, ediag);
+  ekman_friction_de(zetal, de_bfl, pol, dt, ediag);
   //todo: wrong filter if onlyKE = 1
   filter_de (qol, pol, de_ftl, pol, dtflt, ediag);
   
