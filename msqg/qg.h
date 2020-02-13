@@ -1,6 +1,7 @@
 /**
    multiple scale quasi-geostrophic model 
 */
+#define MODE_PV_INVERT 0
 
 double * dhf;
 double * dhc;
@@ -42,7 +43,7 @@ scalar sig_filt[];
 scalar sig_lev[];
 int lsmin, lsmax; 
 double afilt = 10.;  // filter size = afilt*Rd
-double Lfmax = 10.;  // max filter length scale
+double Lfmax = 1.e10;  // max filter length scale
 
 // temporary psi field with samem BC as p
 scalar * tmpl = NULL;
@@ -57,16 +58,17 @@ double Re = 0.; // reynolds number
 double Re4 = 0.; // bihormonic reynolds number
 double iRe = 0.0; // inverse reynolds number
 double iRe4 = 0.0; // inverse bihormonic reynolds number
-double Ekb = 1e-2; // Ekman number (bottom)
-double Eks = 1e-2; // Ekman number (surface)
-double Rom = 1e-2; // Mean Rossby number (if negative: Ro = cte = -Rom)
-double Frm = 1e-2; // Mean Froude number
+double Ekb = 0.0; // Ekman number (bottom)
+double Eks = 0.0; // Ekman number (surface)
+double Rom = 0.0; // Mean Rossby number (if negative: Ro = cte = -Rom)
+double Frm[1000]; // Mean Froude number
+double dhu[1000]; // user input dh
 double beta = 0.5;
 double tau0 = 0.; // wind stress curl
 double sbc = 0.; // slip BC: 0: free slip (OK), big: no slip (TO BE FINISHED)
 
 double tend = 1; // end time
-double dtflt = 1; // Delat T filtering
+double dtflt = -1; // Delat T filtering
 double dtout = 1; // Delat T output
 
 int nbar = 0;
@@ -321,7 +323,6 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
      po = ppl[l];
      comp_vel(po, uf);
      dtmax = timestep (uf, dtmax);
-  //    dtmax = DT;
    }
   return dtmax;
 }
@@ -367,8 +368,8 @@ void ekman_friction  (scalar * zetal, scalar * dqol)
 
     scalar dqob = dqol[nl-1];
     scalar zetab = zetal[nl-1];
-    dqos[] -= Eks*zetas[];
-    dqob[] -= Ekb*zetab[];
+    dqos[] -= Eks/Rom*zetas[];
+    dqob[] -= Ekb/Rom*zetab[];
   }
 }
 
@@ -381,7 +382,7 @@ void surface_forcing  (scalar * dqol)
 {
   scalar dqo = dqol[0];
   foreach() 
-    dqo[] -= tau0*sin(2*pi*y/L0);
+    dqo[] -= tau0/Rom*sin(2*pi*y/L0);
 }
 
 trace
@@ -505,16 +506,29 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
    Read input parameters
  */
 
+void str2array(char *tmps2, double *array){
+  char* p;
+  int len = strlen(tmps2);
+  char tmps3[len];
+  strcpy(tmps3, tmps2); //needed in case there is a blank line
+  int n = 0;
+  p = strtok(tmps3,"[,]");
+  while (p != NULL){
+    array[n] = atof(p);
+    p = strtok(NULL, ",");
+    n += 1;
+  }
+}
+
 void read_params()
 {
   FILE * fp;
   if ((fp = fopen("params.in", "rt"))) {
-    char tempbuff[100];
+    char tempbuff[200];
     char tmps1[16];
-    char tmps2[16];
-
+    char tmps2[150];
     while(fgets(tempbuff,100,fp)) {
-      sscanf(tempbuff, "%15s = %15s", tmps1, tmps2);
+      sscanf(tempbuff, "%15s = %s", tmps1, tmps2);
       if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
@@ -522,6 +536,7 @@ void read_params()
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
       else if (strcmp(tmps1,"Ekb")  ==0) { Ekb   = atof(tmps2); }
       else if (strcmp(tmps1,"Eks")  ==0) { Eks   = atof(tmps2); }
+      else if (strcmp(tmps1,"tau0") ==0) { tau0  = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
       else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
@@ -532,6 +547,8 @@ void read_params()
       else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
       else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
       else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
+      else if (strcmp(tmps1,"Fr")   ==0) { str2array(tmps2, Frm);}
+      else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
     }
     fclose(fp);
   } else {
@@ -540,6 +557,12 @@ void read_params()
   }
   if (Re  == 0) iRe  = 0.; else iRe  =  1/Re;
   if (Re4 == 0) iRe4 = 0.; else iRe4 = -1/Re4;
+
+  /**
+     Viscosity CFL = 0.5
+   */
+  if (Re  != 0) DT = 0.5*min(DT,sq(L0/N)*Re/4.);
+  if (Re4 != 0) DT = 0.5*min(DT,sq(sq(L0/N))*Re4/32.);
 
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
@@ -651,11 +674,13 @@ void set_vars()
   idh0 = malloc (nl*sizeof(double));
   idh1 = malloc (nl*sizeof(double));
   for (int l = 0; l < nl; l++)
-    dhf[l] = 1/nl;
+    dhf[l] = dhu[l];
 
   foreach()
-    for (scalar Fr in Frl)
-      Fr[] =  Frm; 
+    for (int l = 0; l < nl-1 ; l++) {
+      scalar Fr = Frl[l];
+      Fr[] =  Frm[l];
+    }
 
   foreach(){
     Ro[] = Rom; 
@@ -684,16 +709,16 @@ void set_const() {
   fprintf(stdout, "Read input files:\n");
 
   char name[80];
+  FILE * fp;
   sprintf (name,"dh_%dl.bin", nl);
-  float dh[nl];
-  FILE * fp = fopen (name, "r");
-  fread(&dh, sizeof(float), nl, fp);
-  fclose(fp);
-
-  for (int l = 0; l < nl ; l++)
-    dhf[l] = dh[l];
-
-  fprintf(stdout, "%s .. ok\n", name);
+  if ((fp = fopen (name, "r"))) {
+    float dh[nl];
+    fread(&dh, sizeof(float), nl, fp);
+    fclose(fp);
+    for (int l = 0; l < nl ; l++)
+      dhf[l] = dh[l];
+    fprintf(stdout, "%s .. ok\n", name);
+  }
 
   sprintf (name,"psipg_%dl_N%d.bas", nl,N);
   if ((fp = fopen (name, "r"))) {
@@ -716,6 +741,35 @@ void set_const() {
     fprintf(stdout, "%s .. ok\n", name);
   }
 
+  /**
+     Sanity checks
+   */
+  for (int l = 0; l < nl ; l++) {
+    if (dhf[l] == 0){
+      fprintf(stdout, "thickness = 0: aborting\n");
+      fprintf(stdout, "if using params.in, make sure there is no whitespace\n");
+      fprintf(stdout, "in the definition of dh\n");
+      exit(0);
+      }
+  }
+  foreach()
+    for (int l = 0; l < nl-1 ; l++) {
+      scalar Fr = Frl[l];
+      if (Fr[] == 0){
+        fprintf(stdout, "Fr = 0: aborting\n");
+      fprintf(stdout, "if using params.in, make sure there is no whitespace\n");
+      fprintf(stdout, "in the definition of Fr\n");
+        exit(0);
+      }
+    }
+  if (Rom == 0){
+    fprintf(stdout, "Rom = 0: aborting\n");
+    exit(0);
+  }
+
+  /**
+     Compute layer metrics
+   */
   for (int l = 0; l < nl-1; l++)
     dhc[l] = 0.5*(dhf[l] + dhf[l+1]);
 
@@ -728,9 +782,12 @@ void set_const() {
   idh0[nl-1] = 1./(dhc[nl-2]*dhf[nl-1]);
   idh1[nl-1] = 0.;
 
-
+  /**
+     Adjust variable rossby number
+   */
   foreach()
     Ro[] = (Rom > 0) ? Rom/(1 + Rom*beta*(y-0.5*L0)) : -Rom;
+  Rom = fabs(Rom);
 
   /**
      Compute vertical stretching coef matrix (inverse burger number squared)

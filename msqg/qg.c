@@ -81,11 +81,12 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
   sprintf (name,"%sqo%09d.bas", dpath, i);
   write_field(qol, name, 0.);
 
-  invertq(tmpl,qofl);
-  sprintf (name,"%spf%09d.bas", dpath, i);
-  write_field(tmpl, name, 0.);
-  
-  nbar = 0; // reset filter average
+  if (dtflt > 0) {
+    invertq(tmpl,qofl);
+    sprintf (name,"%spf%09d.bas", dpath, i);
+    write_field(tmpl, name, 0.);
+    nbar = 0; // reset filter average
+  }
 
   /* scalar l[]; */
   /* foreach() */

@@ -1,28 +1,24 @@
 #!sh
 # input parameter files
-# each '=' sign must be surrounded by at least one whitespace on each side
-
+# - each '=' sign must be surrounded by at least one whitespace on each side
+# - no whitespace in array definition
 
 # domain size
-N  = 512
-nl = 4
+N  = 256
+nl = 3
 L0 = 100
 
 # physical parameters
-Rom   = 0.025
-Ek    = 0.05
-Re    = 50.
-Re4   = 500.
+Rom   = -0.025
+Ekb   = 5.e-4
+Re4   = 1000.
 beta  = 0.5
-afilt = 12.
-Lfmax = 12.5
+tau0  = 1e-3
+Fr = [0.004787,0.012332]   # no whitespace
+dh = [0.0875,0.1875,0.725] # no whitespace
 
 # timestepping
-DT    = 5.e-2
-tend  = 5000.
-dtout = 5.
-dtflt = 0.5
-CFL   = 0.6
-
-# misc
-ediag = 0
+DT = 5e-2
+tend  = 2000.
+dtout = 1.
+CFL   = 0.5

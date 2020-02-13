@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import sys,glob,os,re
 import scipy.io.netcdf as netcdf
 
+dtflt = -1
 
 #plt.ion()
 
@@ -61,7 +62,8 @@ xpo = f.createVariable('x', 'f', ('x',))
 
 po  = f.createVariable('p' , 'f', ('t','z','y','x',))
 qo  = f.createVariable('q' , 'f', ('t','z','y','x',))
-pof  = f.createVariable('pf' , 'f', ('t','z','y','x',))
+if len(allfilesf) > 0:
+  pof  = f.createVariable('pf' , 'f', ('t','z','y','x',))
 if len(allfilesbf) > 0:
   ebfo = f.createVariable('ebf' , 'f', ('t','z','y','x',))
   evdo = f.createVariable('evd' , 'f', ('t','z','y','x',))
@@ -85,15 +87,18 @@ for ifi in range(0,nb_files):
 
   p  = np.fromfile(allfilesp[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
   q  = np.fromfile(allfilesq[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
-  pf = np.fromfile(allfilesf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
 
   p  = p [:,1:,1:]
   q  = q [:,1:,1:]
-  pf = pf[:,1:,1:]
 
   po [ifi,:,:,:] = p [:,:,:]
   qo [ifi,:,:,:] = q [:,:,:]
-  pof[ifi,:,:,:] = pf[:,:,:]
+
+  if len(allfilesf) > 0:
+    pf = np.fromfile(allfilesf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    pf = pf[:,1:,1:]
+    pof[ifi,:,:,:] = pf[:,:,:]
+
 
   if len(allfilesbf) > 0:
     ebf = np.fromfile(allfilesbf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
