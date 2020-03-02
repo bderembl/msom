@@ -251,7 +251,7 @@ event comp_diag (i++) {
    Python interface routines (should be in .i file but I need foreach)
  */
 
-void pystep ( double * po_py, int len1, int len2, int len3,
+void pystep_de ( double * po_py, int len1, int len2, int len3,
               double * de_bf_py, int len4, int len5, int len6,
               double * de_vd_py, int len7, int len8, int len9,
               double * de_j1_py, int len10, int len11, int len12,

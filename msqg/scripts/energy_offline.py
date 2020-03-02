@@ -17,6 +17,8 @@ if len(sys.argv) > 1:
 # read parameters
 exec(open(dir0 + "params.in").read())
 
+flag_keonly = 0
+
 # needed for basilisk
 dirtmp = os.getcwd()
 os.chdir(dir0)
@@ -88,6 +90,7 @@ else:
 
 
 Nkr = myfftlib.get_len_wavenumber(N,Delta)
+k,l,K,kr = myfftlib.get_wavenumber(N,Delta)
 
 eflux_bf = np.zeros((nl,Nkr))
 eflux_vd = np.zeros((nl,Nkr))
@@ -107,18 +110,18 @@ for nt in range (nt0,nt1):
   p  = p[:,1:,1:]
   q  = q[:,1:,1:]
 
-  bas.pystep(p,bf,vd,j1,j2,j3,ft,1)
+  bas.pystep_de(p,bf,vd,j1,j2,j3,ft,flag_keonly)
   print("end step")
   nme += 1
 
   for il in range(0,nl):
     print("layer {0}".format(il))
-    kspec,flux_bf  = myfftlib.get_flux(-p[il,:,:],bf[il,:,:],Delta)
-    kspec,flux_vd  = myfftlib.get_flux(-p[il,:,:],vd[il,:,:],Delta)
-    kspec,flux_j1  = myfftlib.get_flux(-p[il,:,:],j1[il,:,:],Delta)
-    kspec,flux_j2  = myfftlib.get_flux(-p[il,:,:],j2[il,:,:],Delta)
-    kspec,flux_j3  = myfftlib.get_flux(-p[il,:,:],j3[il,:,:],Delta)
-    kspec,flux_ft  = myfftlib.get_flux(-p[il,:,:],ft[il,:,:],Delta)
+    flux_bf  = myfftlib.get_flux(-p[il,:,:],bf[il,:,:],Delta)
+    flux_vd  = myfftlib.get_flux(-p[il,:,:],vd[il,:,:],Delta)
+    flux_j1  = myfftlib.get_flux(-p[il,:,:],j1[il,:,:],Delta)
+    flux_j2  = myfftlib.get_flux(-p[il,:,:],j2[il,:,:],Delta)
+    flux_j3  = myfftlib.get_flux(-p[il,:,:],j3[il,:,:],Delta)
+    flux_ft  = myfftlib.get_flux(-p[il,:,:],ft[il,:,:],Delta)
     
     eflux_bf[il,:] +=  flux_bf*dh[il]
     eflux_vd[il,:] +=  flux_vd*dh[il]
@@ -135,12 +138,12 @@ eflux_j3 /= nme
 eflux_ft /= nme
 
 plt.figure()
-plt.plot(np.log10(kspec), np.sum(eflux_bf,0), label= 'bf')
-plt.plot(np.log10(kspec), np.sum(eflux_vd,0), label= 'vd')
-plt.plot(np.log10(kspec), np.sum(eflux_j1,0), label= 'j1')
-plt.plot(np.log10(kspec), np.sum(eflux_j2,0), label= 'j2')
-plt.plot(np.log10(kspec), np.sum(eflux_j3,0), label= 'j3')
-plt.plot(np.log10(kspec), np.sum(eflux_ft,0), label= 'ft')
+plt.plot(np.log10(kr), np.sum(eflux_bf,0), label= 'bf')
+plt.plot(np.log10(kr), np.sum(eflux_vd,0), label= 'vd')
+plt.plot(np.log10(kr), np.sum(eflux_j1,0), label= 'j1')
+plt.plot(np.log10(kr), np.sum(eflux_j2,0), label= 'j2')
+plt.plot(np.log10(kr), np.sum(eflux_j3,0), label= 'j3')
+plt.plot(np.log10(kr), np.sum(eflux_ft,0), label= 'ft')
 
 plt.legend()
 plt.show()
