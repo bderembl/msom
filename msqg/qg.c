@@ -15,6 +15,7 @@ mpirun -np 16 ./qg.e
 
 HPC:
 qcc -D_MPI=1 -grid=multigrid -source qg.c     (-D MKL)
+rsync _qg.c
 mpicc -Wall -std=c99 -O2 _qg.c -lm -mkl -o qg.e
 */
 
@@ -23,9 +24,15 @@ mpicc -Wall -std=c99 -O2 _qg.c -lm -mkl -o qg.e
 #include "qg.h"
 #include "qg_energy.h"
 
-int main() {
+int main(int argc,char* argv[]) {
 
-  read_params();
+  // Search for the configuration file with a given path or read params.in 
+  if (argc == 2) {
+    read_params(argv[1]);
+  } else {
+    read_params("params.in");
+  }
+
   create_outdir();
 
   init_grid (N);

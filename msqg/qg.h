@@ -520,10 +520,10 @@ void str2array(char *tmps2, double *array){
   }
 }
 
-void read_params()
+void read_params(char* path2file)
 {
   FILE * fp;
-  if ((fp = fopen("params.in", "rt"))) {
+  if ((fp = fopen(path2file, "rt"))) {
     char tempbuff[200];
     char tmps1[16];
     char tmps2[150];
@@ -552,7 +552,7 @@ void read_params()
     }
     fclose(fp);
   } else {
-    fprintf(stdout, "file params.in not found\n");
+    fprintf(stdout, "file %s not found\n", path2file);
     exit(0);
   }
   if (Re  == 0) iRe  = 0.; else iRe  =  1/Re;
