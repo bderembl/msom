@@ -15,13 +15,14 @@ mpirun -np 16 ./qg.e
 
 HPC:
 qcc -D_MPI=1 -grid=multigrid -source qg.c     (-D MKL)
-mpicc -Wall -std=c99 -O2 _qg.c -lm -mkl -o qg.e
+mpicc -Wall -std=c99 -O2 _qg.c -lm -o qg.e    (-mkl)
 */
 
 #include "grid/multigrid.h"
 #include "auxiliar_input.h"
 #include "qg.h"
 #include "qg_energy.h"
+#include "qg_bfn.h"
 
 int main() {
 

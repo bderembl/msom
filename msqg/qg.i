@@ -5,6 +5,7 @@
 %include "poisson.i"
 %include "timestep.i"
 %include "qg_energy.i"
+%include "qg_bfn.i"
 
 %{
   extern scalar sig_lev;

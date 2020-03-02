@@ -510,7 +510,7 @@ void str2array(char *tmps2, double *array){
   char* p;
   int len = strlen(tmps2);
   char tmps3[len];
-  strcpy(tmps3, tmps2); //needed in case there is a blank line
+  strcpy(tmps3, tmps2); //needed in case there is an empty line in params.in
   int n = 0;
   p = strtok(tmps3,"[,]");
   while (p != NULL){

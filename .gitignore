@@ -19,3 +19,5 @@ qg.py
 *.pdf
 _qg.c
 _pg.c
+*.s
+*.tst
