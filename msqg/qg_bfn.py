@@ -6,11 +6,13 @@ import qg as bas
 
 dir0 = "./"
 
-# read parameters
-exec(open(dir0 + "params.in").read())
+params_file = "params.in"
+
+# read parameters in python
+exec(open(dir0 + params_file).read())
 
 # init basilisk variables
-bas.read_params()
+bas.read_params(params_file)
 bas.init_grid(N)
 bas.set_vars()
 bas.set_vars_bfn()

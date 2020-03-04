@@ -29,7 +29,7 @@ Ro = scalar(_qg.cvar.Ro)
 %inline %{
   void set_vars ();
   void set_const ();
-  void read_params();
+  void read_params(char* path2file);
   void create_outdir();
   void backup_config();
   void trash_vars();
