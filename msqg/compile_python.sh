@@ -1,6 +1,9 @@
 
 # just for legacy.
 # do not use: use makefile instead
+# if you really want to use this file, make sure swig.patch is applied 
+# in the main basilisk folder (cf. misc directory)
+
 
 qcc -O2 -g -Wall -pipe -D_FORTIFY_SOURCE=2 -python -c -fpic -I/usr/include/python3.8 qg.c
 #qcc -O2 -g -Wall -pipe -D_FORTIFY_SOURCE=2 -c -fpic -I/usr/include/python3.8 qg.c

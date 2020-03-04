@@ -1,0 +1,49 @@
+1 patch for repository http://basilisk.fr/basilisk:
+
+patch 2c4e30af573ba2df766293999c8581309354599c
+Author: Bruno Deremble <bruno.deremble@ens.fr>
+Date:   Wed Nov 20 11:08:22 CET 2019
+  * add an option to create or not .i swig file
+
+New patches:
+
+[add an option to create or not .i swig file
+Bruno Deremble <bruno.deremble@ens.fr>**20191120100822
+ Ignore-this: dfe4c5acadca3fc39695d00aa3269bf1
+] hunk ./src/include.lex 522
+-  int depend = 0, nout = 0, tags = 0, swig = 0;
++  int depend = 0, nout = 0, tags = 0, swig = 0, python = 0;
+hunk ./src/include.lex 534
+-      swig = 1;
++      python = 1;
++    else if (!strcmp (argv[i], "-swig"))
++      {swig = 1; python = 1;}
+hunk ./src/include.lex 633
+-    if (swigfp) {
++    if (python) {
+hunk ./src/qcc.lex 3094
+-  int i, dep = 0, tags = 0, swig = 0;
++  int i, dep = 0, tags = 0, swig = 0, python = 0;
+hunk ./src/qcc.lex 3103
+-      swig = 1;
++      python = 1;
++    else if (!strcmp (argv[i], "-swig"))
++      {swig = 1; python = 1;}
+hunk ./src/qcc.lex 3181
+-    else if (swig) {
++    else if (python) {
+hunk ./src/qcc.lex 3246
+-      if (swig)
++      if (python)
+hunk ./src/qcc.lex 3291
+-      if (swigfp)
++      if (python)
+
+Context:
+
+[TAG release 19-11-16
+Stephane Popinet <popinet@basilisk.fr>**20191116083158
+ Ignore-this: 85dd9f63c534eb1c9b04756accfdae31
+] 
+Patch bundle hash:
+c3d7faf739c777c5680caa13b0c4f34332e83839
