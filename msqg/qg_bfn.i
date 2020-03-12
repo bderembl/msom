@@ -9,7 +9,8 @@
 
 %inline %{
   void pystep_bfn ( double * po_py, int len1, int len2, int len3,
-                double * bfn_dp_py, int len4, int len5, int len6);
+                double * bfn_dp_py, int len4, int len5, int len6,
+                    double direction);
 %}
 
 %inline %{

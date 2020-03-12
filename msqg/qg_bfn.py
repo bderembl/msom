@@ -33,11 +33,15 @@ F1 = np.zeros((nl,N,N))
 F2 = np.zeros((nl,N,N))
 F3 = np.zeros((nl,N,N))
 
+# forward integration: direction = 1.0
+# backward integration: direction = -1.0
+direction = 1.0
+
 # time integration loop
 for nt in range(0,si_t):
   
   # compute RHS
-  bas.pystep_bfn(p,F1)
+  bas.pystep_bfn(p, F1, direction)
 
   # BNF nudging goes here
   # F1 = F1 +  nudging

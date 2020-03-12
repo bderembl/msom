@@ -16,9 +16,22 @@ void trash_vars_bfn(){
 
 
 void pystep_bfn ( double * po_py, int len1, int len2, int len3,
-              double * bfn_dp_py, int len4, int len5, int len6) {
+              double * bfn_dp_py, int len4, int len5, int len6,
+                  double direction) {
 
+  /**
+     forward integration: direction = 1
+     backward integration: direction = -1
+   */
   double dtmax = DT;
+
+  if (direction > 0) {
+    if (Re  == 0) iRe  = 0.; else iRe  =  1/Re;
+    if (Re4 == 0) iRe4 = 0.; else iRe4 = -1/Re4;
+  } else {
+    if (Re  == 0) iRe  = 0.; else iRe  =  -1/Re;
+    if (Re4 == 0) iRe4 = 0.; else iRe4 = 1/Re4;
+  }
 
   pyset_field(pol,po_py);
 
@@ -28,7 +41,9 @@ void pystep_bfn ( double * po_py, int len1, int len2, int len3,
   comp_del2(pol, zetal, 0., 1.0);
 
   dtmax = advection(zetal, pol, qol, dtmax);
-  // compute the stream function tendancy
+  dissip(zetal, qol);
+
+  // compute the stream function tendency
   invertq(bfn_dpl, qol);
   
   pyget_field(bfn_dpl, bfn_dp_py);
