@@ -6,6 +6,7 @@ scalar * bl  = NULL;
 vector * ul = NULL;
 scalar * pl  = NULL;
 scalar * b_mel  = NULL;
+vector * u_gml = NULL;
 vector * u_mel = NULL;
 scalar * b_forcl  = NULL;
 
@@ -19,8 +20,8 @@ double ds;
 
 // physical parameters
 double r = 0.1;
-double a = 0.2;
-double kd = 3e-4;
+double kv = 0.;
+double kh = 0.;
 double nu = 3e-4;
 double ys = 0; // southern latitude
 
@@ -42,6 +43,11 @@ face vector ubt[];
 
 // diffusion coefficient
 face vector kf[];
+
+// Gent-McWilliams
+double k_gm = 0.;
+double N2min = 1e-10;
+double cmin = 2.0;
 
 // elliptic solver
 mgstats mgD;
@@ -408,7 +414,7 @@ double advection (scalar * bl, vector * ul, scalar * dbl, double dtmax)
       scalar b0 = bl[l+1];
       scalar db = dbl[l];
       face vector u = ul[l];
-      
+
       w1[] = w0[] - (u.x[1] - u.x[] + u.y[0,1] - u.y[])*ds/Delta;
 
       db[] += ((b[] + b[-1,0])*u.x[] -
@@ -450,7 +456,7 @@ void vdiff_implicit(scalar * bl, double dt)
      surface BC */
   scalar b0 = bl[1];
   foreach()
-    b0[] += dt*2*kd*k(x,y,sf[0])/(sq(ds))*b_surf[];
+    b0[] += dt*2*kv*k(x,y,sf[0])/(sq(ds))*b_surf[];
   
   foreach() {
     for (int l = 0; l < nl; l++) {
@@ -458,8 +464,8 @@ void vdiff_implicit(scalar * bl, double dt)
       rhs[l] = b0[];
     }
     
-    double K0 = kd*k(x,y,sf[0]);
-    double K1 = kd*k(x,y,sf[1]);
+    double K0 = kv*k(x,y,sf[0]);
+    double K1 = kv*k(x,y,sf[1]);
     
     // upper layer
     ad[0] = 0.;
@@ -469,7 +475,7 @@ void vdiff_implicit(scalar * bl, double dt)
     for (int l = 1; l < nl-1; l++) {
       
       K0 = K1;
-      K1 = kd*k(x,y,sf[l+1]);
+      K1 = kv*k(x,y,sf[l+1]);
       
       ad[l] = - dt*K0/sq(ds);
       cd[l] = - dt*K1/sq(ds);
@@ -515,7 +521,7 @@ void hdiffusion  (scalar * bl, scalar * dbl)
   for (int l = 1; l < nl+1 ; l++) {
     foreach_face() {
       scalar b = bl[l];
-      hdiff.x[] = sq(a)*kd*k(x,y,sc[l])*((b[] - b[-1])/Delta);
+      hdiff.x[] = kh*k(x,y,sc[l])*((b[] - b[-1])/Delta);
     }
   /**
      no flux side boundary conditions (ok with BC on b)*/
@@ -666,6 +672,59 @@ void adjust_bt_velocity(vector * ul, double btfac)
 }
 
 /**
+## Gent McWilliams parameterization
+
+We solve Eq. 16 in Ferrari et at 2010 and compute the eddy induced
+velocity with Eq. 5 in that paper. The vertical velocity is computed
+in the advection routine.
+ */
+
+void comp_gm(vector * u_gml, scalar * bl) {
+  foreach_face(){
+
+    // compute first baroclinic wave spped
+    scalar b0 = bl[1];
+    scalar b1 = bl[nl];
+    double c_bc1 = sqrt(fabs(b0[] - b1[]))/pi; //(multiply by total thickness nl*ds if not 1)
+    double c2_bc1 = sq(max(cmin, c_bc1));
+
+    int nli = nl - 1;     // loop on layer interface
+    double ad[nli], bd[nli], cd[nli], rhs[nli];
+    for (int l = 0; l < nli ; l++) {
+      b0 = bl[l+1];
+      b1 = bl[l+2];
+
+      rhs[l] = -k_gm*0.5*(b0[] - b0[-1] + b1[] - b1[-1])/Delta;
+      ad[l] =  c2_bc1/sq(ds);
+      bd[l] = -c2_bc1*2./sq(ds) - max(N2min,0.5*(b0[] - b1[] + b0[-1] - b1[-1])/ds);
+      cd[l] = ad[l];
+    }
+
+    // Thomas algorithm
+    for (int l = 1; l < nli; l++) {
+      bd[l] -= ad[l]*cd[l-1]/bd[l-1];
+      rhs[l] -= ad[l]*rhs[l-1]/bd[l-1];
+    }
+    vector u_gm = u_gml[nl];
+    ad[nli-1] = rhs[nli-1]/bd[nli-1];
+    u_gm.x[] = ad[nli-1]/ds; // u_gm = d upsilon/dz;
+    for (int l = nli - 2; l >= 0; l--) {
+      u_gm = u_gml[l+2];
+      ad[l] = (rhs[l] - cd[l]*ad[l+1])/bd[l];
+      u_gm.x[] = (ad[l] - ad[l+1])/ds; // u_gm = d upsilon/dz;
+    }
+    u_gm = u_gml[1];
+    u_gm.x[] = -ad[0]/ds; // u_gm = d upsilon/dz;
+  }
+
+  for (int l = 1; l < nl+1 ; l++) {
+    face vector u_gm = u_gml[l];
+    boundary ((scalar *){u_gm});
+  }
+}
+
+
+/**
 ## time stepping routines 
 
    We use the predictor corrector implementation */
@@ -729,6 +788,10 @@ double update_pg (scalar * evolving, scalar * updates, double dtmax)
   vector * dul = (vector *) &updates[nl+2];
 
   dtmax = advection (bl, ul, dbl, dtmax);
+  if (k_gm >0){
+     comp_gm(u_gml, bl) ;
+     dtmax = advection (bl, u_gml, dbl, dtmax);
+  }
   hdiffusion(bl, dbl);
   qg_forcing(dbl,b_forcl);
   momentum(bl, ul, dul);
@@ -757,6 +820,9 @@ void set_vars()
 
     face vector um = new face vector;
     u_mel = vectors_append (u_mel, um);
+
+    face vector ugm = new face vector;
+    u_gml = vectors_append (u_gml, ugm);
 
   }
 
@@ -816,6 +882,11 @@ void set_vars()
       u.x[] = 0.0;
   }
 
+  foreach_face() {
+    for (vector u in u_gml)
+      u.x[] = 0.0;
+  }
+
   // TODO: not sure why but I need these lines (even with circ_bc)
   psibt[right]  = dirichlet(0);
   psibt[left]   = dirichlet(0);
@@ -867,6 +938,7 @@ void trash_vars(){
   free (sf);
   free (b_mel), b_mel = NULL;
   free (u_mel), u_mel = NULL;
+  free (u_gml), u_gml = NULL;
 }
 
 event cleanup (i = end, last) {
@@ -898,8 +970,8 @@ void vdiff_explicit  (scalar * bl, scalar * dbl) {
       scalar b2 = bl[l-1];
       scalar db = dbl[l];
 
-      db[] +=   (kd*k(x,y,sf[l-1])*(b2[] - b0[])
-               - kd*k(x,y,sf[l])*(b0[] - b1[]))/sq(ds);
+      db[] +=   (kv*k(x,y,sf[l-1])*(b2[] - b0[])
+               - kv*k(x,y,sf[l])*(b0[] - b1[]))/sq(ds);
     }
   }
 }
@@ -957,7 +1029,6 @@ void pyadjust_contpar(double contpar_val){
 
 void pyinit_const(int pynl){ 
   nl = pynl;
-  a = sqrt(3.0e-2/k(0,0,0)); 
   r = 0.02; 
   tau_s = 3.0e-2;
   omega = 0.2;

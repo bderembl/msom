@@ -16,10 +16,10 @@
 /**
  spatially varying non dimensional diffusivity coef. in dimensional units
 $$
-\kappa_v^* = \kappa \frac{N^2H^4}{\beta L^3}
+\kappa_v^* = \kappa_v \frac{N^2H^2}{\beta L^3}*H^2
 $$
 $$
-\kappa_h^* = \kappa \frac{N^2H^4}{\beta L^3}*a^2*\frac{L^2}{H^2}
+\kappa_h^* = \kappa_h \frac{N^2H^2}{\beta L^3}*L^2
 $$
  */
  //shape function, multipy by kd
@@ -61,11 +61,12 @@ int main() {
       sscanf(tempbuff, "%15s = %15s # %15s", tmps1, tmps2, tmps3);
       if      (strcmp(tmps1,"N")    ==0) { N0    = atoi(tmps2); }
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
-      else if (strcmp(tmps1,"a")    ==0) { a     = atof(tmps2); }
       else if (strcmp(tmps1,"r")    ==0) { r     = atof(tmps2); }
-      else if (strcmp(tmps1,"kd")   ==0) { kd    = atof(tmps2); }
+      else if (strcmp(tmps1,"kh")   ==0) { kh    = atof(tmps2); }
+      else if (strcmp(tmps1,"kv")   ==0) { kv    = atof(tmps2); }
       else if (strcmp(tmps1,"tau_s")==0) { tau_s = atof(tmps2); }
       else if (strcmp(tmps1,"tau0") ==0) { tau0  = atof(tmps2); }
+      else if (strcmp(tmps1,"k_gm") ==0) { k_gm  = atof(tmps2); }
       else if (strcmp(tmps1,"ys")   ==0) { ys    = atof(tmps2); }
       else if (strcmp(tmps1,"omega")==0) { omega = atof(tmps2); }
       else if (strcmp(tmps1,"DT")   ==0) { DT    = atof(tmps2); }
@@ -188,8 +189,9 @@ event comp_output(i+=10) {
   foreach_face(){
     for (int l = 1; l < nl+1 ; l++) {
       face vector u = ul[l];
+      face vector u_gm = u_gml[l];
       face vector um = u_mel[l];
-      um.x[] = (um.x[]*nme + u.x[])/(nme + 1);
+      um.x[] = (um.x[]*nme + u_gm.x[])/(nme + 1);
     }
   }
 
@@ -201,7 +203,7 @@ event comp_output(i+=10) {
 }
 event writeconst (t = 0) {
   char name[80];
-  sprintf (name,"%spsibt.bas", outdir, i);
+  sprintf (name,"%spsibt.bas", outdir);
   FILE * fp = fopen (name, "w");
   output_matrixl ({psibt}, fp);
   fclose(fp);
