@@ -862,21 +862,21 @@ event init (i = 0)
 ## Cleanup */
 
 void trash_vars(){
-  free (pol), pol = NULL;
-  free (qol), qol = NULL;
+  delete(pol), free (pol), pol = NULL;
+  delete(qol), free (qol), qol = NULL;
 #if MODE_PV_INVERT
-  free (pom), pom = NULL;
-  free (qom), qom = NULL;
-  free (cl2m), cl2m = NULL;
-  free (cm2l), cm2l = NULL;
-  free (iBul), iBul = NULL;
+  delete(pom), free (pom), pom = NULL;
+  delete(qom), free (qom), qom = NULL;
+  delete(cl2m), free (cl2m), cl2m = NULL;
+  delete(cm2l), free (cm2l), cm2l = NULL;
+  delete(iBul), free (iBul), iBul = NULL;
 #endif
-  free (zetal), zetal = NULL;
-  free (qofl), qofl = NULL;
-  free (ppl), ppl = NULL;
-  free (Frl), Frl = NULL;
-  free (strl), strl = NULL;
-  free (tmpl), tmpl = NULL;
+  delete(zetal), free (zetal), zetal = NULL;
+  delete(qofl), free (qofl), qofl = NULL;
+  delete(ppl), free (ppl), ppl = NULL;
+  delete(Frl), free (Frl), Frl = NULL;
+  delete(strl), free (strl), strl = NULL;
+  delete(tmpl), free (tmpl), tmpl = NULL;
   free(dhf);
   free(dhc);
   free(idh0);

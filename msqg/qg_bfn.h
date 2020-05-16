@@ -10,8 +10,8 @@ void set_vars_bfn(){
 }
 
 void trash_vars_bfn(){
-  free(bfn_forcl), bfn_forcl = NULL;
-  free(bfn_dpl), bfn_dpl = NULL;
+  delete(bfn_forcl), free(bfn_forcl), bfn_forcl = NULL;
+  delete(bfn_dpl), free(bfn_dpl), bfn_dpl = NULL;
 }
 
 

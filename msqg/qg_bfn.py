@@ -55,5 +55,5 @@ for nt in range(0,si_t):
 # the following two lines will cause a segmentation fault if the
 # script is run interactively
 
-#bas.trash_vars() 
-#bas.trash_vars_bfn()
+bas.trash_vars()
+bas.trash_vars_bfn()

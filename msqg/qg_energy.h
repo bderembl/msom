@@ -213,14 +213,14 @@ void set_vars_energy(){
 }
 
 void trash_vars_energy(){
-  free(de_bfl), de_bfl = NULL;
-  free(de_vdl), de_vdl = NULL;
-  free(de_j1l), de_j1l = NULL;
-  free(de_j2l), de_j2l = NULL;
-  free(de_j3l), de_j3l = NULL;
-  free(de_ftl), de_ftl = NULL;
-  free(tmp2l), tmp2l = NULL;
-  free(po_mft), po_mft = NULL;
+  delete(de_bfl), free(de_bfl), de_bfl = NULL;
+  delete(de_vdl), free(de_vdl), de_vdl = NULL;
+  delete(de_j1l), free(de_j1l), de_j1l = NULL;
+  delete(de_j2l), free(de_j2l), de_j2l = NULL;
+  delete(de_j3l), free(de_j3l), de_j3l = NULL;
+  delete(de_ftl), free(de_ftl), de_ftl = NULL;
+  delete(tmp2l),  free(tmp2l),  tmp2l = NULL;
+  delete(po_mft), free(po_mft), po_mft = NULL;
 }
 
 /**

@@ -21,6 +21,7 @@ scalar * create_layer_var (scalar * psil, int nl, int bc_type)
 
   foreach() 
     for (scalar po in psil) {po[] = 0.0;} 
+  boundary(psil);
 
   return psil;
 }
