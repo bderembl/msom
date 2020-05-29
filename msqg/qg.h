@@ -368,8 +368,8 @@ void ekman_friction  (scalar * zetal, scalar * dqol)
 
     scalar dqob = dqol[nl-1];
     scalar zetab = zetal[nl-1];
-    dqos[] -= Eks/Rom*zetas[];
-    dqob[] -= Ekb/Rom*zetab[];
+    dqos[] -= Eks/(sqrt(Ro[]*Rom)*2*dhf[0])*zetas[];
+    dqob[] -= Ekb/(sqrt(Ro[]*Rom)*2*dhf[nl-1])*zetab[];
   }
 }
 
