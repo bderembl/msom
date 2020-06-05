@@ -157,17 +157,13 @@ void comp_del2(scalar * pol, scalar * zetal, double add, double fac)
       scalar po = pol[l];
       scalar zeta = zetal[l];
       foreach_boundary(left) {
-        zeta[ghost] = add*zeta[ghost] 
-          + fac*sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
+        zeta[ghost] = sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
       foreach_boundary(right) {
-        zeta[ghost] = add*zeta[ghost] 
-          + fac*sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
+        zeta[ghost] = sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
       foreach_boundary(top) {
-        zeta[ghost] = add*zeta[ghost] 
-          + fac*sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
+        zeta[ghost] = sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
       foreach_boundary(bottom) {
-        zeta[ghost] = add*zeta[ghost] 
-          + fac*sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
+        zeta[ghost] = sbc/((0.5*sbc + 1)*sq(Delta))*(po[]-po[ghost]);}
     }
   }
 
@@ -256,8 +252,9 @@ void comp_vel(const scalar po, face vector uf)
   }
 }
 
+// todo: change names qo, zeta!
 trace
-double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
+double advection  (scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, double dtmax)
 {
 
   foreach() {
@@ -270,19 +267,26 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
       scalar qo  = qol[l];
       scalar po  = pol[l];
       scalar pp  = ppl[l];
+      scalar qot  = qotl[l];
       scalar dqo = dqol[l];
       scalar po2  = pol[l+1];
       scalar pp2  = ppl[l+1];
       scalar s1 = strl[l];
 
+#if ENERGY_CONSERV
+      jd =  jacobian(pp, po2) + jacobian(po, pp2);
+      dqo[] += jacobian(po, qot) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd*idh1[l];
+#else
       jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
       dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd*idh1[l];
+#endif
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
        
         qo  = qol[l];
         po  = pol[l];
+        qot = qotl[l];
         pp  = ppl[l];
         dqo = dqol[l];
         po2  = pol[l+1];
@@ -291,9 +295,13 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
         scalar s1 = strl[l];
 
         ju = -jd;
+#if ENERGY_CONSERV
+        jd = jacobian(pp, po2) + jacobian(po, pp2);
+        dqo[] += jacobian(po, qot) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
+#else
         jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
-
         dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
+#endif
       }
 
       // lower layer
@@ -301,12 +309,17 @@ double advection  (scalar * qol, scalar * pol, scalar * dqol, double dtmax)
 
       qo  = qol[l];
       po  = pol[l];
+      qot  = qotl[l];
       pp  = ppl[l];
       dqo = dqol[l];
       scalar s0 = strl[l-1];
 
       ju = -jd;
+#if ENERGY_CONSERV
+      dqo[] += jacobian(po, qot) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l];
+#else
       dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l];
+#endif
     }
     else{
       scalar dqo = dqol[0];
@@ -368,8 +381,8 @@ void ekman_friction  (scalar * zetal, scalar * dqol)
 
     scalar dqob = dqol[nl-1];
     scalar zetab = zetal[nl-1];
-    dqos[] -= Eks/(sqrt(Ro[]*Rom)*2*dhf[0])*zetas[];
-    dqob[] -= Ekb/(sqrt(Ro[]*Rom)*2*dhf[nl-1])*zetab[];
+    dqos[] -= Eks/(Rom*2*dhf[0])*zetas[];
+    dqob[] -= Ekb/(Rom*2*dhf[nl-1])*zetab[];
   }
 }
 
@@ -482,7 +495,7 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
 
   invertq(pol, evolving);
   comp_del2(pol, zetal, 0., 1.0);
-  dtmax = advection(zetal, pol, updates, dtmax);
+  dtmax = advection(zetal, qol, pol, updates, dtmax);
   dissip(zetal, updates);
   ekman_friction(zetal, updates);
   surface_forcing(updates);
@@ -539,6 +552,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"tau0") ==0) { tau0  = atof(tmps2); }
       else if (strcmp(tmps1,"Re")   ==0) { Re    = atof(tmps2); }
       else if (strcmp(tmps1,"Re4")  ==0) { Re4   = atof(tmps2); }
+      else if (strcmp(tmps1,"sbc")  ==0) { sbc   = atof(tmps2); }
       else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
       else if (strcmp(tmps1,"afilt")==0) { afilt = atof(tmps2); }
       else if (strcmp(tmps1,"Lfmax")==0) { Lfmax = atof(tmps2); }

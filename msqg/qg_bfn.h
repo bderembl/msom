@@ -46,26 +46,28 @@ void pystep_bfn ( double * varin_py, int len1, int len2, int len3,
   reset_layer_var(bfn_tendl);
 
   if (vartype == 0){
-    pyset_field(pol,varin_py);
+    fprintf (stdout,"temporary disabled psi tendency\n");
+
+    /* pyset_field(pol,varin_py); */
     
-    reset_layer_var(qol); // we put the tendency in qol
-    comp_del2(pol, zetal, 0., 1.0);
+    /* reset_layer_var(qol); // we put the tendency in qol */
+    /* comp_del2(pol, zetal, 0., 1.0); */
     
-    dtmax = advection(zetal, pol, qol, dtmax);
-    dissip(zetal, qol);
-    ekman_friction(zetal, qol);
+    /* dtmax = advection(zetal, pol, qol, dtmax); */
+    /* dissip(zetal, qol); */
+    /* ekman_friction(zetal, qol); */
     
-    // compute the stream function tendency
-    invertq(bfn_tendl, qol);
+    /* // compute the stream function tendency */
+    /* invertq(bfn_tendl, qol); */
     
-    pyget_field(bfn_tendl, tend_py);
+    /* pyget_field(bfn_tendl, tend_py); */
   } else if (vartype == 1) {
 
     pyset_field(qol,varin_py);
     invertq(pol, qol);
     
     comp_del2(pol, zetal, 0., 1.0);
-    dtmax = advection(zetal, pol, bfn_tendl, dtmax);
+    dtmax = advection(zetal, qol, pol, bfn_tendl, dtmax);
     dissip(zetal, bfn_tendl);
     ekman_friction(zetal, bfn_tendl);
     

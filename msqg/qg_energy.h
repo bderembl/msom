@@ -20,12 +20,20 @@ int nme_ft = 0;
    J1 = j(psi, q)
    J2 = j(psi_pg, q)
    J3 = j(psi, q_pg)
+
+   beta effect does not enter the energy buget only if the boundary is
+   located at a psi point; otherwise there is a discretisation issue.
  */
 trace
 void advection_de  (scalar * qol, scalar * pol,
                     scalar * de_j1l, scalar * de_j2l, scalar * de_j3l, 
                     double dt, double ediag)
 {
+
+#if ENERGY_CONSERV
+  comp_q(pol, tmp2l);
+#endif
+
   foreach() {
     double ju_1,jd_1;
     double ju_2,jd_2;
@@ -50,10 +58,14 @@ void advection_de  (scalar * qol, scalar * pol,
       jd_2 = jacobian(pp, po2);
       jd_3 = jacobian(po, pp2);
       jc   = jacobian(po, pp );
-
+#if ENERGY_CONSERV
+      scalar qot  = tmp2l[l];
+      de_j1[] += (jacobian(po, qot) )*(-po[]*dt*(1-ediag)+ediag);
+#else
       de_j1[] += (jacobian(po, qo) + s1[]*jd_1*idh1[l]       )*(-po[]*dt*(1-ediag)+ediag);
+#endif
       de_j2[] += (jacobian(pp, qo) + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
-      de_j3[] += (                   s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j3[] += ( beta_effect(po) +   s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -76,10 +88,14 @@ void advection_de  (scalar * qol, scalar * pol,
         jd_2 = jacobian(pp, po2);
         jd_3 = jacobian(po, pp2);
         jc   = jacobian(po, pp );
-
+#if ENERGY_CONSERV
+        qot  = tmp2l[l];
+        de_j1[] += (jacobian(po, qot))*(-po[]*dt*(1-ediag)+ediag);
+#else
         de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l] + s1[]*jd_1*idh1[l]              )*(-po[]*dt*(1-ediag)+ediag);
+#endif
         de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
-        de_j3[] += (                   s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+        de_j3[] += ( beta_effect(po) + s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
       }
 
       // lower layer
@@ -98,9 +114,14 @@ void advection_de  (scalar * qol, scalar * pol,
       ju_3 = -jd_2; // swap
       jc   = jacobian(po, pp );
 
+#if ENERGY_CONSERV
+      qot  = tmp2l[l];
+      de_j1[] += (jacobian(po, qot))*(-po[]*dt*(1-ediag)+ediag);
+#else
       de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l]       )*(-po[]*dt*(1-ediag)+ediag);
+#endif
       de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
-      de_j3[] += (                   s0[]*(ju_3 - jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j3[] += ( beta_effect(po) +  s0[]*(ju_3 - jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
     }
     else{
       scalar de_j1 = de_j1l[0];
@@ -158,8 +179,8 @@ void ekman_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt, 
     scalar dqob = dqol[nl-1];
     scalar zetab = zetal[nl-1];
     scalar pob   = pol[nl-1];
-    dqos[] -= Eks/(sqrt(Ro[]*Rom)*2*dhf[0])*zetas[]*(-pos[]*dt*(1-ediag)+ediag);
-    dqob[] -= Ekb/(sqrt(Ro[]*Rom)*2*dhf[nl-1])*zetab[]*(-pob[]*dt*(1-ediag)+ediag);
+    dqos[] -= Eks/(Rom*2*dhf[0])*zetas[]*(-pos[]*dt*(1-ediag)+ediag);
+    dqob[] -= Ekb/(Rom*2*dhf[nl-1])*zetab[]*(-pob[]*dt*(1-ediag)+ediag);
   }
 }
 
