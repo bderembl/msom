@@ -41,6 +41,8 @@ scalar Ro[];
 scalar Rd[];
 scalar sig_filt[];
 scalar sig_lev[];
+scalar topo[];
+int flag_topo;
 int lsmin, lsmax; 
 double afilt = 10.;  // filter size = afilt*Rd
 double Lfmax = 1.e10;  // max filter length scale
@@ -398,6 +400,21 @@ void surface_forcing  (scalar * dqol)
     dqo[] -= tau0/Rom*sin(2*pi*y/L0);
 }
 
+/**
+   Bottom topography
+*/
+
+trace
+void bottom_topography  (scalar * pol, scalar * dqol)
+{
+  foreach() {
+    scalar dqo = dqol[nl-1];
+    scalar po  = pol[nl-1];
+    dqo[] += jacobian(po, topo)/(Rom*dhf[nl-1]);
+  }
+}
+
+
 trace
 void time_filter (scalar * qol, scalar * qo_mel, double dt)
 {
@@ -499,7 +516,9 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   dissip(zetal, updates);
   ekman_friction(zetal, updates);
   surface_forcing(updates);
-
+  if (flag_topo)
+    bottom_topography(pol,updates);
+  
   return dtmax;
 }
 
@@ -699,6 +718,7 @@ void set_vars()
   foreach(){
     Ro[] = Rom; 
     Rd[] = 1.; 
+    topo[] = 0.;
   }
 
   /**
@@ -751,6 +771,14 @@ void set_const() {
   sprintf (name,"rdpg_%dl_N%d.bas", nl,N);
   if ((fp = fopen (name, "r"))) {
     input_matrixl ({Rd}, fp);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
+
+  sprintf (name,"topo.bas", nl,N);
+  if ((fp = fopen (name, "r"))) {
+    flag_topo = 1;
+    input_matrixl ({topo}, fp);
     fclose(fp);
     fprintf(stdout, "%s .. ok\n", name);
   }

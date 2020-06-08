@@ -15,17 +15,23 @@ flag_q = 1  # 0: integration in p, 1: integration in q
 # read parameters in python
 exec(open(dir0 + params_file).read())
 
+# local grid
+Delta = L0/N
+x = np.linspace(0.5*Delta,L0 - 0.5*Delta,N)
+xc,yc = np.meshgrid(x,x)
+
+topo = 0.01*np.exp(-(xc-0.5*L0)**2-(yc-0.5*L0)**2)
+topo_bas = np.zeros((N+1,N+1))
+topo_bas[0,0] = N
+topo_bas[1:,1:] = topo
+topo_bas.astype('f4').tofile("topo.bas")
+
 # init basilisk variables
 bas.read_params(params_file)
 bas.init_grid(N)
 bas.set_vars()
 bas.set_vars_bfn()
 bas.set_const()
-
-# local grid
-Delta = L0/N
-x = np.linspace(0.5*Delta,L0 - 0.5*Delta,N)
-xc,yc = np.meshgrid(x,x)
 
 # initial condition
 p  = np.zeros((nl,N,N))
