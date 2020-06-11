@@ -24,6 +24,9 @@ topo = 0.01*np.exp(-(xc-0.5*L0)**2-(yc-0.5*L0)**2)
 topo_bas = np.zeros((N+1,N+1))
 topo_bas[0,0] = N
 topo_bas[1:,1:] = topo
+# basilisk format is (x,y) whereas by convention, python arrays are (y,x)
+# so we need to transpose
+topo_bas = np.transpose(topo_bas,(1,0))
 topo_bas.astype('f4').tofile("topo.bas")
 
 # init basilisk variables
