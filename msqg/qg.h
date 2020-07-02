@@ -396,8 +396,8 @@ trace
 void surface_forcing  (scalar * dqol)
 {
   scalar dqo = dqol[0];
-  foreach() 
-    dqo[] -= tau0/Rom*sin(2*pi*y/L0);
+  foreach()
+    dqo[] -= tau0/(Rom*dhf[0])*sin(2*pi*y/L0)*sin(pi*y/L0);
 }
 
 /**

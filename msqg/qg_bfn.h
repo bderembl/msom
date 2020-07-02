@@ -56,6 +56,7 @@ void pystep_bfn ( double * varin_py, int len1, int len2, int len3,
     /* dtmax = advection(zetal, pol, qol, dtmax); */
     /* dissip(zetal, qol); */
     /* ekman_friction(zetal, qol); */
+    /* surface_forcing(qol); */
     
     /* // compute the stream function tendency */
     /* invertq(bfn_tendl, qol); */
@@ -70,6 +71,7 @@ void pystep_bfn ( double * varin_py, int len1, int len2, int len3,
     dtmax = advection(zetal, qol, pol, bfn_tendl, dtmax);
     dissip(zetal, bfn_tendl);
     ekman_friction(zetal, bfn_tendl);
+    surface_forcing(bfn_tendl);
     if (flag_topo)
       bottom_topography(pol,bfn_tendl);
 
