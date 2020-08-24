@@ -62,7 +62,7 @@ double iRe = 0.0; // inverse reynolds number
 double iRe4 = 0.0; // inverse bihormonic reynolds number
 double Ekb = 0.0; // Ekman number (bottom)
 double Eks = 0.0; // Ekman number (surface)
-double Rom = 0.0; // Mean Rossby number (if negative: Ro = cte = -Rom)
+double Rom = 0.0; // Mean Rossby number
 double Frm[1000]; // Mean Froude number
 double dhu[1000]; // user input dh
 double beta = 0.5;
@@ -75,6 +75,7 @@ double dtout = 1; // Delat T output
 
 int nbar = 0;
 int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
+int varRo = 0;   // varRo = 1: variable Rossby number (multiple scale mode)
 
 char dpath[80]; // name of output dir
 
@@ -564,6 +565,7 @@ void read_params(char* path2file)
       if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
+      else if (strcmp(tmps1,"varRo")==0) { varRo = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
       else if (strcmp(tmps1,"Ekb")  ==0) { Ekb   = atof(tmps2); }
@@ -804,8 +806,8 @@ void set_const() {
         exit(0);
       }
     }
-  if (Rom == 0){
-    fprintf(stdout, "Rom = 0: aborting\n");
+  if (Rom <= 0){
+    fprintf(stdout, "Rom <= 0: aborting\n");
     exit(0);
   }
 
@@ -827,9 +829,12 @@ void set_const() {
   /**
      Adjust variable rossby number
    */
-  foreach()
-    Ro[] = (Rom > 0) ? Rom/(1 + Rom*beta*(y-0.5*L0)) : -Rom;
-  Rom = fabs(Rom);
+  if (varRo > 0)
+    foreach()
+      Ro[] = Rom/(1 + Rom*beta*(y-0.5*L0));
+  else
+    foreach()
+      Ro[] = Rom;
 
   /**
      Compute vertical stretching coef matrix (inverse burger number squared)
