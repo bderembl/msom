@@ -1,0 +1,1 @@
+copy a configuration file from test in your working directory
