@@ -1,0 +1,22 @@
+#!sh
+# Double gyre configuration of Verron 1992: doi.org/10.1029/92JC00200
+
+# domain size
+N  = 256
+nl = 3
+L0 = 80
+
+# physical parameters
+Rom   = 0.025
+Ekb   = 0.002
+tau0  = 0.0001
+Re4   = 1563
+beta  = 0.5
+Fr = [0.0023669,0.0076173]
+dh = [0.06,0.14,0.8]
+
+# timestepping
+DT    = 5.e-2
+tend  = 500.
+dtout = 1.
+CFL   = 0.6
