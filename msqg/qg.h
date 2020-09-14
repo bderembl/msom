@@ -65,9 +65,11 @@ double Eks = 0.0; // Ekman number (surface)
 double Rom = 0.0; // Mean Rossby number
 double Frm[1000]; // Mean Froude number
 double dhu[1000]; // user input dh
+double upg[1000] = {0};  // background U
+double vpg[1000] = {0};  // background V
 double beta = 0.5;
 double tau0 = 0.; // wind stress curl
-double sbc = 0.; // slip BC: 0: free slip (OK), big: no slip (TO BE FINISHED)
+double sbc = 0.;  // doubly periodic: -1, free slip: 0: (OK), so slip: big number (TO BE FINISHED)
 
 double tend = 1; // end time
 double dtflt = -1; // Delat T filtering
@@ -76,6 +78,7 @@ double dtout = 1; // Delat T output
 int nbar = 0;
 int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 int varRo = 0;   // varRo = 1: variable Rossby number (multiple scale mode)
+int l_tmp = 0;   // global layer variable for periodic BC (to be replaced by _layer in the new layer framework)
 
 char dpath[80]; // name of output dir
 
@@ -539,8 +542,18 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
    Read input parameters
  */
 
+void trim_whitespace(char* s) {
+  const char* d = s;
+  do {
+    while (*d == ' ')
+      ++d;
+  } while (*s++ = *d++);
+}
+
+
 void str2array(char *tmps2, double *array){
   char* p;
+  trim_whitespace(tmps2);
   int len = strlen(tmps2);
   char tmps3[len];
   strcpy(tmps3, tmps2); //needed in case there is an empty line in params.in
@@ -557,11 +570,11 @@ void read_params(char* path2file)
 {
   FILE * fp;
   if ((fp = fopen(path2file, "rt"))) {
-    char tempbuff[200];
-    char tmps1[16];
-    char tmps2[150];
-    while(fgets(tempbuff,100,fp)) {
-      sscanf(tempbuff, "%15s = %s", tmps1, tmps2);
+    char tempbuff[300];
+    while(fgets(tempbuff,300,fp)) {
+      char* tmps1 = strtok(tempbuff, "=");
+      char* tmps2 = strtok(NULL, "=");
+      trim_whitespace(tmps1);
       if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
@@ -584,6 +597,9 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
       else if (strcmp(tmps1,"Fr")   ==0) { str2array(tmps2, Frm);}
       else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
+      else if (strcmp(tmps1,"upg")  ==0) { str2array(tmps2, upg);}
+      else if (strcmp(tmps1,"vpg")  ==0) { str2array(tmps2, vpg);}
+//      printf("%s => %s\n", tmps1, tmps2);
     }
     fclose(fp);
   } else {
@@ -673,19 +689,28 @@ void backup_config()
 
 void set_vars()
 {
+
+  int bc_type = 0;
+
+  if (sbc == -1){
+    periodic(right);
+    periodic(top);
+    bc_type = -2; // any negative number < -1
+  }
+
   fprintf(stdout,"Create main variables .. ");
-  pol   = create_layer_var(pol,nl,0);
-  qol   = create_layer_var(qol,nl,0);
-  ppl   = create_layer_var(ppl,nl,0);
-  zetal = create_layer_var(zetal,nl,0);
-  tmpl  = create_layer_var(tmpl,nl,0);
-  Frl   = create_layer_var(Frl,nl,1);
-  strl = create_layer_var(strl,nl,1);
-  qofl  = create_layer_var(qofl,nl,0);
+  pol   = create_layer_var(pol,nl,bc_type);
+  qol   = create_layer_var(qol,nl,bc_type);
+  ppl   = create_layer_var(ppl,nl,bc_type);
+  zetal = create_layer_var(zetal,nl,bc_type);
+  tmpl  = create_layer_var(tmpl,nl,bc_type);
+  Frl   = create_layer_var(Frl,nl,bc_type+1); // periodic or neumann
+  strl = create_layer_var(strl,nl,bc_type+1); // periodic or neumann
+  qofl  = create_layer_var(qofl,nl,bc_type);
 #if MODE_PV_INVERT
-  pom = create_layer_var(pom,nl,0);
-  qom = create_layer_var(qom,nl,0);
-  iBul  = create_layer_var(iBul,nl,1);
+  pom = create_layer_var(pom,nl,bc_type);
+  qom = create_layer_var(qom,nl,bc_type);
+  iBul  = create_layer_var(iBul,nl,bc_type+1);
 #endif
 
   /**
@@ -693,8 +718,8 @@ void set_vars()
   */
 #if MODE_PV_INVERT
   int nl2 = nl*nl;
-  cl2m = create_layer_var(cl2m,nl2,1);
-  cm2l = create_layer_var(cm2l,nl2,1);
+  cl2m = create_layer_var(cl2m,nl2,bc_type+1);
+  cm2l = create_layer_var(cm2l,nl2,bc_type+1);
 #endif
   evolving = qol;
     
@@ -715,6 +740,12 @@ void set_vars()
     for (int l = 0; l < nl-1 ; l++) {
       scalar Fr = Frl[l];
       Fr[] =  Frm[l];
+    }
+
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar pp = ppl[l];
+      pp[] =  vpg[l]*x - upg[l]*y;
     }
 
   foreach(){
@@ -791,8 +822,7 @@ void set_const() {
   for (int l = 0; l < nl ; l++) {
     if (dhf[l] == 0){
       fprintf(stdout, "thickness = 0: aborting\n");
-      fprintf(stdout, "if using params.in, make sure there is no whitespace\n");
-      fprintf(stdout, "in the definition of dh\n");
+      fprintf(stdout, "Check the definition of dh in params.in\n");
       exit(0);
       }
   }
@@ -801,8 +831,7 @@ void set_const() {
       scalar Fr = Frl[l];
       if (Fr[] == 0){
         fprintf(stdout, "Fr = 0: aborting\n");
-      fprintf(stdout, "if using params.in, make sure there is no whitespace\n");
-      fprintf(stdout, "in the definition of Fr\n");
+        fprintf(stdout, "Check the definition of Fr in params.in\n");
         exit(0);
       }
     }
@@ -892,8 +921,22 @@ void set_const() {
   comp_q(pol,qol);
 
   /**
-     BC for all fields */
+     BC for all fields. If periodic BC, we also adjust the large-scale stream
+     function that is not periodic
+  */
   boundary (all);
+
+  if (sbc == -1)
+    for (l_tmp = 0; l_tmp < nl ; l_tmp++) {
+      scalar pp = ppl[l_tmp];
+      pp[right]  = dirichlet(vpg[l_tmp]*x - upg[l_tmp]*y);
+      pp[left]   = dirichlet(vpg[l_tmp]*x - upg[l_tmp]*y);
+      pp[top]    = dirichlet(vpg[l_tmp]*x - upg[l_tmp]*y);
+      pp[bottom] = dirichlet(vpg[l_tmp]*x - upg[l_tmp]*y);
+
+      boundary({pp});
+    }
+
 }
 
 /**

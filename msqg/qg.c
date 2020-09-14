@@ -55,6 +55,14 @@ event init (i = 0) {
     for (scalar po in pol)
       po[] = 1e-3*noise();
   }
+
+  // if periodic BC, the average of po must vanish
+  for (scalar po in pol){
+    stats s = statsf(po);
+    foreach()
+      po[] -= s.sum/s.volume;
+  }
+
   boundary(pol);
   // invert PV at the end of other init event
 }
