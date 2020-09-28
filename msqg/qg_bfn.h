@@ -68,7 +68,7 @@ void pystep_bfn ( double * varin_py, int len1, int len2, int len3,
     invertq(pol, qol);
     
     comp_del2(pol, zetal, 0., 1.0);
-    dtmax = advection(zetal, qol, pol, bfn_tendl, dtmax);
+    dtmax = advection_pv(zetal, qol, pol, bfn_tendl, dtmax);
     dissip(zetal, bfn_tendl);
     ekman_friction(zetal, bfn_tendl);
     surface_forcing(bfn_tendl);

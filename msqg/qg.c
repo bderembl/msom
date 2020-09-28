@@ -65,6 +65,19 @@ event init (i = 0) {
 
   boundary(pol);
   // invert PV at the end of other init event
+
+#if PTRACERS
+  if ((fp = fopen("ptracers0.bas", "r"))) {
+    input_matrixl (ptracersl, fp);
+    fclose(fp);
+  } else {
+  foreach() 
+    for (scalar ptracers in ptracersl)
+      ptracers[] = 1e-3*noise();
+  }
+  boundary(ptracersl);
+#endif
+
 }
 
 /**
@@ -140,6 +153,12 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     reset_layer_var(de_j3l);
     reset_layer_var(de_ftl);
   }
+
+#if PTRACERS
+  sprintf (name,"%sptr%09d.bas", dpath, i);
+  write_field(ptracersl, name, 0.);
+#endif
+
 }
 
 /* event adapt (t+=10) { */

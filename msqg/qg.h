@@ -13,6 +13,7 @@ double * idh1;
 #include "poisson.h"
 #include "poisson_layer.h"
 #include "timestep.h"
+#include "bcg.h"
 
 // for mkdir
 #include <sys/stat.h>
@@ -37,6 +38,9 @@ scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * Frl = NULL;
+scalar * ptracersl = NULL;
+
+
 scalar Ro[];
 scalar Rd[];
 scalar sig_filt[];
@@ -251,16 +255,16 @@ void comp_stretch(scalar * pol, scalar * stretchl, double add, double fac)
 trace
 void comp_vel(const scalar po, face vector uf)
 {
-
   struct { double x, y; } f = {-1.,1.};
   foreach_face() {
-    uf.x[] = f.x*(po[] - po[0,-1])/Delta;
+    uf.x[] = f.x*0.25*(po[0,1] - po[0,-1] + po[-1,1] - po[-1,-1])/Delta;
   }
+  boundary ((scalar *){uf});
 }
 
 // todo: change names qo, zeta!
 trace
-double advection  (scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, double dtmax)
+double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, double dtmax)
 {
 
   foreach() {
@@ -516,7 +520,7 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
 
   invertq(pol, evolving);
   comp_del2(pol, zetal, 0., 1.0);
-  dtmax = advection(zetal, qol, pol, updates, dtmax);
+  dtmax = advection_pv(zetal, qol, pol, updates, dtmax);
   dissip(zetal, updates);
   ekman_friction(zetal, updates);
   surface_forcing(updates);
@@ -532,6 +536,21 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
 event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
   fprintf(stdout,"Filter solution\n");
   wavelet_filter ( qol, pol, qofl, dtflt, nbar)
+}
+/**
+   Ptracers
+*/
+
+event tracer_advection (i++,last) {
+#if PTRACERS
+   for (int l = 0; l < nl ; l++) {
+     face vector uf[];
+     scalar po = pol[l];
+     scalar ptracers = ptracersl[l];
+     comp_vel(po, uf);
+     advection ({ptracers}, uf, dt);
+   }
+#endif
 }
 
 /**********************************************************************
@@ -711,6 +730,10 @@ void set_vars()
   pom = create_layer_var(pom,nl,bc_type);
   qom = create_layer_var(qom,nl,bc_type);
   iBul  = create_layer_var(iBul,nl,bc_type+1);
+#endif
+
+#if PTRACERS
+  ptracersl = create_layer_var(ptracersl,nl,bc_type+1); // periodic or neumann
 #endif
 
   /**

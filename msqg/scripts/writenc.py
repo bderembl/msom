@@ -20,6 +20,7 @@ exec(open(dir0 + "params.in").read())
 filep = 'po*'
 fileq = 'qo*'
 filef = 'pf*'
+filet = 'ptr*'
 
 filebf = 'de_bf*'
 filevd = 'de_vd*'
@@ -31,6 +32,8 @@ fileft = 'de_ft*'
 allfilesp = sorted(glob.glob(dir0 + filep));
 allfilesq = sorted(glob.glob(dir0 + fileq));
 allfilesf = sorted(glob.glob(dir0 + filef));
+
+allfilest = sorted(glob.glob(dir0 + filet));
 
 allfilesbf = sorted(glob.glob(dir0 + filebf));
 allfilesvd = sorted(glob.glob(dir0 + filevd));
@@ -71,6 +74,8 @@ if len(allfilesbf) > 0:
   ej2o = f.createVariable('ej2' , 'f', ('t','z','y','x',))
   ej3o = f.createVariable('ej3' , 'f', ('t','z','y','x',))
   efto = f.createVariable('eft' , 'f', ('t','z','y','x',))
+if len(allfilest) > 0:
+  ptro = f.createVariable('ptr' , 'f', ('t','z','y','x',))
 
 
 zpo[:] = np.arange(nl)
@@ -98,6 +103,11 @@ for ifi in range(0,nb_files):
     pf = np.fromfile(allfilesf[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
     pf = pf[:,1:,1:]
     pof[ifi,:,:,:] = pf[:,:,:]
+
+  if len(allfilest) > 0:
+    ptr = np.fromfile(allfilest[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
+    ptr = ptr[:,1:,1:]
+    ptro[ifi,:,:,:] = ptr[:,:,:]
 
 
   if len(allfilesbf) > 0:
