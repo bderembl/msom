@@ -38,7 +38,9 @@ scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * Frl = NULL;
-scalar * ptracersl = NULL;
+scalar * ptracersl = NULL;   // ptracer field
+scalar * ptr_relaxl = NULL;  // ptracer relaxation field
+scalar * ptr_srcl = NULL;   // ptracer source term
 
 
 scalar Ro[];
@@ -78,11 +80,13 @@ double sbc = 0.;  // doubly periodic: -1, free slip: 0: (OK), so slip: big numbe
 double tend = 1; // end time
 double dtflt = -1; // Delat T filtering
 double dtout = 1; // Delat T output
+double ptr_r[1000] = {0};  // inverse relaxation time scale for passive tracers
 
 int nbar = 0;
 int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 int varRo = 0;   // varRo = 1: variable Rossby number (multiple scale mode)
 int l_tmp = 0;   // global layer variable for periodic BC (to be replaced by _layer in the new layer framework)
+int nptr = 0;   // number of passive tracers
 
 char dpath[80]; // name of output dir
 
@@ -542,16 +546,32 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
 */
 
 event tracer_advection (i++,last) {
-#if PTRACERS
-   for (int l = 0; l < nl ; l++) {
-     face vector uf[];
-     scalar po = pol[l];
-     scalar ptracers = ptracersl[l];
-     comp_vel(po, uf);
-     advection ({ptracers}, uf, dt);
-   }
-#endif
+
+  if (nptr>0) 
+    for (int l = 0; l < nl ; l++) {
+      face vector uf[];
+      scalar po = pol[l];
+      comp_vel(po, uf);
+      
+      scalar * list_ptr_lev = NULL;
+      scalar * list_src_lev = NULL;
+      for (int nt = 0; nt < nptr ; nt++) {
+        scalar ptracers = ptracersl[l*nptr + nt];
+        scalar ptr_relax = ptr_relaxl[l*nptr + nt];
+        scalar ptr_src = ptr_srcl[l*nptr + nt];
+        list_ptr_lev = list_append (list_ptr_lev, ptracers);
+        foreach()
+          ptr_src[] = ptr_r[nt]*(ptr_relax[] - ptracers[]);
+        
+        list_src_lev = list_append (list_src_lev, ptr_src);
+        
+      }
+      advection (list_ptr_lev, uf, dt, list_src_lev);
+      free(list_ptr_lev);
+      free(list_src_lev);
+    }
 }
+
 
 /**********************************************************************
 *                       End of dynamical core                         *
@@ -598,6 +618,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
       else if (strcmp(tmps1,"varRo")==0) { varRo = atoi(tmps2); }
+      else if (strcmp(tmps1,"nptr") ==0) { nptr  = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
       else if (strcmp(tmps1,"Ekb")  ==0) { Ekb   = atof(tmps2); }
@@ -618,6 +639,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
       else if (strcmp(tmps1,"upg")  ==0) { str2array(tmps2, upg);}
       else if (strcmp(tmps1,"vpg")  ==0) { str2array(tmps2, vpg);}
+      else if (strcmp(tmps1,"ptr_r")==0) { str2array(tmps2, ptr_r);}
 //      printf("%s => %s\n", tmps1, tmps2);
     }
     fclose(fp);
@@ -732,9 +754,11 @@ void set_vars()
   iBul  = create_layer_var(iBul,nl,bc_type+1);
 #endif
 
-#if PTRACERS
-  ptracersl = create_layer_var(ptracersl,nl,bc_type+1); // periodic or neumann
-#endif
+  if (nptr > 0){
+    ptracersl = create_layer_var(ptracersl,nl*nptr,bc_type+1); // periodic or neumann
+    ptr_srcl = create_layer_var(ptr_srcl,nl*nptr,bc_type+1); // periodic or neumann
+    ptr_relaxl = create_layer_var(ptr_relaxl,nl*nptr,bc_type+1); // periodic or neumann
+  }
 
   /**
      Mode to layer inversion matrices (dimesnion: $nl^2$)
@@ -942,6 +966,9 @@ void set_const() {
   }
 
   comp_q(pol,qol);
+
+  if (nptr>0)
+    list_copy_deep (ptracersl, ptr_relaxl, nl*nptr);
 
   /**
      BC for all fields. If periodic BC, we also adjust the large-scale stream
