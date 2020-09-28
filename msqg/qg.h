@@ -564,8 +564,8 @@ event tracer_advection (i++,last) {
           ptr_src[] = ptr_r[nt]*(ptr_relax[] - ptracers[]);
         
         list_src_lev = list_append (list_src_lev, ptr_src);
-        
       }
+      boundary(list_src_lev);
       advection (list_ptr_lev, uf, dt, list_src_lev);
       free(list_ptr_lev);
       free(list_src_lev);
