@@ -17,8 +17,8 @@ ptr0[1,:,:] = 2*x
 
 # second ptracer
 ptr1 = np.zeros((nl,N,N))
-ptr1[0,:,:] = np.sin(2*np.pi*x)
-ptr1[1,:,:] = 10*x
+ptr1[0,:,:] = np.cos(2*np.pi*x)
+ptr1[1,:,:] = 2*x
 
 # combine and output in .bas format: (z,x,y)
 ptr = np.zeros((nl*nptr,N+1,N+1))

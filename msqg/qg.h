@@ -13,7 +13,6 @@ double * idh1;
 #include "poisson.h"
 #include "poisson_layer.h"
 #include "timestep.h"
-#include "bcg.h"
 
 // for mkdir
 #include <sys/stat.h>
@@ -38,9 +37,6 @@ scalar * cl2m  = NULL;
 scalar * cm2l  = NULL;
 scalar * iBul = NULL; // inverse burger number
 scalar * Frl = NULL;
-scalar * ptracersl = NULL;   // ptracer field
-scalar * ptr_relaxl = NULL;  // ptracer relaxation field
-scalar * ptr_srcl = NULL;   // ptracer source term
 
 
 scalar Ro[];
@@ -80,15 +76,26 @@ double sbc = 0.;  // doubly periodic: -1, free slip: 0: (OK), so slip: big numbe
 double tend = 1; // end time
 double dtflt = -1; // Delat T filtering
 double dtout = 1; // Delat T output
-double ptr_r[1000] = {0};  // inverse relaxation time scale for passive tracers
 
 int nbar = 0;
 int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 int varRo = 0;   // varRo = 1: variable Rossby number (multiple scale mode)
 int l_tmp = 0;   // global layer variable for periodic BC (to be replaced by _layer in the new layer framework)
-int nptr = 0;   // number of passive tracers
 
 char dpath[80]; // name of output dir
+
+/**
+   passive tracer
+*/
+
+int nptr = 0;   // number of passive tracers
+
+scalar * ptracersl = NULL;   // ptracer field
+scalar * ptr_relaxl = NULL;  // ptracer relaxation field
+
+double ptr_r[1000] = {0};  // relaxation time scale for passive tracers
+double ptr_ir[1000] = {0};  // inverse relaxation time scale for passive tracers
+
 
 #if MODE_PV_INVERT
 #include "eigmode.h"
@@ -499,14 +506,53 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
 }
 
 /**
+   Passive tracer
+*/
+
+//    Ptracers advection
+trace
+double advection_ptr(scalar * ptracersl, scalar * pol, scalar * dpdtl)
+{
+  foreach(){
+    for (int l = 0; l < nl ; l++) {
+      scalar po = pol[l];
+      for (int nt = 0; nt < nptr ; nt++) {
+        scalar ptracers = ptracersl[l*nptr + nt];
+        scalar dpdt = dpdtl[l*nptr + nt];
+        dpdt[] += jacobian(po, ptracers);
+      }
+    }   
+  }
+}
+
+//    Ptracers relaxation
+trace
+double relaxation_ptr(scalar * ptracersl, scalar * dpdtl)
+{
+  foreach(){
+    for (int l = 0; l < nl ; l++) {
+      for (int nt = 0; nt < nptr ; nt++) {
+        scalar ptracers = ptracersl[l*nptr + nt];
+        scalar ptr_relax = ptr_relaxl[l*nptr + nt];
+        scalar dpdt = dpdtl[l*nptr + nt];
+        dpdt[] += ptr_ir[nt]*(ptr_relax[] - ptracers[]);
+      }
+    }
+  }
+}
+
+
+
+/**
    ## time stepping routines
    We use the predictor corrector implementation */
 
 static void advance_qg (scalar * output, scalar * input,
                         scalar * updates, double dt)
 {
+
   foreach() {
-    for (int l = 0; l < nl ; l++) {
+    for (int l = 0; l < (nptr + 1)*nl ; l++) {
       scalar qi = input[l];
       scalar qo = output[l];
       scalar dq = updates[l];
@@ -522,7 +568,13 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
     for (scalar s in updates)
       s[] = 0.;
 
-  invertq(pol, evolving);
+  scalar * qol = NULL;
+  for (int l = 0; l < nl ; l++) {
+    scalar qo = evolving[l];
+    qol = list_append (qol, qo);
+  }  
+
+  invertq(pol, qol);
   comp_del2(pol, zetal, 0., 1.0);
   dtmax = advection_pv(zetal, qol, pol, updates, dtmax);
   dissip(zetal, updates);
@@ -531,6 +583,24 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   if (flag_topo)
     bottom_topography(pol,updates);
   
+  free(qol);
+
+  if (nptr > 0){
+    scalar * ptracersl = NULL;
+    scalar * dpdtl = NULL;
+    for (int l = nl; l < nl + nptr*nl; l++) {
+      scalar ptracers = evolving[l];
+      scalar dpdt = updates[l];
+      ptracersl = list_append (ptracersl, ptracers);
+      dpdtl = list_append (dpdtl, dpdt);
+    }
+    advection_ptr(ptracersl, pol, dpdtl);
+    relaxation_ptr(ptracersl, dpdtl);
+    
+    free(ptracersl);
+    free(dpdtl);
+  }
+
   return dtmax;
 }
 
@@ -541,37 +611,6 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
   fprintf(stdout,"Filter solution\n");
   wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
-/**
-   Ptracers
-*/
-
-event tracer_advection (i++,last) {
-
-  if (nptr>0) 
-    for (int l = 0; l < nl ; l++) {
-      face vector uf[];
-      scalar po = pol[l];
-      comp_vel(po, uf);
-      
-      scalar * list_ptr_lev = NULL;
-      scalar * list_src_lev = NULL;
-      for (int nt = 0; nt < nptr ; nt++) {
-        scalar ptracers = ptracersl[l*nptr + nt];
-        scalar ptr_relax = ptr_relaxl[l*nptr + nt];
-        scalar ptr_src = ptr_srcl[l*nptr + nt];
-        list_ptr_lev = list_append (list_ptr_lev, ptracers);
-        foreach()
-          ptr_src[] = ptr_r[nt]*(ptr_relax[] - ptracers[]);
-        
-        list_src_lev = list_append (list_src_lev, ptr_src);
-      }
-      boundary(list_src_lev);
-      advection (list_ptr_lev, uf, dt, list_src_lev);
-      free(list_ptr_lev);
-      free(list_src_lev);
-    }
-}
-
 
 /**********************************************************************
 *                       End of dynamical core                         *
@@ -656,6 +695,12 @@ void read_params(char* path2file)
   if (Re  != 0) DT = 0.5*min(DT,sq(L0/N)*Re/4.);
   if (Re4 != 0) DT = 0.5*min(DT,sq(sq(L0/N))*Re4/32.);
 
+  /**
+     Relaxation time 
+   */
+  for (int nt = 0; nt < nptr ; nt++)
+    if (ptr_r[nt]  == 0) ptr_ir[nt] = 0.; else ptr_ir[nt] = 1/ptr_r[nt];
+  
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
 
@@ -756,7 +801,6 @@ void set_vars()
 
   if (nptr > 0){
     ptracersl = create_layer_var(ptracersl,nl*nptr,bc_type+1); // periodic or neumann
-    ptr_srcl = create_layer_var(ptr_srcl,nl*nptr,bc_type+1); // periodic or neumann
     ptr_relaxl = create_layer_var(ptr_relaxl,nl*nptr,bc_type+1); // periodic or neumann
   }
 
@@ -768,8 +812,11 @@ void set_vars()
   cl2m = create_layer_var(cl2m,nl2,bc_type+1);
   cm2l = create_layer_var(cm2l,nl2,bc_type+1);
 #endif
-  evolving = qol;
-    
+  if (nptr == 0)
+    evolving = list_copy(qol);
+  else
+    evolving = list_concat(qol,ptracersl);
+
   /**
      Default variables:
      Layer thicknesses dhf (dhc is computed after)

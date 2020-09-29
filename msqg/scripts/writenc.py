@@ -75,7 +75,9 @@ if len(allfilesbf) > 0:
   ej3o = f.createVariable('ej3' , 'f', ('t','z','y','x',))
   efto = f.createVariable('eft' , 'f', ('t','z','y','x',))
 if len(allfilest) > 0:
-  ptro = f.createVariable('ptr' , 'f', ('t','z','y','x',))
+  ptro = {}
+  for nt in range(0,nptr):
+    ptro[nt] = f.createVariable('ptr'+str(nt) , 'f', ('t','z','y','x',))
 
 
 zpo[:] = np.arange(nl)
@@ -105,9 +107,10 @@ for ifi in range(0,nb_files):
     pof[ifi,:,:,:] = pf[:,:,:]
 
   if len(allfilest) > 0:
-    ptr = np.fromfile(allfilest[ifi],'f4').reshape(nl,N1,N1).transpose(0,2,1)
-    ptr = ptr[:,1:,1:]
-    ptro[ifi,:,:,:] = ptr[:,:,:]
+    ptr = np.fromfile(allfilest[ifi],'f4').reshape(nptr*nl,N1,N1).transpose(0,2,1)
+    for nt in range(0,nptr):
+      ptrtmp = ptr[nt::nptr,1:,1:]
+      ptro[nt][ifi,:,:,:] = ptrtmp[:,:,:]
 
 
   if len(allfilesbf) > 0:

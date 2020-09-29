@@ -21,3 +21,4 @@ _qg.c
 _pg.c
 *.s
 *.tst
+msqg/params.in
