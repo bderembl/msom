@@ -95,6 +95,8 @@ scalar * ptr_relaxl = NULL;  // ptracer relaxation field
 
 double ptr_r[1000] = {0};  // relaxation time scale for passive tracers
 double ptr_ir[1000] = {0};  // inverse relaxation time scale for passive tracers
+double Pe[1000] = {0.}; // Peclet number
+double iPe[1000] = {0.}; // inverse Peclet number
 
 
 #if MODE_PV_INVERT
@@ -506,12 +508,12 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
 }
 
 /**
-   Passive tracer
+   Passive tracer rhs: advection + diffusion + relaxation
 */
 
 //    Ptracers advection
 trace
-double advection_ptr(scalar * ptracersl, scalar * pol, scalar * dpdtl)
+double ptr_rhs(scalar * ptracersl, scalar * pol, scalar * dpdtl)
 {
   foreach(){
     for (int l = 0; l < nl ; l++) {
@@ -519,29 +521,13 @@ double advection_ptr(scalar * ptracersl, scalar * pol, scalar * dpdtl)
       for (int nt = 0; nt < nptr ; nt++) {
         scalar ptracers = ptracersl[l*nptr + nt];
         scalar dpdt = dpdtl[l*nptr + nt];
-        dpdt[] += jacobian(po, ptracers);
+        scalar ptr_relax = ptr_relaxl[l*nptr + nt];
+        dpdt[] += jacobian(po, ptracers) + iPe[nt]*laplacian(ptracers)
+          + ptr_ir[nt]*(ptr_relax[] - ptracers[]);
       }
     }   
   }
 }
-
-//    Ptracers relaxation
-trace
-double relaxation_ptr(scalar * ptracersl, scalar * dpdtl)
-{
-  foreach(){
-    for (int l = 0; l < nl ; l++) {
-      for (int nt = 0; nt < nptr ; nt++) {
-        scalar ptracers = ptracersl[l*nptr + nt];
-        scalar ptr_relax = ptr_relaxl[l*nptr + nt];
-        scalar dpdt = dpdtl[l*nptr + nt];
-        dpdt[] += ptr_ir[nt]*(ptr_relax[] - ptracers[]);
-      }
-    }
-  }
-}
-
-
 
 /**
    ## time stepping routines
@@ -594,9 +580,8 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
       ptracersl = list_append (ptracersl, ptracers);
       dpdtl = list_append (dpdtl, dpdt);
     }
-    advection_ptr(ptracersl, pol, dpdtl);
-    relaxation_ptr(ptracersl, dpdtl);
-    
+    ptr_rhs(ptracersl, pol, dpdtl);
+
     free(ptracersl);
     free(dpdtl);
   }
@@ -676,6 +661,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"upg")  ==0) { str2array(tmps2, upg);}
       else if (strcmp(tmps1,"vpg")  ==0) { str2array(tmps2, vpg);}
       else if (strcmp(tmps1,"ptr_r")==0) { str2array(tmps2, ptr_r);}
+      else if (strcmp(tmps1,"Pe")   ==0) { str2array(tmps2, Pe);}
 //      printf("%s => %s\n", tmps1, tmps2);
     }
     fclose(fp);
@@ -695,9 +681,10 @@ void read_params(char* path2file)
   /**
      Relaxation time 
    */
-  for (int nt = 0; nt < nptr ; nt++)
+  for (int nt = 0; nt < nptr ; nt++){
     if (ptr_r[nt]  == 0) ptr_ir[nt] = 0.; else ptr_ir[nt] = 1/ptr_r[nt];
-  
+    if (Pe[nt]  == 0) iPe[nt]  = 0.; else iPe[nt]  =  1/Pe[nt];  
+  }
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
 
