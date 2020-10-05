@@ -626,17 +626,14 @@ void trim_whitespace(char* s) {
     while (*d == ' ')
       ++d;
   } while (*s++ = *d++);
+  *s = '\0';
 }
 
 
 void str2array(char *tmps2, double *array){
   char* p;
-  trim_whitespace(tmps2);
-  int len = strlen(tmps2);
-  char tmps3[len];
-  strcpy(tmps3, tmps2); //needed in case there is an empty line in params.in
   int n = 0;
-  p = strtok(tmps3,"[,]");
+  p = strtok(tmps2,"[,]");
   while (p != NULL){
     array[n] = atof(p);
     p = strtok(NULL, ",");
@@ -650,9 +647,9 @@ void read_params(char* path2file)
   if ((fp = fopen(path2file, "rt"))) {
     char tempbuff[300];
     while(fgets(tempbuff,300,fp)) {
+      trim_whitespace(tempbuff);
       char* tmps1 = strtok(tempbuff, "=");
       char* tmps2 = strtok(NULL, "=");
-      trim_whitespace(tmps1);
       if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
       else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
