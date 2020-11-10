@@ -605,7 +605,7 @@ event adjustFroude(i=1; i++){
     for (int l = 0; l < nl-1 ; l++) {
       scalar Fr = Frl[l];
       if (fFrm_r[l] != 0) fFrm = 1/fFrm_r[l];
-      Fr[] =  Frm[l] + aFrm[l]*cos(2.*pi*fFrm*t);
+      Fr[] =  Frm[l] + aFrm[l]*sin(2.*pi*fFrm*t);
 
       scalar s = strl[l];      
       s[] = sq(Fr[]/Ro[]);
