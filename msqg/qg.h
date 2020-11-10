@@ -66,6 +66,9 @@ double Ekb = 0.0; // Ekman number (bottom)
 double Eks = 0.0; // Ekman number (surface)
 double Rom = 0.0; // Mean Rossby number
 double Frm[1000]; // Mean Froude number
+double aFrm[1000] = {0}; // Amplitude of mean Froude number
+double fFrm = 0.; // Frequency of mean Froude number
+double fFrm_r[1000] = {0}; // Time scale of mean Froude number
 double dhu[1000]; // user input dh
 double upg[1000] = {0};  // background U
 double vpg[1000] = {0};  // background V
@@ -597,6 +600,17 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
   wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
 
+event adjustFroude(i=1; i++){ 
+  foreach()
+    for (int l = 0; l < nl-1 ; l++) {
+      scalar Fr = Frl[l];
+      if (fFrm_r[l] != 0) fFrm = 1/fFrm_r[l];
+      Fr[] =  Frm[l] + aFrm[l]*cos(2.*pi*fFrm*t);
+
+      scalar s = strl[l];      
+      s[] = sq(Fr[]/Ro[]);
+    }
+}
 /**********************************************************************
 *                       End of dynamical core                         *
 ***********************************************************************/
@@ -657,6 +671,10 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
       else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
       else if (strcmp(tmps1,"Fr")   ==0) { str2array(tmps2, Frm);}
+      else if (strcmp(tmps1,"aFr")  ==0) { str2array(tmps2, aFrm);}
+      else if (strcmp(tmps1,"fFr_r")==0) { str2array(tmps2, fFrm_r);}
+      else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
+      else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
       else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
       else if (strcmp(tmps1,"upg")  ==0) { str2array(tmps2, upg);}
       else if (strcmp(tmps1,"vpg")  ==0) { str2array(tmps2, vpg);}
@@ -817,9 +835,9 @@ void set_vars()
   foreach()
     for (int l = 0; l < nl-1 ; l++) {
       scalar Fr = Frl[l];
-      Fr[] =  Frm[l];
+      Fr[] = Frm[l];
     }
-
+  
   foreach()
     for (int l = 0; l < nl ; l++) {
       scalar pp = ppl[l];
