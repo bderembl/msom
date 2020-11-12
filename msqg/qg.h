@@ -1018,8 +1018,6 @@ void set_const() {
 
   comp_q(pol,qol);
 
-  if (nptr>0)
-    list_copy_deep (ptracersl, ptr_relaxl, nl*nptr);
 
   /**
      BC for all fields. If periodic BC, we also adjust the large-scale stream
