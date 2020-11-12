@@ -76,7 +76,13 @@ event init (i = 0) {
           ptracers[] = 1e-3*noise();
     }
     boundary(ptracersl);
+
+    if ((fp = fopen("ptr_relax.bas", "r"))) {
+      input_matrixl (ptr_relaxl, fp);
+      fclose(fp);
+    }
   }
+
 }
 
 /**
