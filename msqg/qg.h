@@ -67,7 +67,6 @@ double Eks = 0.0; // Ekman number (surface)
 double Rom = 0.0; // Mean Rossby number
 double Frm[1000]; // Mean Froude number
 double aFrm[1000] = {0}; // Amplitude of mean Froude number
-double fFrm = 0.; // Frequency of mean Froude number
 double fFrm_r[1000] = {0}; // Time scale of mean Froude number
 double dhu[1000]; // user input dh
 double upg[1000] = {0};  // background U
@@ -600,10 +599,15 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
   wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
 
+/**
+   Variable large-scale flow
+ */
+
 event adjustFroude(i=1; i++){ 
   foreach()
     for (int l = 0; l < nl-1 ; l++) {
       scalar Fr = Frl[l];
+      double fFrm = 0.; // Frequency of mean Froude number
       if (fFrm_r[l] != 0) fFrm = 1/fFrm_r[l];
       Fr[] =  Frm[l] + aFrm[l]*sin(2.*pi*fFrm*t);
 
@@ -673,8 +677,6 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"Fr")   ==0) { str2array(tmps2, Frm);}
       else if (strcmp(tmps1,"aFr")  ==0) { str2array(tmps2, aFrm);}
       else if (strcmp(tmps1,"fFr_r")==0) { str2array(tmps2, fFrm_r);}
-      else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
-      else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
       else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
       else if (strcmp(tmps1,"upg")  ==0) { str2array(tmps2, upg);}
       else if (strcmp(tmps1,"vpg")  ==0) { str2array(tmps2, vpg);}
