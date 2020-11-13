@@ -515,7 +515,7 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
 
 //    Ptracers advection
 trace
-double ptr_rhs(scalar * ptracersl, scalar * pol, scalar * dpdtl)
+void ptr_rhs(scalar * ptracersl, scalar * pol, scalar * dpdtl)
 {
   foreach(){
     for (int l = 0; l < nl ; l++) {
