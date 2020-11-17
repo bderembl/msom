@@ -66,7 +66,7 @@ double Ekb = 0.0; // Ekman number (bottom)
 double Eks = 0.0; // Ekman number (surface)
 double Rom = 0.0; // Mean Rossby number
 double Frm[1000]; // Mean Froude number
-double aN2m[1000] = {0}; // Amplitude of mean Froude number
+double aFrNm[1000] = {0}; // Amplitude of non-dim. mean N2
 double fFrm_r[1000] = {0}; // Time scale of mean Froude number
 double dhu[1000]; // user input dh
 double upg[1000] = {0};  // background U
@@ -609,7 +609,7 @@ event adjustFroude(i=1; i++){
       scalar Fr = Frl[l];
       double fFrm = 0.; // Frequency of mean Froude number
       if (fFrm_r[l] != 0) fFrm = 1/fFrm_r[l];
-      Fr[] =  Frm[l] / sqrt(1. + aN2m[l]*sin(2.*pi*fFrm*t));
+      Fr[] =  Frm[l] / sqrt(1. + aFrNm[l]*sin(2.*pi*fFrm*t));
 
       scalar s = strl[l];      
       s[] = sq(Fr[]/Ro[]);
@@ -675,7 +675,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"dtflt")==0) { dtflt = atof(tmps2); }
       else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
       else if (strcmp(tmps1,"Fr")   ==0) { str2array(tmps2, Frm);}
-      else if (strcmp(tmps1,"aN2")  ==0) { str2array(tmps2, aN2m);}
+      else if (strcmp(tmps1,"aFrN") ==0) { str2array(tmps2, aFrNm);}
       else if (strcmp(tmps1,"fFr_r")==0) { str2array(tmps2, fFrm_r);}
       else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dhu);}
       else if (strcmp(tmps1,"upg")  ==0) { str2array(tmps2, upg);}
