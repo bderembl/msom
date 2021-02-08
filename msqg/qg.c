@@ -19,6 +19,11 @@ rsync _qg.c
 mpicc -Wall -std=c99 -O2 _qg.c -lm -o qg.e    (-mkl)
 */
 
+/**
+   Experimental flags:
+   -D_LS_RV=1: advect large-scale relative vorticity
+*/
+
 #include "grid/multigrid.h"
 #include "auxiliar_input.h"
 #include "qg.h"
