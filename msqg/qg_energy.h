@@ -60,12 +60,12 @@ void advection_de  (scalar * qol, scalar * pol,
       jc   = jacobian(po, pp );
 #if ENERGY_CONSERV
       scalar qot  = tmp2l[l];
-      de_j1[] += (jacobian(po, qot) )*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qot) )*dt*(-po[]*(1-ediag)+ediag);
 #else
-      de_j1[] += (jacobian(po, qo) + s1[]*jd_1*idh1[l]       )*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qo) + s1[]*jd_1*idh1[l]       )*dt*(-po[]*(1-ediag)+ediag);
 #endif
-      de_j2[] += (jacobian(pp, qo) + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
-      de_j3[] += ( beta_effect(po) +   s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j2[] += (jacobian(pp, qo) + s1[]*(jd_2 + jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
+      de_j3[] += ( beta_effect(po) +   s1[]*(jd_3 - jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -90,12 +90,12 @@ void advection_de  (scalar * qol, scalar * pol,
         jc   = jacobian(po, pp );
 #if ENERGY_CONSERV
         qot  = tmp2l[l];
-        de_j1[] += (jacobian(po, qot))*(-po[]*dt*(1-ediag)+ediag);
+        de_j1[] += (jacobian(po, qot))*dt*(-po[]*(1-ediag)+ediag);
 #else
-        de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l] + s1[]*jd_1*idh1[l]              )*(-po[]*dt*(1-ediag)+ediag);
+        de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l] + s1[]*jd_1*idh1[l]              )*dt*(-po[]*(1-ediag)+ediag);
 #endif
-        de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
-        de_j3[] += ( beta_effect(po) + s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*(-po[]*dt*(1-ediag)+ediag);
+        de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
+        de_j3[] += ( beta_effect(po) + s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
       }
 
       // lower layer
@@ -116,12 +116,12 @@ void advection_de  (scalar * qol, scalar * pol,
 
 #if ENERGY_CONSERV
       qot  = tmp2l[l];
-      de_j1[] += (jacobian(po, qot))*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qot))*dt*(-po[]*(1-ediag)+ediag);
 #else
-      de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l]       )*(-po[]*dt*(1-ediag)+ediag);
+      de_j1[] += (jacobian(po, qo) + s0[]*ju_1*idh0[l]       )*dt*(-po[]*(1-ediag)+ediag);
 #endif
-      de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
-      de_j3[] += ( beta_effect(po) +  s0[]*(ju_3 - jc)*idh0[l])*(-po[]*dt*(1-ediag)+ediag);
+      de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l])*dt*(-po[]*(1-ediag)+ediag);
+      de_j3[] += ( beta_effect(po) +  s0[]*(ju_3 - jc)*idh0[l])*dt*(-po[]*(1-ediag)+ediag);
     }
     else{
       scalar de_j1 = de_j1l[0];
@@ -148,9 +148,9 @@ void dissip_de  (scalar * zetal, scalar * dqol, scalar * pol, double dt, double 
       scalar str = tmp2l[l];
       scalar po = pol[l];
 //      scalar pp  = ppl[l];
-      dqo[] += (p4[] + str[])*iRe*(-po[]*dt*(1-ediag)+ediag);
-      dqo[] += iRe4*laplacian(p4)
-        *(-po[]*dt*(1-ediag)+ediag);
+      dqo[] += (p4[] + str[])*iRe*dt*(-po[]*(1-ediag)+ediag);
+      dqo[] += iRe4*laplacian(p4)*dt
+        *(-po[]*(1-ediag)+ediag);
     }
   comp_stretch(tmpl, tmp2l, 0., 1.);
   foreach() 
@@ -159,8 +159,8 @@ void dissip_de  (scalar * zetal, scalar * dqol, scalar * pol, double dt, double 
       scalar str = tmp2l[l];
       scalar po = pol[l];
 //      scalar pp  = ppl[l];
-      dqo[] += iRe4*(str[])
-        *(-po[]*dt*(1-ediag)+ediag);
+      dqo[] += iRe4*(str[])*dt
+        *(-po[]*(1-ediag)+ediag);
     }
 
 
@@ -179,8 +179,8 @@ void ekman_friction_de (scalar * zetal, scalar * dqol, scalar * pol, double dt, 
     scalar dqob = dqol[nl-1];
     scalar zetab = zetal[nl-1];
     scalar pob   = pol[nl-1];
-    dqos[] -= Eks/(Rom*2*dhf[0])*zetas[]*(-pos[]*dt*(1-ediag)+ediag);
-    dqob[] -= Ekb/(Rom*2*dhf[nl-1])*zetab[]*(-pob[]*dt*(1-ediag)+ediag);
+    dqos[] -= Eks/(Rom*2*dhf[0])*zetas[]*dt*(-pos[]*(1-ediag)+ediag);
+    dqob[] -= Ekb/(Rom*2*dhf[nl-1])*zetab[]*dt*(-pob[]*(1-ediag)+ediag);
   }
 }
 
@@ -200,7 +200,7 @@ void filter_de (scalar * qol, scalar * pol, scalar * de_ftl,
 //      scalar pp   = ppl[l];
       scalar pm = po_mft[l];
       //de_ft[] += tmp[]*(-po[]-ediag*pp[])*Ro[]*Ro[];
-      de_ft[] += tmp[]*(-pm[]*dtflt*(1-ediag)+ediag);
+      de_ft[] += tmp[]*dtflt*(-pm[]*(1-ediag)+ediag);
       pm[] = 0;
     }
   nme_ft = 0;
