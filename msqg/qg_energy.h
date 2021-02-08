@@ -47,6 +47,9 @@ void advection_de  (scalar * qol, scalar * pol,
       scalar qo  = qol[l];
       scalar po  = pol[l];
       scalar pp  = ppl[l];
+#if _LS_RV
+      scalar qp  = zetapl[l];
+#endif
       scalar po2 = pol[l+1];
       scalar pp2 = ppl[l+1];
       scalar de_j1 = de_j1l[l];
@@ -66,6 +69,9 @@ void advection_de  (scalar * qol, scalar * pol,
 #endif
       de_j2[] += (jacobian(pp, qo) + s1[]*(jd_2 + jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
       de_j3[] += ( beta_effect(po) +   s1[]*(jd_3 - jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
+#if _LS_RV
+      de_j3[] += jacobian(po, qp)*dt*(-po[]*(1-ediag)+ediag);
+#endif
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -73,6 +79,9 @@ void advection_de  (scalar * qol, scalar * pol,
         qo  = qol[l];
         po  = pol[l];
         pp  = ppl[l];
+#if _LS_RV
+        qp  = zetapl[l];
+#endif
         po2 = pol[l+1];
         pp2 = ppl[l+1];
         de_j1 = de_j1l[l];
@@ -96,6 +105,9 @@ void advection_de  (scalar * qol, scalar * pol,
 #endif
         de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l] + s1[]*(jd_2 + jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
         de_j3[] += ( beta_effect(po) + s0[]*(ju_3 - jc)*idh0[l] + s1[]*(jd_3 - jc)*idh1[l])*dt*(-po[]*(1-ediag)+ediag);
+#if _LS_RV
+        de_j3[] += jacobian(po, qp)*dt*(-po[]*(1-ediag)+ediag);
+#endif
       }
 
       // lower layer
@@ -104,6 +116,9 @@ void advection_de  (scalar * qol, scalar * pol,
       qo  = qol[l];
       po  = pol[l];
       pp  = ppl[l];
+#if _LS_RV
+      qp  = zetapl[l];
+#endif
       de_j1 = de_j1l[l];
       de_j2 = de_j2l[l];
       de_j3 = de_j3l[l];
@@ -122,6 +137,10 @@ void advection_de  (scalar * qol, scalar * pol,
 #endif
       de_j2[] += (jacobian(pp, qo) + s0[]*(ju_2 + jc)*idh0[l])*dt*(-po[]*(1-ediag)+ediag);
       de_j3[] += ( beta_effect(po) +  s0[]*(ju_3 - jc)*idh0[l])*dt*(-po[]*(1-ediag)+ediag);
+#if _LS_RV
+      de_j3[] += jacobian(po, qp)*dt*(-po[]*(1-ediag)+ediag);
+#endif
+
     }
     else{
       scalar de_j1 = de_j1l[0];

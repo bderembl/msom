@@ -22,6 +22,9 @@ double * idh1;
 scalar * qol  = NULL; // vorticity on layers
 scalar * pol  = NULL; // stream function on layers
 scalar * zetal = NULL; // relative vorticity
+#if _LS_RV
+scalar * zetapl = NULL; // relative vorticity
+#endif
 scalar * qofl = NULL; // filter mean
 //scalar * qosl = NULL; // filter mean
 
@@ -293,6 +296,9 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
       scalar po  = pol[l];
       scalar pp  = ppl[l];
       scalar qot  = qotl[l];
+#if _LS_RV
+      scalar qp  = zetapl[l];
+#endif
       scalar dqo = dqol[l];
       scalar po2  = pol[l+1];
       scalar pp2  = ppl[l+1];
@@ -305,6 +311,9 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
       jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
       dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s1[]*jd*idh1[l];
 #endif
+#if _LS_RV
+      dqo[] += jacobian(po, qp);
+#endif
 
       // intermediate layers
       for (int l = 1; l < nl-1 ; l++) {
@@ -313,6 +322,9 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
         po  = pol[l];
         qot = qotl[l];
         pp  = ppl[l];
+#if _LS_RV
+        qp  = zetapl[l];
+#endif
         dqo = dqol[l];
         po2  = pol[l+1];
         pp2  = ppl[l+1];
@@ -326,7 +338,12 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
 #else
         jd = jacobian(po, po2) + jacobian(pp, po2) + jacobian(po, pp2);
         dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l] + s1[]*jd*idh1[l];
+#endif        
+#if _LS_RV
+        dqo[] += jacobian(po, qp);
 #endif
+
+
       }
 
       // lower layer
@@ -336,6 +353,9 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
       po  = pol[l];
       qot  = qotl[l];
       pp  = ppl[l];
+#if _LS_RV
+      qp  = zetapl[l];
+#endif
       dqo = dqol[l];
       scalar s0 = strl[l-1];
 
@@ -345,6 +365,10 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
 #else
       dqo[] += jacobian(po, qo) + jacobian(pp, qo) + beta_effect(po) + s0[]*ju*idh0[l];
 #endif
+#if _LS_RV
+      dqo[] += jacobian(po, qp);
+#endif
+
     }
     else{
       scalar dqo = dqol[0];
@@ -421,6 +445,13 @@ void surface_forcing  (scalar * dqol)
   scalar dqo = dqol[0];
   foreach()
     dqo[] -= tau0/(Rom*dhf[0])*sin(2*pi*y/L0)*sin(pi*y/L0);
+//    dqo[] -= tau0/(Rom*dhf[0])*2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+//in this formulation, tau0 is the non dimentional vertical velocity.
+//it would be better to have the non dimensional wind stress instead.
+// also there is a typo: it is not 2*pi/L0 but 3/2*pi/L0 because
+// d (sin y)^3 /dy = 3/2 sin 2y sin y
+
+// ->  dqo[] -= tau0/dhf[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
 }
 
 /**
@@ -793,6 +824,9 @@ void set_vars()
   qol   = create_layer_var(qol,nl,bc_type);
   ppl   = create_layer_var(ppl,nl,bc_type);
   zetal = create_layer_var(zetal,nl,bc_type);
+#if _LS_RV
+  zetapl = create_layer_var(zetapl,nl,bc_type);
+#endif
   tmpl  = create_layer_var(tmpl,nl,bc_type);
   Frl   = create_layer_var(Frl,nl,bc_type+1); // periodic or neumann
   strl = create_layer_var(strl,nl,bc_type+1); // periodic or neumann
@@ -845,6 +879,7 @@ void set_vars()
       scalar pp = ppl[l];
       pp[] =  vpg[l]*x - upg[l]*y;
     }
+  boundary(ppl);
 
   foreach(){
     Ro[] = Rom; 
@@ -1018,6 +1053,9 @@ void set_const() {
 
   comp_q(pol,qol);
 
+#if _LS_RV
+  comp_del2(ppl, zetapl, 0., 1.0);
+#endif
 
   /**
      BC for all fields. If periodic BC, we also adjust the large-scale stream
@@ -1061,6 +1099,9 @@ void trash_vars(){
   delete(iBul), free (iBul), iBul = NULL;
 #endif
   delete(zetal), free (zetal), zetal = NULL;
+#if _LS_RV
+  delete(zetapl), free (zetapl), zetapl = NULL;
+#endif
   delete(qofl), free (qofl), qofl = NULL;
   delete(ppl), free (ppl), ppl = NULL;
   delete(Frl), free (Frl), Frl = NULL;
