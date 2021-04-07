@@ -1,5 +1,9 @@
 * Multiple Scale Ocean Model
 
+
+[[https://doi.org/10.5281/zenodo.4669909][https://zenodo.org/badge/DOI/10.5281/zenodo.4669909.svg]]
+
+
 ** Description
 
 ** Compile and run the model
