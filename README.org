@@ -1,8 +1,0 @@
-* Multiple Scale Ocean Model
-
-** Description
-
-** Compile and run the model
-
-This model uses the [[http://basilisk.fr/][Basilisk]] core that you need to [[http://basilisk.fr/src/INSTALL][install]].
-The two submodules are the large-scale model (mspg) and the small scale model (msqg)
