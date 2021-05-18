@@ -22,6 +22,7 @@ mpicc -Wall -std=c99 -O2 _qg.c -lm -o qg.e    (-mkl)
 /**
    Experimental flags:
    -D_LS_RV=1: advect large-scale relative vorticity
+   -D_STOCHASTIC=1  stochastic model
 */
 
 #include "grid/multigrid.h"

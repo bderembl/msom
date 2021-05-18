@@ -2,6 +2,7 @@
    multiple scale quasi-geostrophic model 
 */
 #define MODE_PV_INVERT 0
+#define _LS_RV 1
 
 double * dhf;
 double * dhc;
@@ -22,11 +23,11 @@ double * idh1;
 scalar * qol  = NULL; // vorticity on layers
 scalar * pol  = NULL; // stream function on layers
 scalar * zetal = NULL; // relative vorticity
-#if _LS_RV
 scalar * zetapl = NULL; // relative vorticity
-#endif
 scalar * qofl = NULL; // filter mean
 //scalar * qosl = NULL; // filter mean
+
+scalar * q_forcl = NULL; // 3d forcing
 
 scalar * qom  = NULL; // vorticity on vertical modes
 scalar * pom  = NULL; // stream function on modes
@@ -86,6 +87,7 @@ int nbar = 0;
 int ediag = -1;  // ediag = -1: no ediag, 0: psi*dqdt, 1: (psi+pg)*dqdt
 int varRo = 0;   // varRo = 1: variable Rossby number (multiple scale mode)
 int l_tmp = 0;   // global layer variable for periodic BC (to be replaced by _layer in the new layer framework)
+int flsrv = 0; // temporary: use advection of large scale relative vorticity
 
 char dpath[80]; // name of output dir
 
@@ -280,6 +282,7 @@ void comp_vel(const scalar po, face vector uf)
   boundary ((scalar *){uf});
 }
 
+#ifndef _STOCHASTIC
 // todo: change names qo, zeta!
 trace
 double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, double dtmax)
@@ -388,6 +391,7 @@ double advection_pv(scalar * qol, scalar * qotl, scalar * pol, scalar * dqol, do
    }
   return dtmax;
 }
+#endif
 
 trace
 void comp_q(scalar * pol, scalar * qol)
@@ -452,6 +456,21 @@ void surface_forcing  (scalar * dqol)
 // d (sin y)^3 /dy = 3/2 sin 2y sin y
 
 // ->  dqo[] -= tau0/dhf[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+}
+
+/**
+   3d forcing (temporary)
+*/
+
+trace
+void qforcing  (scalar * dqol)
+{
+  foreach()
+    for (int l = 0; l < nl ; l++) {
+      scalar dqo = dqol[l];
+      scalar q_forc = q_forcl[l];
+      dqo[] += q_forc[];
+    }
 }
 
 /**
@@ -540,6 +559,12 @@ void wavelet_filter(scalar *qol, scalar * pol, scalar * qofl, double dtflt, int 
   
 }
 
+/** 
+    STOCHASTIC ROUTINES...
+
+*/
+#include "qg_stochastic.h"
+
 /**
    Passive tracer rhs: advection + diffusion + relaxation
 */
@@ -565,11 +590,10 @@ void ptr_rhs(scalar * ptracersl, scalar * pol, scalar * dpdtl)
 /**
    ## time stepping routines
    We use the predictor corrector implementation */
-
+#ifndef _STOCHASTIC
 static void advance_qg (scalar * output, scalar * input,
                         scalar * updates, double dt)
 {
-
   foreach() {
     for (int l = 0; l < (nptr + 1)*nl ; l++) {
       scalar qi = input[l];
@@ -580,6 +604,7 @@ static void advance_qg (scalar * output, scalar * input,
   }
   boundary(output);
 }
+#endif
 
 double update_qg (scalar * evolving, scalar * updates, double dtmax)
 {
@@ -596,9 +621,11 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   invertq(pol, qol);
   comp_del2(pol, zetal, 0., 1.0);
   dtmax = advection_pv(zetal, qol, pol, updates, dtmax);
+
   dissip(zetal, updates);
   ekman_friction(zetal, updates);
   surface_forcing(updates);
+  qforcing(updates);
   if (flag_topo)
     bottom_topography(pol,updates);
   
@@ -689,6 +716,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"ediag")==0) { ediag = atoi(tmps2); }
       else if (strcmp(tmps1,"varRo")==0) { varRo = atoi(tmps2); }
       else if (strcmp(tmps1,"nptr") ==0) { nptr  = atoi(tmps2); }
+      else if (strcmp(tmps1,"flsrv")==0) { flsrv = atoi(tmps2); }
       else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
       else if (strcmp(tmps1,"Rom")  ==0) { Rom   = atof(tmps2); }
       else if (strcmp(tmps1,"Ekb")  ==0) { Ekb   = atof(tmps2); }
@@ -713,6 +741,9 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"vpg")  ==0) { str2array(tmps2, vpg);}
       else if (strcmp(tmps1,"ptr_r")==0) { str2array(tmps2, ptr_r);}
       else if (strcmp(tmps1,"Pe")   ==0) { str2array(tmps2, Pe);}
+#ifdef _STOCHASTIC
+      else if (strcmp(tmps1,"tr_stoch")==0) { tr_stoch = atoi(tmps2); }
+#endif
 //      printf("%s => %s\n", tmps1, tmps2);
     }
     fclose(fp);
@@ -736,6 +767,11 @@ void read_params(char* path2file)
     if (ptr_r[nt]  == 0) ptr_ir[nt] = 0.; else ptr_ir[nt] = 1/ptr_r[nt];
     if (Pe[nt]  == 0) iPe[nt]  = 0.; else iPe[nt]  =  1/Pe[nt];  
   }
+
+#ifdef _STOCHASTIC
+  if (tr_stoch  != 0) itr_stoch = 1/tr_stoch;
+#endif
+
   fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
 
@@ -798,6 +834,11 @@ void backup_config()
   output_matrixl (Frl, fp);
   fclose(fp);
 
+  sprintf (name,"%sqforc_%dl_N%d.bas", dpath, nl,N);
+  fp = fopen (name, "w");
+  output_matrixl (q_forcl, fp);
+  fclose(fp);
+
   float dh[nl]; // float instead of double
   for (int l = 0; l < nl ; l++)
     dh[l] = dhf[l];
@@ -827,6 +868,7 @@ void set_vars()
 #if _LS_RV
   zetapl = create_layer_var(zetapl,nl,bc_type);
 #endif
+  q_forcl = create_layer_var(q_forcl,nl,bc_type);
   tmpl  = create_layer_var(tmpl,nl,bc_type);
   Frl   = create_layer_var(Frl,nl,bc_type+1); // periodic or neumann
   strl = create_layer_var(strl,nl,bc_type+1); // periodic or neumann
@@ -941,13 +983,21 @@ void set_const() {
     fprintf(stdout, "%s .. ok\n", name);
   }
 
-  sprintf (name,"topo.bas", nl,N);
+  sprintf (name,"topo.bas");
   if ((fp = fopen (name, "r"))) {
     flag_topo = 1;
     input_matrixl ({topo}, fp);
     fclose(fp);
     fprintf(stdout, "%s .. ok\n", name);
   }
+
+  sprintf (name,"qforc_%dl_N%d.bas", nl,N);
+  if ((fp = fopen (name, "r"))) {
+    input_matrixl (q_forcl, fp);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
+
 
   /**
      Sanity checks
@@ -1054,7 +1104,8 @@ void set_const() {
   comp_q(pol,qol);
 
 #if _LS_RV
-  comp_del2(ppl, zetapl, 0., 1.0);
+  if (flsrv == 1)
+    comp_del2(ppl, zetapl, 0., 1.0);
 #endif
 
   /**
@@ -1102,6 +1153,7 @@ void trash_vars(){
 #if _LS_RV
   delete(zetapl), free (zetapl), zetapl = NULL;
 #endif
+  delete(q_forcl), free (q_forcl), q_forcl = NULL;
   delete(qofl), free (qofl), qofl = NULL;
   delete(ppl), free (ppl), ppl = NULL;
   delete(Frl), free (Frl), Frl = NULL;

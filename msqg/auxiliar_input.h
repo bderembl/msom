@@ -55,6 +55,7 @@ void input_matrixl (struct InputMatrixl p) {
   matrix_free (v);
 //  il += 1;
   }
+  boundary(p.sl);
 }
 
 // modified output for scalar list
