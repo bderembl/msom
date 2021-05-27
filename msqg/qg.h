@@ -742,7 +742,8 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"ptr_r")==0) { str2array(tmps2, ptr_r);}
       else if (strcmp(tmps1,"Pe")   ==0) { str2array(tmps2, Pe);}
 #ifdef _STOCHASTIC
-      else if (strcmp(tmps1,"tr_stoch")==0) { tr_stoch = atoi(tmps2); }
+      else if (strcmp(tmps1,"tr_stoch")==0) { tr_stoch = atof(tmps2); }
+      else if (strcmp(tmps1,"amp_stoch")==0) { amp_stoch = atof(tmps2); }
 #endif
 //      printf("%s => %s\n", tmps1, tmps2);
     }

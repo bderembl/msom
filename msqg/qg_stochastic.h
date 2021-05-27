@@ -4,6 +4,7 @@
 int corrector_step = 0;
 double tr_stoch = 0;
 double itr_stoch = 0;
+double amp_stoch = 1;
 
 #define DEPS 1e-30
 // box muller noise
@@ -121,7 +122,7 @@ double generate_noise(scalar * n_stochl, scalar *s_stochl)
     for (int l = 0; l < nl; l++) {      
       scalar s_stoch  = s_stochl[l];
       scalar n_stoch  = n_stochl[l];
-      n_stoch[] = s_stoch[]*normal_noise();
+      n_stoch[] = amp_stoch*s_stoch[]*normal_noise();
     }
   }
 }
