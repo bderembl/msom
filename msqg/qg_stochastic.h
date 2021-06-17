@@ -6,9 +6,7 @@ double tr_stoch = 0;
 double itr_stoch = 0;
 double amp_stoch = 1;
 
-#define DEPS 1e-30
-// box muller noise
-@define normal_noise() (sqrt(-2.*log(rand()/(double)RAND_MAX)+DEPS)*cos(2*pi*rand()/(double)RAND_MAX))
+@define normal_noise() (sqrt(-2.*log(( (double)(rand()) + 1. )/( (double)(RAND_MAX) + 2. ) ))*cos(2*pi*rand()/(double)RAND_MAX))
 
 scalar var_s[];
 scalar * n_stochl = NULL; // noise
