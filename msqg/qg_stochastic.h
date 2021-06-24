@@ -5,6 +5,7 @@ int corrector_step = 0;
 double tr_stoch = 0;
 double itr_stoch = 0;
 double amp_stoch = 1;
+double nu_s = 0;
 
 @define normal_noise() (sqrt(-2.*log(( (double)(rand()) + 1. )/( (double)(RAND_MAX) + 2. ) ))*cos(2*pi*rand()/(double)RAND_MAX))
 
@@ -126,6 +127,7 @@ double generate_noise(scalar * n_stochl, scalar *s_stochl)
 }
 
 static void advance_qg (scalar * output, scalar * input,
+		        scalar * pol,
                         scalar * updates, double dt)
 {
 
@@ -136,13 +138,16 @@ static void advance_qg (scalar * output, scalar * input,
     dts = dts/sqrt(2); // :to get sqrt(dt)/2 (in the predictor step, dt=dt/2)
     }
 
+  // biharmonic viscosity to tame the stochastic energy input
+  nu_s = sum(pol[]*n_stochl[]*dh[])/sum(pol[]*laplacian(laplacian(input[]))*dh[])
+
   foreach() {
     for (int l = 0; l < nl ; l++) {
       scalar qi = input[l];
       scalar qo = output[l];
       scalar dq = updates[l];
       scalar n_stoch = n_stochl[l];
-      qo[] = qi[] + dq[]*dt + n_stoch[]*dts;
+      qo[] = qi[] + dq[]*dt + n_stoch[]*dts + nu_s*laplacian(laplacian(qi[]));
     }
   }
   boundary(output);
