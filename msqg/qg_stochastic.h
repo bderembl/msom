@@ -130,16 +130,21 @@ static void advance_qg (scalar * output, scalar * input,
 		        scalar * pol,
                         scalar * updates, double dt)
 {
-
+  
   corrector_step = (corrector_step+1)%2;
   float dts = sqrt(dt);
   if (corrector_step) {
     generate_noise(n_stochl, s_stochl);
     dts = dts/sqrt(2); // :to get sqrt(dt)/2 (in the predictor step, dt=dt/2)
     }
-
+  
+  double noiseV = 0., viscV = 0.;
   // biharmonic viscosity to tame the stochastic energy input
-  nu_s = sum(pol[]*n_stochl[]*dh[])/sum(pol[]*laplacian(laplacian(input[]))*dh[])
+  foreach(reduction(+:noiseV) reduction(+:viscV)) { 
+    noiseV += pol[]*nstochl[]*dh[];
+    viscV  += pol[]*laplacian(laplacian(input[]))*dh[];
+  }
+  nu_s = noiseV/viscV;
 
   foreach() {
     for (int l = 0; l < nl ; l++) {
