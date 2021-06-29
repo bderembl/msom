@@ -141,7 +141,7 @@ static void advance_qg (scalar * output, scalar * input,
   double noiseV = 0., viscV = 0.;
   // biharmonic viscosity to tame the stochastic energy input
   foreach(reduction(+:noiseV) reduction(+:viscV)) { 
-    noiseV += pol[]*nstochl[]*dh[];
+    noiseV += pol[]*n_stochl[]*dh[];
     viscV  += pol[]*laplacian(laplacian(input[]))*dh[];
   }
   nu_s = noiseV/viscV;
