@@ -176,3 +176,24 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
 /*  astats s = adapt_wavelet (pol, (double []){1e0, 1e0}, maxlevel = 9); */
 /*  fprintf (ferr, "# refined %d cells, coarsened %d cells\n", s.nf, s.nc); */
 /* } */
+
+// Warning: adjustfroude only works for uniform Fr=Frm
+
+
+/**
+   Variable large-scale flow
+ */
+
+
+/* event adjustFroude(i=1; i++){  */
+/*   foreach() */
+/*     for (int l = 0; l < nl-1 ; l++) { */
+/*       scalar Fr = Frl[l]; */
+/*       double fFrm = 0.; // Frequency of mean Froude number */
+/*       if (fFrm_r[l] != 0) fFrm = 1/fFrm_r[l]; */
+/*       Fr[] =  Frm[l] / sqrt(1. + aFrNm[l]*sin(2.*pi*fFrm*t)); */
+
+/*       scalar s = strl[l];       */
+/*       s[] = sq(Fr[]/Ro[]); */
+/*     } */
+/* } */

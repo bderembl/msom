@@ -483,7 +483,7 @@ void bottom_topography  (scalar * pol, scalar * dqol)
   foreach() {
     scalar dqo = dqol[nl-1];
     scalar po  = pol[nl-1];
-    dqo[] += jacobian(po, topo)/(Rom*dhf[nl-1]);
+    dqo[] += jacobian(po, topo)/(Ro[]*dhf[nl-1]);
   }
 }
 
@@ -657,22 +657,6 @@ event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
   wavelet_filter ( qol, pol, qofl, dtflt, nbar)
 }
 
-/**
-   Variable large-scale flow
- */
-
-event adjustFroude(i=1; i++){ 
-  foreach()
-    for (int l = 0; l < nl-1 ; l++) {
-      scalar Fr = Frl[l];
-      double fFrm = 0.; // Frequency of mean Froude number
-      if (fFrm_r[l] != 0) fFrm = 1/fFrm_r[l];
-      Fr[] =  Frm[l] / sqrt(1. + aFrNm[l]*sin(2.*pi*fFrm*t));
-
-      scalar s = strl[l];      
-      s[] = sq(Fr[]/Ro[]);
-    }
-}
 /**********************************************************************
 *                       End of dynamical core                         *
 ***********************************************************************/
@@ -1010,15 +994,18 @@ void set_const() {
       exit(0);
       }
   }
-  foreach()
-    for (int l = 0; l < nl-1 ; l++) {
-      scalar Fr = Frl[l];
-      if (Fr[] == 0){
-        fprintf(stdout, "Fr = 0: aborting\n");
-        fprintf(stdout, "Check the definition of Fr in params.in\n");
-        exit(0);
-      }
-    }
+
+/*   foreach(){ */
+/*     for (int l = 0; l < nl-1 ; l++) { */
+/*       scalar Fr = Frl[l]; */
+/*       if (Fr[] == 0){ */
+/*         fprintf(stdout, "Fr = 0: aborting\n"); */
+/*         fprintf(stdout, "Check the definition of Fr in params.in\n"); */
+/*         exit(0); */
+/*       } */
+/*     } */
+/* } */
+
   if (Rom <= 0){
     fprintf(stdout, "Rom <= 0: aborting\n");
     exit(0);
