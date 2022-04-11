@@ -12,6 +12,7 @@ qcc -lm -lnetcdf -O3 qg.c
 #include "qg.h"
 #include "extra.h"
 #include "netcdf_bas.h"
+#include "auxiliar_io.h"
 
 char* fileout = "vars.nc";
 
@@ -38,9 +39,16 @@ int main(int argc,char* argv[]) {
 */
 event init (i = 0) {
 
+  FILE * fp;
+  if ((fp = fopen("p0.bas", "r"))) {
+    input_matrixl (psi, fp);
+    fclose(fp);
+  } else {
   foreach() 
     foreach_layer() 
       psi[] = 1e-3*noise();
+  }
+
 }
 
 /**
