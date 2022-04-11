@@ -143,10 +143,12 @@ struct OutputNetcdf {
 void write_nc(struct OutputNetcdf p) {
   if (p.n == 0) p.n = N;
 
-  /* open file. */
-  if ((nc_err = nc_open(file_nc, NC_WRITE, &ncid)))
-    ERR(nc_err);
-  
+  if (pid() == 0) { // master
+    /* open file. */
+    if ((nc_err = nc_open(file_nc, NC_WRITE, &ncid)))
+      ERR(nc_err);
+  }
+
   // write time
   nc_rec += 1;
   float loctime = t;
@@ -154,9 +156,11 @@ void write_nc(struct OutputNetcdf p) {
   size_t startt[1], countt[1];
   startt[0] = nc_rec; //time
   countt[0] = 1;
-  if ((nc_err = nc_put_vara_float(ncid, t_varid, startt, countt,
-                                  &loctime)))
-    ERR(nc_err);
+  if (pid() == 0) { // master
+    if ((nc_err = nc_put_vara_float(ncid, t_varid, startt, countt,
+                                    &loctime)))
+      ERR(nc_err);
+  }
 
 
 
@@ -232,9 +236,10 @@ void write_nc(struct OutputNetcdf p) {
 
 
    /* Close the file. */
-   if ((nc_err = nc_close(ncid)))
+  if (pid() == 0) { // master
+    if ((nc_err = nc_close(ncid)))
       ERR(nc_err);
-   
+  }
 //   printf("*** SUCCESS writing example file %s -- %d!\n", file_nc, nc_rec);
 }
 
