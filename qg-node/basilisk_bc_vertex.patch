@@ -1,0 +1,36 @@
+1 patch for repository http://basilisk.fr/basilisk:
+
+patch a6fd64e6cc3efb1ac51c166f6ade36a17accd545
+Author: Bruno Deremble <bruno.deremble@ens.fr>
+Date:   Tue May 24 18:02:06 CEST 2022
+  * attempt to put BC on vertices
+
+New patches:
+
+[attempt to put BC on vertices
+Bruno Deremble <bruno.deremble@ens.fr>**20220524160206
+ Ignore-this: 8f5b64664faaacc68a7b228682f900b8760dd2cf14cdece900155aa3d1934e0ae616e60eb984f246
+] hunk ./src/grid/cartesian-common.h 422
+-  for (int d = 0; d < nboundary; d++)
+-    s.boundary[d] = s.boundary_homogeneous[d] = NULL;
++  // modif BD for vertex BC
++  /* for (int d = 0; d < nboundary; d++) */
++  /*   s.boundary[d] = s.boundary_homogeneous[d] = NULL; */
+hunk ./src/grid/multigrid.h 571
+-	    if (s.face && sb.i == s.v.x.i) {
++            // modif BD for vertex BC: s.d.x == -1
++	    if ((s.face && sb.i == s.v.x.i) || (s.d.x == -1)) {
++//	    if (s.face && sb.i == s.v.x.i) {
+hunk ./src/predictor-corrector.h 48
+-  init_grid (N);
++// modif BD (do init_grid before run (otherwithe segmentation fault for vertex fieldsBC))
++//  init_grid (N);
+
+Context:
+
+[TAG release 21-12-12
+Stephane Popinet <popinet@basilisk.fr>**20211212192214
+ Ignore-this: 4419fa416f9149b810516849bdaf6ca
+] 
+Patch bundle hash:
+1d7406fc119bbb5c89ac76a16c7d8e259653eae4
