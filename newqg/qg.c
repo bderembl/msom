@@ -1,8 +1,9 @@
 /**
 QG code
 
-compile with 
+This file is the driver. see qg.h for documentation.
 
+compile with 
 qcc -lm -lnetcdf -O3 qg.c
 
  */
@@ -25,6 +26,11 @@ int main(int argc,char* argv[]) {
     read_params("params.in");
   }
 
+  if (sbc == -1) {
+    periodic(right);
+    periodic(top);
+  }
+
   create_outdir();
 
   init_grid (N);
@@ -44,11 +50,24 @@ event init (i = 0) {
     input_matrixl (psi, fp);
     fclose(fp);
   } else {
-  foreach() 
-    foreach_layer() 
-      psi[] = 1e-3*noise();
+  foreach()
+    foreach_layer()
+      psi[] = 1e-5*noise();
   }
 
+}
+
+/** 
+    Forcing function
+*/
+
+
+void surface_forcing  (scalar dqdt)
+{
+  foreach()
+//    dqdt[] -= tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+    dqdt[] -= tau0/dh[0]*3/2*pi/L0*cos(2*pi*t/5)*exp(-(sq(x-L0/2))/5);
+//    dqdt[] -= tau0/dh[0]*3/2*pi/L0*cos(2*pi*t/10)*exp(-(sq(x-L0/2) + sq(y-L0/2))/10);
 }
 
 /**

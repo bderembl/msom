@@ -51,6 +51,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"hEkb") ==0) { hEkb  = atof(tmps2); }
       else if (strcmp(tmps1,"tau0") ==0) { tau0  = atof(tmps2); }
       else if (strcmp(tmps1,"nu")   ==0) { nu    = atof(tmps2); }
+      else if (strcmp(tmps1,"gp_low")==0) { gp_low    = atof(tmps2); }
       else if (strcmp(tmps1,"sbc")  ==0) { sbc   = atof(tmps2); }
       else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
       else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }

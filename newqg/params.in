@@ -1,22 +1,23 @@
 #!sh
 # input parameter files
 
-N  = 64
+N  = 128
 L0 = 100
 
 f0 = 46.5
-hEkb  = 0.001
-tau0 = 0.001
-nu = 5
-beta = 0.43
+hEkb  = 0.0
+tau0 = 1e-3
+nu = 0.5
+beta = 0.5
 # sbc = 0: free slip, 100: no slip
 sbc = 0. 
 # dh must be an array
 dh   = [1.0]
+gp_low = 2500.
 
 # timestepping
 DT    = 5.e-2
-tend  = 5.
-dtout = 1
+tend  = 200.
+dtout = 0.1
 CFL   = 0.2
-TOLERANCE = 1e-3
+TOLERANCE = 1e-5
