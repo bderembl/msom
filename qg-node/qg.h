@@ -1,5 +1,81 @@
+/**
+Quasi-Geostrophic code for Basilisk
+
+This version is for a single layer but will eventually become a multi layer model
+
+Solves
+
+
+$$
+\partial_t q + \nabla (u q ) + \beta v =  - \frac{h_{EK}*f0}{h_n} q  + nu \nabla^2 q + F
+$$
+with $q$ the vorticity
+$$
+q = \nabla^2 \psi
+$$
+$\psi$ the stream function
+$$
+u = -\frac{\partial \psi}{\partial y}
+$$
+and 
+$$
+v = \frac{\partial \psi}{\partial x}
+$$
+
+$h_{EK}$ is the thickness of the bottom Ekman layer, $H$ the thickness of the
+lowermost layer and $f0$ is the Coriolis parameter. $\nu$ is the harmonic
+viscosity.
+
+The forcing $F$ is for now hard coded to
+$$
+F = \frac{3 \tau_0 \pi}{2 h_1 L} \sin(2*\pi*y/L0)*sin(\pi*y/L0);
+$$
+which correspond to a wind stress curl that will force a double gyre
+configuration (cyclonic at the north, anticyclonic at the south).
+
+The advective term $\nabla (uq)$ is coded with the Arakawa Jacobian which
+conserves energy and enstrophy (see Cushman Roisin and Beckers 2011)
+
+
+All parameters can be changed via a "params.in" file which should be in the
+location as the executable. exemple of params.in:
+
+N  = 64
+L0 = 100
+
+tau0 = 1e-3
+nu = 5
+beta = 0.5
+dh   = [1.0]
+sbc = 0
+
+# timestepping
+DT    = 5.e-2
+tend  = 200.
+dtout = 10
+CFL   = 0.2
+TOLERANCE = 1e-5
+
+
+sbc is a parametre that controls the type of boundary conditions:
+sbc = -1  -> periodic BC (experimental)
+sbc = 0   -> free slip BC
+sbc = big number (>10) -> no slip BC
+
+dtout is the frequency for writing outputs
+tend the total time of the simulation
+
+For this single layer version: $q$ and $zeta$ are the same field (not true for
+multiple layers)
+
+
+This version uses a prototype poisson solver for nodal fields written by Antoon
+Van Hoft.  Hence all fields are defined at cell vertices. (still experimental)
+
+*/
+
 #include "predictor-corrector.h"
-#include "nodal-poisson.h"
+#include "bderembl/libs/nodal-poisson.h"
 
 /**
    User defined constants
@@ -85,7 +161,9 @@ void set_bc()
   q[top]    = bc_fac/sq(Delta)*(psi[] - psi[0,1]);
 
 }
-
+/**
+   Invert the poisson equation $\nabla^2 \psi = q$
+*/
 
 trace
 void invertq(vertex scalar psi, vertex scalar q)
@@ -219,11 +297,7 @@ void set_vars()
   q.prolongation = refine_vert;
 
 
-  foreach_vertex(){
-    q[] = 0.;
-    psi[] = 0.;
-    zeta[] = 0.;
-  }
+  reset ({q, psi, zeta}, 0.);
 
 //  if (nl > 1)
 //    dhc = malloc ((nl-1)*sizeof(double));
@@ -252,7 +326,7 @@ into account user-defined field initialisations. */
 
 void set_const() {
   comp_q(psi,q); // last part of init: invert PV
-//  boundary (all);
+  boundary (all);
 }
 
 event init (i = 0) {  

@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <netcdf.h>
+#pragma autolink -lnetcdf
 
 #define NDIMS 3
 #define Y_NAME "y"
@@ -157,20 +158,19 @@ void write_nc(struct OutputNetcdf p) {
   nc_rec += 1;
   float loctime = t;
 
-  size_t startt[1], countt[1];
-  startt[0] = nc_rec; //time
-  countt[0] = 1;
-  if (pid() == 0) { // master
-    if ((nc_err = nc_put_vara_float(ncid, t_varid, startt, countt,
-                                    &loctime)))
-      ERR(nc_err);
-  }
+  /* size_t startt[1], countt[1]; */
+  /* startt[0] = nc_rec; //time */
+  /* countt[0] = 1; */
+  /* if (pid() == 0) { // master */
+  /*   if ((nc_err = nc_put_vara_float(ncid, t_varid, startt, countt, */
+  /*                                   &loctime))) */
+  /*     ERR(nc_err); */
+  /* } */
 
 
 
   float fn = p.n, Delta = L0/fn;
   float ** field = matrix_new (p.n, p.n, sizeof(float));
-  
   
   /* The start and count arrays will tell the netCDF library where to
      write our data. */
@@ -204,10 +204,15 @@ void write_nc(struct OutputNetcdf p) {
   for (scalar s in scalar_list_nc){
     nv += 1;
 
+    for (int j = 0; j < p.n; j++) {
+      for (int i = 0; i < p.n; i++) {
+        field[j][i] = nodata;
+      }
+    }
 
     foreach_vertex(noauto){
 //      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
-      field[point.j-GHOSTS][point.i-GHOSTS] = s[];
+      field[_J][_I] = s[];
     }
 
 
