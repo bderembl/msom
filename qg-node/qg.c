@@ -10,6 +10,10 @@ It is still experimental.
 compile with 
 qcc -lm -lnetcdf -O3 qg.c -I$DOCUMENT_ROOT/sandbox
 
+create a restart file:
+ncks -d time,198,198 vars.nc restart.nc
+
+
  */
 
 
@@ -40,29 +44,6 @@ int main(int argc,char* argv[]) {
   size(L0);
 
   run();
-
-/*   set_bc(); */
-/*   set_vars(); */
-/*   set_const();  */
-
-/*   foreach_vertex()  */
-/*     psi[] = 1e-3*noise(); */
-/* //    psi[] = 1e-3*noise(); */
-/*   boundary({psi}); */
-/*   comp_q(psi, q); */
-/*   set_bc(); */
-/*   boundary({psi}); */
-/*   boundary({q}); */
-/*   backup_config(); */
-
-/*   sprintf (file_nc,"%s%s", dpath, fileout); */
-/*   scalar_list_nc = list_copy({psi, q}); */
-/*   create_nc(); */
-
-/*   invertq(psi, q); */
-
-/*   write_nc(); */
-
 }
 
 
@@ -74,6 +55,13 @@ event init (i = 0) {
   foreach_vertex() 
     psi[] = 1e-3*noise();
 //    psi[] = 1e-3*noise();
+
+  FILE * fp;
+  if ((fp = fopen("restart.nc", "r"))) {
+    read_nc({psi}, "restart.nc");
+    fclose(fp);
+  }
+
   boundary({psi});
 
 }

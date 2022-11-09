@@ -158,14 +158,14 @@ void write_nc(struct OutputNetcdf p) {
   nc_rec += 1;
   float loctime = t;
 
-  /* size_t startt[1], countt[1]; */
-  /* startt[0] = nc_rec; //time */
-  /* countt[0] = 1; */
-  /* if (pid() == 0) { // master */
-  /*   if ((nc_err = nc_put_vara_float(ncid, t_varid, startt, countt, */
-  /*                                   &loctime))) */
-  /*     ERR(nc_err); */
-  /* } */
+  size_t startt[1], countt[1];
+  startt[0] = nc_rec; //time
+  countt[0] = 1;
+  if (pid() == 0) { // master
+    if ((nc_err = nc_put_vara_float(ncid, t_varid, startt, countt,
+                                    &loctime)))
+      ERR(nc_err);
+  }
 
 
 
@@ -267,6 +267,74 @@ void write_nc(struct OutputNetcdf p) {
       ERR(nc_err);
   }
 //   printf("*** SUCCESS writing example file %s -- %d!\n", file_nc, nc_rec);
+}
+
+
+/**
+   Read NC
+ */
+
+void read_nc(scalar * list_in, char* file_in){
+
+  int i, ret;
+  int ncfile, ndims, nvars, ngatts, unlimited;
+  int var_ndims, var_natts;
+  nc_type type;
+  char varname[NC_MAX_NAME+1];
+  int *dimids=NULL;
+
+  int Nloc = N+1;
+  float ** field = matrix_new (Nloc, Nloc, sizeof(float));
+
+  if ((nc_err = nc_open(file_in, NC_NOWRITE, &ncfile)))
+    ERR(nc_err);
+
+  if ((nc_err = nc_inq(ncfile, &ndims, &nvars, &ngatts, &unlimited)))
+    ERR(nc_err);
+
+  size_t start[NDIMS], count[NDIMS];
+  start[0] = 0; //time
+  start[1] = 0;
+  start[2] = 0;
+
+  count[0] = 1;
+  count[1] = Nloc;
+  count[2] = Nloc;
+
+
+  for (scalar s in list_in){
+    for(i=0; i<nvars; i++) {
+
+
+  if ((nc_err = nc_inq_var(ncfile, i, varname, &type, &var_ndims, dimids,
+                          &var_natts)))
+    ERR(nc_err);
+
+
+      if (strcmp(varname,s.name) == 0) {
+        fprintf(stdout,"Reading variable  %s!\n", s.name);
+
+          if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
+                                                 &field[0][0])))
+            ERR(nc_err);
+
+          foreach_vertex(noauto){
+            s[] = field[_J][_I];
+          }
+          
+        }
+
+
+    }
+  }
+
+  matrix_free (field);
+
+  if ((nc_err = nc_close(ncfile)))
+    ERR(nc_err);
+
+  boundary(list_in);
+
 }
 
 event cleanup (t = end)
