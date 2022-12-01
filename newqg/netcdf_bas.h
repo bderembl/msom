@@ -243,6 +243,81 @@ void write_nc(struct OutputNetcdf p) {
 //   printf("*** SUCCESS writing example file %s -- %d!\n", file_nc, nc_rec);
 }
 
+
+/**
+   Read NC
+ */
+
+void read_nc(scalar * list_in, char* file_in){
+
+  int i, ret;
+  int ncfile, ndims, nvars, ngatts, unlimited;
+  int var_ndims, var_natts;
+  nc_type type;
+  char varname[NC_MAX_NAME+1];
+  int *dimids=NULL;
+
+  int Nloc = N;
+  float ** field = matrix_new (Nloc, Nloc, sizeof(float));
+
+  if ((nc_err = nc_open(file_in, NC_NOWRITE, &ncfile)))
+    ERR(nc_err);
+
+  if ((nc_err = nc_inq(ncfile, &ndims, &nvars, &ngatts, &unlimited)))
+    ERR(nc_err);
+
+  size_t start[NDIMS], count[NDIMS];
+  start[0] = 0; //time
+  start[1] = 0;
+  start[2] = 0;
+  start[3] = 0;
+
+  count[0] = 1;
+  count[1] = 1;
+  count[2] = Nloc;
+  count[3] = Nloc;
+
+
+  for (scalar s in list_in){
+    for(i=0; i<nvars; i++) {
+
+
+  if ((nc_err = nc_inq_var(ncfile, i, varname, &type, &var_ndims, dimids,
+                          &var_natts)))
+    ERR(nc_err);
+
+
+      if (strcmp(varname,s.name) == 0) {
+        fprintf(stdout,"Reading variable  %s!\n", s.name);
+
+          if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
+                                                 &field[0][0])))
+            ERR(nc_err);
+
+          foreach(noauto) {
+            int i = (x - X0)/L0*N, j = (y - Y0)/L0*N;
+            if (i >= 0 && i < N && j >= 0 && j < N){
+              s[] = field[j][i];
+            }
+            else
+              s[] = 0.;
+          }
+          s.dirty = true;
+        }
+
+
+    }
+  }
+
+  matrix_free (field);
+
+  if ((nc_err = nc_close(ncfile)))
+    ERR(nc_err);
+
+  boundary(list_in);
+
+}
+
 event cleanup (t = end)
 {
   free(scalar_list_nc);

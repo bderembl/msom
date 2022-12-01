@@ -6,6 +6,10 @@ This file is the driver. see qg.h for documentation.
 compile with 
 qcc -lm -lnetcdf -O3 qg.c
 
+
+create a restart file:
+ncks -d time,198,198 vars.nc restart.nc
+
  */
 
 
@@ -45,14 +49,14 @@ int main(int argc,char* argv[]) {
 */
 event init (i = 0) {
 
+  foreach() 
+    foreach_layer() 
+      psi[] = 1e-3*noise();
+
   FILE * fp;
-  if ((fp = fopen("p0.bas", "r"))) {
-    input_matrixl (psi, fp);
+  if ((fp = fopen("restart.nc", "r"))) {
+    read_nc({psi}, "restart.nc");
     fclose(fp);
-  } else {
-  foreach()
-    foreach_layer()
-      psi[] = 1e-5*noise();
   }
 
 }
