@@ -99,6 +99,7 @@ char dpath[80]; // name of output dir
 vertex scalar psi[]; 
 vertex scalar q[]; 
 vertex scalar zeta[]; 
+vertex scalar q_forcing[]; 
 
 
 /**
@@ -108,6 +109,12 @@ double bc_fac = 0;
 scalar * evolving = NULL;
 mgstats mgpsi;
 
+
+/**
+   Energy diagnostics
+*/
+
+double dtdiag = -1; // non zero
 
 /**
    Define useful operators:
@@ -244,7 +251,7 @@ trace
 void surface_forcing  (scalar dqdt)
 {
   foreach_inner_vertex()
-    dqdt[] -= tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+    dqdt[] -= q_forcing[];
 }
 
 
@@ -283,6 +290,52 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
   
   return dtmax;
 }
+
+
+/**
+   Energy diagnostics
+*/
+
+event write_1d_diag (t=0; t <= tend+1e-10; t += dtdiag){
+  if (dtdiag > 0){
+    FILE * fp;
+    char name[80];
+    sprintf (name,"%sdiag_1d.dat", dpath);
+
+    if (i == 0){
+      // create file
+      if (pid() == 0) {
+        if ((fp = fopen(name, "a"))) {
+          fprintf(fp, "# time, ke, dissipation, forcing\n");
+          fclose(fp);
+        }
+      }
+    }
+    
+/**
+   Using a foreach loop because foreach_vertex will count subdomain boundary
+   points twice in MPI. Make sure the field is zero at the boundary
+ */
+    double ke = 0;
+    double d_ke = 0;
+    double f_ke = 0;
+
+    foreach(reduction(+:ke) reduction(+:d_ke) reduction(+:f_ke)){
+      ke -= 0.5*psi[]*laplacian(psi)*sq(Delta);
+      d_ke -= nu*psi[]*laplacian(q)*sq(Delta);
+      f_ke -= psi[]*q_forcing[]*sq(Delta);
+    }
+
+    if (pid() == 0) {
+      if ((fp = fopen(name, "a"))) {
+        fprintf(fp, "%e, %e, %e, %e\n", t, ke, d_ke, f_ke);
+        fclose(fp);
+      }
+    }
+  } // dtdiag > 0
+}
+
+
 
 void set_vars()
 {
@@ -326,6 +379,14 @@ into account user-defined field initialisations. */
 
 void set_const() {
   comp_q(psi,q); // last part of init: invert PV
+
+
+  // set surface forcing
+  reset ({q_forcing}, 0.);
+
+  foreach_vertex()
+    q_forcing[] = tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+
   boundary (all);
 }
 

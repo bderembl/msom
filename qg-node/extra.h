@@ -54,6 +54,7 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"sbc")  ==0) { sbc   = atof(tmps2); }
       else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
       else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
+      else if (strcmp(tmps1,"dtdiag")==0) { dtdiag = atof(tmps2); }
       else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dh);}
 
 //      printf("%s => %s\n", tmps1, tmps2);
