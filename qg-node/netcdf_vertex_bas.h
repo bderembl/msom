@@ -10,7 +10,7 @@
 #include <netcdf.h>
 #pragma autolink -lnetcdf
 
-#define NDIMS 3
+#define NDIMS 4
 #define Y_NAME "y"
 #define X_NAME "x"
 #define REC_NAME "time"
@@ -50,7 +50,7 @@ void create_nc()
 
    /* LOCAL IDs for the netCDF file, dimensions, and variables. */
    int x_dimid, y_dimid, lvl_dimid, rec_dimid;
-   int y_varid, x_varid;
+   int y_varid, x_varid, lvl_varid;
    int dimids[NDIMS];
    
    /* Create the file. */
@@ -60,8 +60,8 @@ void create_nc()
    /* Define the dimensions. The record dimension is defined to have
     * unlimited length - it can grow as needed. In this example it is
     * the time dimension.*/
-   /* if ((nc_err = nc_def_dim(ncid, LVL_NAME, nl, &lvl_dimid))) */
-   /*    ERR(nc_err); */
+   if ((nc_err = nc_def_dim(ncid, LVL_NAME, nl, &lvl_dimid)))
+      ERR(nc_err);
    if ((nc_err = nc_def_dim(ncid, Y_NAME, N+1, &y_dimid)))
       ERR(nc_err);
    if ((nc_err = nc_def_dim(ncid, X_NAME, N+1, &x_dimid)))
@@ -84,17 +84,17 @@ void create_nc()
    if ((nc_err = nc_def_var(ncid, X_NAME, NC_FLOAT, 1, &x_dimid,
         		    &x_varid)))
       ERR(nc_err);
-
+   if ((nc_err = nc_def_var(ncid, LVL_NAME, NC_FLOAT, 1, &lvl_dimid,
+        		    &lvl_varid)))
+      ERR(nc_err);
    /* The dimids array is used to pass the dimids of the dimensions of
       the netCDF variables. Both of the netCDF variables we are
       creating share the same four dimensions. In C, the
       unlimited dimension must come first on the list of dimids. */
    dimids[0] = rec_dimid;
-   /* dimids[1] = lvl_dimid; */
-   /* dimids[2] = y_dimid; */
-   /* dimids[3] = x_dimid; */
-   dimids[1] = y_dimid;
-   dimids[2] = x_dimid;
+   dimids[1] = lvl_dimid;
+   dimids[2] = y_dimid;
+   dimids[3] = x_dimid;
 
    /* Define the netCDF variables */
 //   char * str1;
@@ -132,6 +132,13 @@ void create_nc()
    if ((nc_err = nc_put_var_float(ncid, y_varid, &yc[0])))
       ERR(nc_err);
    if ((nc_err = nc_put_var_float(ncid, x_varid, &xc[0])))
+      ERR(nc_err);
+
+   float zc[nl];
+   for (int i = 0; i < nl; i++){
+      zc[i] = i;
+   }
+   if ((nc_err = nc_put_var_float(ncid, lvl_varid, &zc[0])))
       ERR(nc_err);
 
    /* Close the file. */
@@ -173,7 +180,9 @@ void write_nc(struct OutputNetcdf p) {
 
 
   float fn = p.n, Delta = L0/fn;
-  float ** field = matrix_new (p.n, p.n, sizeof(float));
+  float * field = (float *)malloc(p.n*p.n*nl*sizeof(float));
+
+//  float ** field = matrix_new (p.n, p.n, sizeof(float));
   
   /* The start and count arrays will tell the netCDF library where to
      write our data. */
@@ -183,22 +192,15 @@ void write_nc(struct OutputNetcdf p) {
   /* These settings tell netcdf to write one timestep of data. (The
      setting of start[0] inside the loop below tells netCDF which
      timestep to write.) */
-  /* start[0] = nc_rec; //time */
-  /* start[1] = 0;     //level */
-  /* start[2] = 0;      //y */
-  /* start[3] = 0;      //x */
-  
-  /* count[0] = 1; */
-  /* count[1] = 1; */
-  /* count[2] = p.n; */
-  /* count[3] = p.n; */
   start[0] = nc_rec; //time
-  start[1] = 0;      //y
-  start[2] = 0;      //x
+  start[1] = 0;     //level
+  start[2] = 0;      //y
+  start[3] = 0;      //x
   
   count[0] = 1;
-  count[1] = p.n;
+  count[1] = nl;
   count[2] = p.n;
+  count[3] = p.n;
 
   
   int nv = -1;
@@ -207,15 +209,19 @@ void write_nc(struct OutputNetcdf p) {
   for (scalar s in scalar_list_nc){
     nv += 1;
 
-    for (int j = 0; j < p.n; j++) {
-      for (int i = 0; i < p.n; i++) {
-        field[j][i] = nodata;
+    for (int k = 0; k < nl; k++) {
+      for (int j = 0; j < p.n; j++) {
+        for (int i = 0; i < p.n; i++) {
+          field[p.n*p.n*k + p.n*j + i] = nodata;
+        }
       }
     }
 
-    foreach_vertex(noauto){
-//      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
-      field[_J][_I] = s[];
+      foreach_vertex(noauto){
+    foreach_layer() {
+        //      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
+        field[p.n*p.n*_layer + p.n*_J + _I] = s[];
+      }
     }
 
 
@@ -238,7 +244,7 @@ void write_nc(struct OutputNetcdf p) {
     
     if (pid() == 0) { // master
 @if _MPI
-        MPI_Reduce (MPI_IN_PLACE, field[0], p.n*p.n, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+        MPI_Reduce (MPI_IN_PLACE, field[0], p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
   
  /*       int nv; */
@@ -249,7 +255,7 @@ void write_nc(struct OutputNetcdf p) {
  /*     } */
 
      if ((nc_err = nc_put_vara_float(ncid, nc_varid[nv], start, count,
-        			      &field[0][0])))
+        			      &field[0])))
          ERR(nc_err);
 
      /* if (start[1] == p.nl - 1) */
@@ -257,11 +263,12 @@ void write_nc(struct OutputNetcdf p) {
   }
 @if _MPI
   else // slave
-  MPI_Reduce (field[0], NULL, p.n*p.n, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+  MPI_Reduce (field[0], NULL, p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
 //  }
   }
-  matrix_free (field);
+//  matrix_free (field);
+  free(field);
 
 
    /* Close the file. */
@@ -284,10 +291,11 @@ void read_nc(scalar * list_in, char* file_in){
   int var_ndims, var_natts;
   nc_type type;
   char varname[NC_MAX_NAME+1];
-  int *dimids=NULL;
+  int *dimids = NULL;
 
   int Nloc = N+1;
-  float ** field = matrix_new (Nloc, Nloc, sizeof(float));
+//  float ** field = matrix_new (Nloc, Nloc, sizeof(float));
+  float * field = (float *)malloc(Nloc*Nloc*nl*sizeof(float));
 
   if ((nc_err = nc_open(file_in, NC_NOWRITE, &ncfile)))
     ERR(nc_err);
@@ -299,10 +307,12 @@ void read_nc(scalar * list_in, char* file_in){
   start[0] = 0; //time
   start[1] = 0;
   start[2] = 0;
+  start[3] = 0;
 
   count[0] = 1;
-  count[1] = Nloc;
+  count[1] = nl;
   count[2] = Nloc;
+  count[3] = Nloc;
 
 
   for (scalar s in list_in){
@@ -318,11 +328,13 @@ void read_nc(scalar * list_in, char* file_in){
         fprintf(stdout,"Reading variable  %s!\n", s.name);
 
           if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
-                                                 &field[0][0])))
+                                                 &field[0])))
             ERR(nc_err);
 
-          foreach_vertex(noauto){
-            s[] = field[_J][_I];
+          foreach_layer() {
+            foreach_vertex(noauto){
+              s[] = field[Nloc*Nloc*_layer + Nloc*_J + _I];
+            }
           }
           
         }
@@ -331,7 +343,8 @@ void read_nc(scalar * list_in, char* file_in){
     }
   }
 
-  matrix_free (field);
+//  matrix_free (field);
+  free(field);
 
   if ((nc_err = nc_close(ncfile)))
     ERR(nc_err);

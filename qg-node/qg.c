@@ -53,8 +53,9 @@ int main(int argc,char* argv[]) {
 event init (i = 0) {
 
   foreach_vertex() 
-    psi[] = 1e-3*noise();
-//    psi[] = 1e-3*noise();
+    foreach_layer()
+      psi[] = 1e-3*noise();
+//      psi[] = 1e-3*noise();
 
   foreach_vertex()
     q_forcing[] = tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
@@ -68,6 +69,7 @@ event init (i = 0) {
   if ((fp = fopen(name, "r"))) {
     read_nc({psi}, name);
     fclose(fp);
+    backup_file(name);
     fprintf(stdout, "%s .. ok\n", name);
   }
 
@@ -75,6 +77,7 @@ event init (i = 0) {
   if ((fp = fopen(name, "r"))) {
     read_nc({psi_pg}, name);
     fclose(fp);
+    backup_file(name);
     fprintf(stdout, "%s .. ok\n", name);
   }
 
@@ -82,6 +85,7 @@ event init (i = 0) {
   if ((fp = fopen(name, "r"))) {
     read_nc({gp_l}, name);
     fclose(fp);
+    backup_file(name);
     fprintf(stdout, "%s .. ok\n", name);
   }
 
@@ -110,5 +114,6 @@ event writestdout (i++) {
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
+  invertq(psi, q);
   write_nc();
 }
