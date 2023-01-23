@@ -74,8 +74,11 @@ Van Hoft.  Hence all fields are defined at cell vertices. (still experimental)
 
 */
 
+#define LAYERS 0
+#define nl_max 1000
+
 #include "predictor-corrector.h"
-#include "bderembl/libs/nodal-poisson.h"
+#include "nodal-poisson.h"
 
 /**
    User defined constants
@@ -89,7 +92,11 @@ double nu = 0.;
 double sbc = 0.;
 double tend = 100.;
 double dtout = 1.; 
-double dh[1] = {1.};
+double dh[nl_max] = {1.};
+double gp_l0 = 0.;
+
+int nl = 1;
+int flag_ms = 0;
 
 char dpath[80]; // name of output dir
 /** 
@@ -100,6 +107,8 @@ vertex scalar psi[];
 vertex scalar q[]; 
 vertex scalar zeta[]; 
 vertex scalar q_forcing[]; 
+vertex scalar psi_pg[];
+
 
 
 /**
@@ -108,6 +117,9 @@ vertex scalar q_forcing[];
 double bc_fac = 0;
 scalar * evolving = NULL;
 mgstats mgpsi;
+
+vertex scalar iRd2_l[];
+vertex scalar gp_l[];
 
 
 /**
@@ -176,7 +188,7 @@ trace
 void invertq(vertex scalar psi, vertex scalar q)
 {
 
-  mgpsi = vpoisson(psi, q);
+  mgpsi = vpoisson(psi, q, lambda=iRd2_l);
   boundary({psi});
   // need to reset the values of the BC (has to do with vertices?)
   set_bc();
@@ -193,10 +205,22 @@ void comp_del2(scalar psi, scalar zeta, double add, double fac)
 }
 
 trace
+void comp_stretch(scalar psi, scalar stretch, double add, double fac)
+{
+
+    // WARNING: iRd2_l only defined in first layer
+    foreach_inner_vertex()
+      stretch[] = add*stretch[] + fac*(iRd2_l[]*psi[]);
+//      stretch[0,0,nl-1] = add*stretch[0,0,nl-1] + fac*(iRd2_l[]*psi[0,0,nl-1]);
+
+  boundary({stretch});
+}
+
+trace
 void comp_q(scalar psi, scalar q)
 {
   comp_del2  (psi, q, 0., 1.);
-  /* comp_stretch(psi, q, 1., 1.); */
+  comp_stretch(psi, q, 1., 1.);
   boundary({q});
 }
 /**
@@ -207,7 +231,7 @@ trace
 double advection_pv(scalar zeta, scalar q, scalar psi, scalar dqdt, double dtmax)
 {
   foreach_inner_vertex()
-    dqdt[] += -jacobian(psi, zeta) - beta_effect(psi);
+    dqdt[] += -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - beta_effect(psi);
 
   // compute dtmax (ajusted from timestep.h)
   static double previous = 0.;
@@ -351,9 +375,13 @@ void set_vars()
 
 
   reset ({q, psi, zeta}, 0.);
+  reset ({q_forcing}, 0.);
+  reset ({psi_pg}, 0.);
+  reset ({gp_l}, gp_l0);
 
 //  if (nl > 1)
 //    dhc = malloc ((nl-1)*sizeof(double));
+
 
 
   /**
@@ -368,6 +396,7 @@ void set_vars()
 }
 
 
+
 event defaults (i = 0){
   set_bc();
   set_vars();
@@ -378,14 +407,14 @@ The event below will happen after all the other initial events to take
 into account user-defined field initialisations. */
 
 void set_const() {
-  comp_q(psi,q); // last part of init: invert PV
 
 
-  // set surface forcing
-  reset ({q_forcing}, 0.);
-
+  // Warning iRd2_l defined on upper layer only
+  // TODO: to be upddated for multi layer
   foreach_vertex()
-    q_forcing[] = tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+      iRd2_l[] = gp_l[] != 0 ? -sq(f0 + flag_ms*beta*(y-0.5*L0))/(gp_l[]*dh[nl-1]) : 0;
+
+  comp_q(psi,q); // last part of init: invert PV
 
   boundary (all);
 }

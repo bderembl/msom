@@ -48,7 +48,7 @@ int main(int argc,char* argv[]) {
 
 
 /**
-   Initial conditions
+   Initial conditions, surface forcing and PG fields
 */
 event init (i = 0) {
 
@@ -56,10 +56,33 @@ event init (i = 0) {
     psi[] = 1e-3*noise();
 //    psi[] = 1e-3*noise();
 
+  foreach_vertex()
+    q_forcing[] = tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+
+
+  fprintf(stdout, "Read input files:\n");
+
   FILE * fp;
-  if ((fp = fopen("restart.nc", "r"))) {
-    read_nc({psi}, "restart.nc");
+  char name[80];
+  sprintf (name,"restart.nc");
+  if ((fp = fopen(name, "r"))) {
+    read_nc({psi}, name);
     fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
+
+  sprintf (name,"psipg_%dl_N%d.nc", nl,N);
+  if ((fp = fopen(name, "r"))) {
+    read_nc({psi_pg}, name);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
+
+  sprintf (name,"gp_l_N%d.nc",N);
+  if ((fp = fopen(name, "r"))) {
+    read_nc({gp_l}, name);
+    fclose(fp);
+    fprintf(stdout, "%s .. ok\n", name);
   }
 
   boundary({psi});

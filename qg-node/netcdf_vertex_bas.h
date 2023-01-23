@@ -2,6 +2,9 @@
    Netcdf interface for basilisk
 */
 
+
+//echo | gcc -E -xc -include 'stddef.h' - | grep size_t
+
 #include <stdio.h>
 #include <string.h>
 #include <netcdf.h>

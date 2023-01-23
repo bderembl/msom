@@ -14,6 +14,15 @@ where vertices are shared and the restriciton of the residual.
 
 mgstats vpoisson (struct Poisson p) {
   //setup
+
+  if (!p.lambda.i)
+    p.lambda = zeroc;
+
+  vertex scalar lambda = p.lambda;
+  lambda.restriction = restriction_vert;
+  lambda.prolongation = refine_vert;
+  restriction ({lambda});
+
   vertex scalar da[], res[], a = p.a, b = p.b;
   scalar_clone (da, a);
   da.restriction = restriction_vert;
@@ -70,7 +79,8 @@ mgstats vpoisson (struct Poisson p) {
     // Residual
     double max = 0;
     foreach_vertex(reduction (max:max)) {
-      res[] = b[]*mask[];
+//      res[] = b[]*mask[];
+      res[] = (b[] - lambda[]*a[])*mask[];
       foreach_dimension() {
           res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
       }
@@ -102,7 +112,8 @@ mgstats vpoisson (struct Poisson p) {
       // Relaxation sweep
       for (int rel = 0; rel < mg.nrelax; rel++) {
         foreach_vertex_level(l) {
-          double d = 0;
+//          double d = 0;
+          double d = - lambda[]*sq(Delta);
           da[] = -res[]*sq(Delta);
           foreach_dimension() {
               da[] += (da[1] + da[-1])*mask[];
