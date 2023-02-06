@@ -4,7 +4,6 @@ QG code
 This file is the driver. see qg.h for documentation.
 
 This version uses fields defined on vertices. 
-You need to apply the patch "basilisk_bc_vertex.patch" to basilisk.
 It is still experimental.
 
 compile with 
@@ -19,6 +18,7 @@ ncks -d time,198,198 vars.nc restart.nc
 
 #include "grid/multigrid.h"
 #include "qg.h"
+#include "qg_barotropic.h"
 #include "extra.h"
 #include "netcdf_vertex_bas.h"
 
@@ -52,8 +52,7 @@ int main(int argc,char* argv[]) {
 */
 event init (i = 0) {
 
-  foreach_vertex() 
-    foreach_layer()
+  foreach_all() 
       psi[] = 1e-3*noise();
 //      psi[] = 1e-3*noise();
 
@@ -73,21 +72,21 @@ event init (i = 0) {
     fprintf(stdout, "%s .. ok\n", name);
   }
 
-  sprintf (name,"psipg_%dl_N%d.nc", nl,N);
-  if ((fp = fopen(name, "r"))) {
-    read_nc({psi_pg}, name);
-    fclose(fp);
-    backup_file(name);
-    fprintf(stdout, "%s .. ok\n", name);
-  }
+  /* sprintf (name,"psipg_%dl_N%d.nc", nl,N); */
+  /* if ((fp = fopen(name, "r"))) { */
+  /*   read_nc({psi_pg}, name); */
+  /*   fclose(fp); */
+  /*   backup_file(name); */
+  /*   fprintf(stdout, "%s .. ok\n", name); */
+  /* } */
 
-  sprintf (name,"gp_l_N%d.nc",N);
-  if ((fp = fopen(name, "r"))) {
-    read_nc({gp_l}, name);
-    fclose(fp);
-    backup_file(name);
-    fprintf(stdout, "%s .. ok\n", name);
-  }
+  /* sprintf (name,"gp_l_N%d.nc",N); */
+  /* if ((fp = fopen(name, "r"))) { */
+  /*   read_nc({gp_l}, name); */
+  /*   fclose(fp); */
+  /*   backup_file(name); */
+  /*   fprintf(stdout, "%s .. ok\n", name); */
+  /* } */
 
   boundary({psi});
 
@@ -114,6 +113,6 @@ event writestdout (i++) {
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
-  invertq(psi, q);
+//  invertq(psi, q);
   write_nc();
 }

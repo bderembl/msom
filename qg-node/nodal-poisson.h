@@ -12,23 +12,10 @@ where vertices are shared and the restriciton of the residual.
 #include "my_vertex.h"
 #include "poisson.h"
 
-mgstats vpoisson (struct Poisson p) {
-  //setup
+vertex scalar mask[];
 
-  if (!p.lambda.i)
-    p.lambda = zeroc;
+event init (i = 0) {  
 
-  vertex scalar lambda = p.lambda;
-  lambda.restriction = restriction_vert;
-  lambda.prolongation = refine_vert;
-  restriction ({lambda});
-
-  vertex scalar da[], res[], a = p.a, b = p.b;
-  scalar_clone (da, a);
-  da.restriction = restriction_vert;
-  da.prolongation = refine_vert;
-
-  vertex scalar mask[];
   mask.restriction = restriction_vert;
   mask.prolongation = refine_vert;
 
@@ -36,12 +23,6 @@ mgstats vpoisson (struct Poisson p) {
   mask[right]  = 0.;
   mask[top]    = 0.;
   mask[bottom] = 0.;
-
-
-  /* da[left]   = 0.; */
-  /* da[right]  = 0.; */
-  /* da[top]    = 0.; */
-  /* da[bottom] = 0.; */
 
   foreach_vertex()
     mask[] = 1.;
@@ -51,6 +32,36 @@ mgstats vpoisson (struct Poisson p) {
     boundary_level({mask}, l);
 
   }
+}
+
+static void (* relax_nodal) (scalar * al, scalar * bl, int l, void * data);
+static double (* residual_nodal) (scalar * al, scalar * bl, scalar * resl, void * data);
+
+
+
+
+mgstats vpoisson (struct Poisson p) {
+  //setup
+
+  /* if (!p.lambda.i) */
+  /*   p.lambda = zeroc; */
+
+  /* vertex scalar lambda = p.lambda; */
+  /* lambda.restriction = restriction_vert; */
+  /* lambda.prolongation = refine_vert; */
+  /* restriction ({lambda}); */
+
+  vertex scalar da[], res[], a = p.a, b = p.b;
+  scalar_clone (da, a);
+  da.restriction = restriction_vert;
+  da.prolongation = refine_vert;
+
+
+  /* da[left]   = 0.; */
+  /* da[right]  = 0.; */
+  /* da[top]    = 0.; */
+  /* da[bottom] = 0.; */
+
 
   if (p.res)
     res = p.res[0];
@@ -78,15 +89,9 @@ mgstats vpoisson (struct Poisson p) {
   for (mg.i = 0; mg.i < NITERMAX; mg.i++) {
     // Residual
     double max = 0;
-    foreach_vertex(reduction (max:max)) {
-//      res[] = b[]*mask[];
-      res[] = (b[] - lambda[]*a[])*mask[];
-      foreach_dimension() {
-          res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
-      }
-      if (fabs(res[]) > max)
-        max = fabs(res[]);
-    }
+
+    max = residual_nodal ({a}, {b}, {res}, &p);
+
     // Statistics
     mg.resa = max;
     if (mg.i == 0)
@@ -111,17 +116,7 @@ mgstats vpoisson (struct Poisson p) {
       boundary_level({da}, l);
       // Relaxation sweep
       for (int rel = 0; rel < mg.nrelax; rel++) {
-        foreach_vertex_level(l) {
-//          double d = 0;
-          double d = - lambda[]*sq(Delta);
-          da[] = -res[]*sq(Delta);
-          foreach_dimension() {
-              da[] += (da[1] + da[-1])*mask[];
-              d += 2.;
-          }
-          da[] /= d;
-        }
-        boundary_level({da}, l);
+        relax_nodal ({da}, {res}, l, &p);
       }
       // Prolongation
       //    printf("LEVEL: %d\n",l);

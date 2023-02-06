@@ -9,11 +9,7 @@ Solves
 $$
 \partial_t q + \nabla (u q ) + \beta v =  - \frac{h_{EK}*f0}{h_n} q  + nu \nabla^2 q + F
 $$
-with $q$ the vorticity
-$$
-q = \nabla^2 \psi
-$$
-$\psi$ the stream function
+with $q$ the vorticity, $\psi$ the stream function
 $$
 u = -\frac{\partial \psi}{\partial y}
 $$
@@ -21,6 +17,20 @@ and
 $$
 v = \frac{\partial \psi}{\partial x}
 $$
+
+
+The definition of the potential vorticity $q$ is 
+$$
+q = \nabla^2 \psi + \frac{\partial}{\partial z} \frac{f^2}{N^2} \frac{\partial q}{\partial z}
+$$
+
+but reduces to 
+
+$$
+q = \nabla^2 \psi
+$$
+
+in the barotropic case
 
 $h_{EK}$ is the thickness of the bottom Ekman layer, $H$ the thickness of the
 lowermost layer and $f0$ is the Coriolis parameter. $\nu$ is the harmonic
@@ -65,20 +75,38 @@ sbc = big number (>10) -> no slip BC
 dtout is the frequency for writing outputs
 tend the total time of the simulation
 
-For this single layer version: $q$ and $zeta$ are the same field (not true for
-multiple layers)
-
-
 This version uses a prototype poisson solver for nodal fields written by Antoon
 Van Hoft.  Hence all fields are defined at cell vertices. (still experimental)
 
 */
 
-#define LAYERS 1
+
+/**
+   Anticipate layer version and so define generic foreach_all loop that can
+   handle both the single layer and multi layer case
+ */
+
+//#define LAYERS 0
 #define nl_max 1000
+
+#if LAYERS
+
+@def foreach_all()
+  foreach_vertex()
+    foreach_layer() {
+@
+@define end_foreach_all() } end_foreach_vertex();
+
+#else
+
+int nl = 1;
+#define foreach_all() foreach_vertex()
+
+#endif
 
 #include "predictor-corrector.h"
 #include "nodal-poisson.h"
+
 
 /**
    User defined constants
@@ -102,10 +130,13 @@ char dpath[80]; // name of output dir
     Fields
 */
 
+#if LAYERS
 vertex scalar psi;
 vertex scalar q;
-vertex scalar zeta;
-vertex scalar psi_pg;
+#else
+vertex scalar psi[];
+vertex scalar q[];
+#endif
 
 vertex scalar q_forcing[]; 
 
@@ -118,9 +149,6 @@ double bc_fac = 0;
 double psi_bc = 0; // might change if we consider mass conservation
 scalar * evolving = NULL;
 mgstats mgpsi;
-
-vertex scalar iRd2_l[];
-vertex scalar gp_l[];
 
 
 /**
@@ -170,86 +198,51 @@ void set_bc()
   psi[bottom] = psi_bc;
   psi[top]    = psi_bc;
 
-  zeta[left]   = bc_fac/sq(Delta)*(psi[1] - psi_bc);
-  zeta[right]  = bc_fac/sq(Delta)*(psi_bc - psi[1]);
-  zeta[bottom] = bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
-  zeta[top]    = bc_fac/sq(Delta)*(psi_bc - psi[0,1]);
-
   q[left]   = bc_fac/sq(Delta)*(psi[1] - psi_bc);
   q[right]  = bc_fac/sq(Delta)*(psi_bc - psi[1]);
   q[bottom] = bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
   q[top]    = bc_fac/sq(Delta)*(psi_bc - psi[0,1]);
-
-  psi_pg[left]   = psi_bc;
-  psi_pg[right]  = psi_bc;
-  psi_pg[bottom] = psi_bc;
-  psi_pg[top]    = psi_bc;
 }
-/**
-   Invert the poisson equation $\nabla^2 \psi = q$
-*/
 
-trace
-void invertq(vertex scalar psi, vertex scalar q)
-{
-
-  mgpsi = vpoisson(psi, q, lambda=iRd2_l);
-  // need to reset the values of the BC (has to do with vertices?)
-  set_bc();
-  boundary({psi, q});
-}
 
 trace
 void comp_del2(scalar psi, scalar zeta, double add, double fac)
 {
-  foreach_vertex()
-    foreach_layer()
-      zeta[] = add*zeta[] + fac*laplacian(psi);
+  foreach_all()
+    zeta[] = add*zeta[] + fac*laplacian(psi);
   
   boundary({zeta});
 }
-
-trace
-void comp_stretch(scalar psi, scalar stretch, double add, double fac)
-{
-
-    // WARNING: iRd2_l only defined in first layer
-    foreach_vertex()
-      stretch[0,0,nl-1] = add*stretch[0,0,nl-1] + fac*(iRd2_l[]*psi[0,0,nl-1]);
-//      stretch[0,0,nl-1] = add*stretch[0,0,nl-1] + fac*(iRd2_l[]*psi[0,0,nl-1]);
-
-  boundary({stretch});
-}
-
-trace
-void comp_q(scalar psi, scalar q)
-{
-  comp_del2  (psi, q, 0., 1.);
-  comp_stretch(psi, q, 1., 1.);
-  boundary({q});
-}
 /**
-   Advection
+   Prototype functions
+ */
+
+void (* invert_q) (scalar psi, scalar q) = NULL;
+
+void (* comp_q) (scalar psi, scalar q) = NULL;
+
+void (* rhs_pv) (scalar q, scalar psi, scalar dqdt) = NULL;
+
+
+/**
+  compute dtmax (ajusted from timestep.h)
+
 */
-
-trace
-double advection_pv(scalar zeta, scalar q, scalar psi, scalar dqdt, double dtmax)
-{
-  foreach_vertex()
-    foreach_layer()
-      dqdt[] += -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - beta_effect(psi);
-
-  // compute dtmax (ajusted from timestep.h)
+double adjust_dt(scalar psi, double dtmax){
   static double previous = 0.;
   dtmax /= CFL;
   foreach_face(reduction(min:dtmax)){
+#if LAYERS
     foreach_layer() {
+#endif
       double u = (psi[0,1] - psi[])/Delta;
       if (u != 0.) {
         double dt = Delta/fabs(u);
         if (dt < dtmax) dtmax = dt;
       }
+#if LAYERS
     }
+#endif
   }
 
   dtmax *= CFL;
@@ -258,34 +251,11 @@ double advection_pv(scalar zeta, scalar q, scalar psi, scalar dqdt, double dtmax
   previous = dtmax;
   return dtmax;
 }
-
-trace
-void dissip  (scalar zeta, scalar dqdt)
-{
-  comp_del2(zeta, dqdt, 1., nu);
-}
-
 /**
-   Bottom  Ekman Friction
+  Advance and update functions for time stepping. 
+  Advance is different from the generic function because the loop is over vertices.
+
 */
-
-trace
-void ekman_friction  (scalar zeta, scalar dqdt)
-{
-  foreach_vertex()
-    dqdt[0,0,nl-1] -= hEkb*f0/(2*dh[nl-1])*zeta[0,0,nl-1];
-}
-
-/**
-   surface forcing
-*/
-trace
-void surface_forcing  (scalar dqdt)
-{
-  foreach_vertex()
-    dqdt[] -= q_forcing[];
-}
-
 
 static void advance_qg (scalar * output, scalar * input,
                         scalar * updates, double dt)
@@ -295,9 +265,8 @@ static void advance_qg (scalar * output, scalar * input,
   vertex scalar qo = output[0];
   vertex scalar dq = updates[0];
 
-  foreach_vertex()
-    foreach_layer()
-      qo[] = qi[] + dq[]*dt;
+  foreach_all()
+    qo[] = qi[] + dq[]*dt;
 //  boundary(output);
 }
 
@@ -305,19 +274,13 @@ static void advance_qg (scalar * output, scalar * input,
 double update_qg (scalar * evolving, scalar * updates, double dtmax)
 {
 
-  reset (updates, 0.);
-
   vertex scalar q = evolving[0];
   vertex scalar dqdt = updates[0];
 
-  invertq(psi, q);
-  comp_del2(psi, zeta, 0., 1.0);
-  dtmax = advection_pv(zeta, q, psi, dqdt, dtmax);
+  invert_q(psi, q);
+  rhs_pv(q, psi, dqdt);  
+  dtmax = adjust_dt(psi, dtmax);
 
-  dissip(zeta, dqdt);
-  ekman_friction(zeta, dqdt);
-  surface_forcing(dqdt);
-  
   return dtmax;
 }
 
@@ -371,32 +334,20 @@ event write_1d_diag (t=0; t <= tend+1e-10; t += dtdiag){
 void set_vars()
 {
 
-
+#if LAYERS
   q = new vertex scalar[nl];
   psi = new vertex scalar[nl];
-  zeta = new vertex scalar[nl];
-
-  psi_pg = new vertex scalar[nl];
+#endif
 
   psi.restriction = restriction_vert;
   psi.prolongation = refine_vert;
-
-  zeta.restriction = restriction_vert;
-  zeta.prolongation = refine_vert;
 
   q.restriction = restriction_vert;
   q.prolongation = refine_vert;
 
 
-  reset ({q, psi, zeta}, 0.);
+  reset ({q, psi}, 0.);
   reset ({q_forcing}, 0.);
-  reset ({psi_pg}, 0.);
-  reset ({gp_l}, gp_l0);
-
-//  if (nl > 1)
-//    dhc = malloc ((nl-1)*sizeof(double));
-
-
 
   /**
      We overload the default 'advance' and 'update' functions of the
@@ -425,15 +376,17 @@ void set_const() {
 
   // Warning iRd2_l defined on upper layer only
   // TODO: to be upddated for multi layer
-  foreach_vertex()
-      iRd2_l[] = gp_l[] != 0 ? -sq(f0 + flag_ms*beta*(y-0.5*L0))/(gp_l[]*dh[nl-1]) : 0;
+  /* foreach_vertex() */
+  /*   S2[] = 0; */
+    
+//      iRd2_l[] = gp_l[] != 0 ? -sq(f0 + flag_ms*beta*(y-0.5*L0))/(gp_l[]*dh[nl-1]) : 0;
 
   comp_q(psi,q); // last part of init: invert PV
 
   boundary (all);
 }
 
-event init (i = 0) {  
+event init (i = 0, last) {  
   set_const(); 
 }
 
@@ -441,10 +394,10 @@ event init (i = 0) {
 ## Cleanup */
 
 void trash_vars(){
-  delete ({q, psi, zeta});
-  delete ({psi_pg});
+#if LAYERS
+  delete ({q, psi});
+#endif
   free(evolving);
-//  free(dhc);
 
 }
 

@@ -10,7 +10,12 @@
 #include <netcdf.h>
 #pragma autolink -lnetcdf
 
+#if LAYERS
 #define NDIMS 4
+#else
+#define NDIMS 3
+#endif
+
 #define Y_NAME "y"
 #define X_NAME "x"
 #define REC_NAME "time"
@@ -60,8 +65,10 @@ void create_nc()
    /* Define the dimensions. The record dimension is defined to have
     * unlimited length - it can grow as needed. In this example it is
     * the time dimension.*/
+#if LAYERS
    if ((nc_err = nc_def_dim(ncid, LVL_NAME, nl, &lvl_dimid)))
       ERR(nc_err);
+#endif
    if ((nc_err = nc_def_dim(ncid, Y_NAME, N+1, &y_dimid)))
       ERR(nc_err);
    if ((nc_err = nc_def_dim(ncid, X_NAME, N+1, &x_dimid)))
@@ -84,17 +91,24 @@ void create_nc()
    if ((nc_err = nc_def_var(ncid, X_NAME, NC_FLOAT, 1, &x_dimid,
         		    &x_varid)))
       ERR(nc_err);
+#if LAYERS
    if ((nc_err = nc_def_var(ncid, LVL_NAME, NC_FLOAT, 1, &lvl_dimid,
         		    &lvl_varid)))
       ERR(nc_err);
+#endif
    /* The dimids array is used to pass the dimids of the dimensions of
       the netCDF variables. Both of the netCDF variables we are
       creating share the same four dimensions. In C, the
       unlimited dimension must come first on the list of dimids. */
    dimids[0] = rec_dimid;
+#if LAYERS
    dimids[1] = lvl_dimid;
    dimids[2] = y_dimid;
    dimids[3] = x_dimid;
+#else
+   dimids[1] = y_dimid;
+   dimids[2] = x_dimid;
+#endif
 
    /* Define the netCDF variables */
 //   char * str1;
@@ -134,12 +148,14 @@ void create_nc()
    if ((nc_err = nc_put_var_float(ncid, x_varid, &xc[0])))
       ERR(nc_err);
 
+#if LAYERS
    float zc[nl];
    for (int i = 0; i < nl; i++){
       zc[i] = i;
    }
    if ((nc_err = nc_put_var_float(ncid, lvl_varid, &zc[0])))
       ERR(nc_err);
+#endif
 
    /* Close the file. */
    if ((nc_err = nc_close(ncid)))
@@ -193,16 +209,25 @@ void write_nc(struct OutputNetcdf p) {
      setting of start[0] inside the loop below tells netCDF which
      timestep to write.) */
   start[0] = nc_rec; //time
+#if LAYERS
   start[1] = 0;     //level
   start[2] = 0;      //y
   start[3] = 0;      //x
+#else
+  start[1] = 0;      //y
+  start[2] = 0;      //x
+#endif
+
   
   count[0] = 1;
+#if LAYERS
   count[1] = nl;
   count[2] = p.n;
   count[3] = p.n;
-
-  
+#else
+  count[1] = p.n;
+  count[2] = p.n;
+#endif  
   int nv = -1;
   /* char * str1; */
 //  foreach_layer() {
@@ -218,10 +243,13 @@ void write_nc(struct OutputNetcdf p) {
     }
 
       foreach_vertex(noauto){
-    foreach_layer() {
+#if LAYERS
+    foreach_layer()
+#else
+      int _layer = 0;
+#endif
         //      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
         field[p.n*p.n*_layer + p.n*_J + _I] = s[];
-      }
     }
 
 
@@ -305,15 +333,24 @@ void read_nc(scalar * list_in, char* file_in){
 
   size_t start[NDIMS], count[NDIMS];
   start[0] = 0; //time
+#if LAYERS
   start[1] = 0;
   start[2] = 0;
   start[3] = 0;
+#else
+  start[1] = 0;
+  start[2] = 0;
+#endif
 
   count[0] = 1;
+#if LAYERS
   count[1] = nl;
   count[2] = Nloc;
   count[3] = Nloc;
-
+#else
+  count[1] = Nloc;
+  count[2] = Nloc;
+#endif
 
   for (scalar s in list_in){
     for(i=0; i<nvars; i++) {
@@ -331,12 +368,17 @@ void read_nc(scalar * list_in, char* file_in){
                                                  &field[0])))
             ERR(nc_err);
 
-          foreach_layer() {
+#if LAYERS
+            foreach_layer() {
+#else
+      int _layer = 0;
+#endif
             foreach_vertex(noauto){
               s[] = field[Nloc*Nloc*_layer + Nloc*_J + _I];
             }
+#if LAYERS
           }
-          
+#endif          
         }
 
 
