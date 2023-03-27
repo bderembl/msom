@@ -67,10 +67,11 @@ CFL   = 0.2
 TOLERANCE = 1e-5
 
 
-sbc is a parametre that controls the type of boundary conditions:
-sbc = -1  -> periodic BC (experimental)
-sbc = 0   -> free slip BC
-sbc = big number (>10) -> no slip BC
+bc_fac is a parameter that controls the type of boundary conditions:
+bc_fac = 0      -> free slip BC (default)
+bc_fac = [0..1] -> partial slip
+bc_fac = 1      -> no slip BC
+bc_fac = -1     -> periodic BC (experimental)
 
 dtout is the frequency for writing outputs
 tend the total time of the simulation
@@ -117,7 +118,7 @@ double beta = 0.;
 double hEkb = 0.;
 double tau0 = 0.;
 double nu = 0.;
-double sbc = 0.;
+//double sbc = 0.;
 double tend = 100.;
 double dtout = 1.; 
 double dh[nl_max] = {1.};
@@ -191,17 +192,21 @@ double dtdiag = -1; // non zero
 void set_bc()
 {
   // derived const
-  bc_fac = sbc/((0.5*sbc + 1)); 
+  //bc_fac = sbc/((0.5*sbc + 1)); 
 
   psi[left]   = psi_bc;
   psi[right]  = psi_bc;
   psi[bottom] = psi_bc;
   psi[top]    = psi_bc;
 
-  q[left]   = bc_fac/sq(Delta)*(psi[1] - psi_bc);
-  q[right]  = bc_fac/sq(Delta)*(psi_bc - psi[1]);
-  q[bottom] = bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
-  q[top]    = bc_fac/sq(Delta)*(psi_bc - psi[0,1]);
+  /**
+     First interior point minus boundary point in vertex convention.
+   */
+
+  q[left]   = 2*bc_fac/sq(Delta)*(psi[1]   - psi_bc);
+  q[right]  = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
+  q[bottom] = 2*bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
+  q[top]    = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
 }
 
 

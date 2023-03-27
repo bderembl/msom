@@ -53,7 +53,8 @@ void read_params(char* path2file)
       else if (strcmp(tmps1,"nu")   ==0) { nu    = atof(tmps2); }
       else if (strcmp(tmps1,"gp_l") ==0) { gp_l0 = atof(tmps2); }
       else if (strcmp(tmps1,"flag_ms")  ==0) { flag_ms   = atoi(tmps2); }
-      else if (strcmp(tmps1,"sbc")  ==0) { sbc   = atof(tmps2); }
+      else if (strcmp(tmps1,"bc_fac")  ==0) { bc_fac   = atof(tmps2); }
+//      else if (strcmp(tmps1,"sbc")  ==0) { sbc   = atof(tmps2); }
       else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
       else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
       else if (strcmp(tmps1,"dtdiag")==0) { dtdiag = atof(tmps2); }

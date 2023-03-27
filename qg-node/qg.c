@@ -33,7 +33,7 @@ int main(int argc,char* argv[]) {
     read_params("params.in");
   }
 
-  if (sbc == -1) {
+  if (bc_fac == -1) {
     periodic(right);
     periodic(top);
   }
@@ -57,7 +57,7 @@ event init (i = 0) {
 //      psi[] = 1e-3*noise();
 
   foreach_vertex()
-    q_forcing[] = tau0/dh[0]*3/2*pi/L0*sin(2*pi*y/L0)*sin(pi*y/L0);
+    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
 
 
   fprintf(stdout, "Read input files:\n");
@@ -88,7 +88,9 @@ event init (i = 0) {
   /*   fprintf(stdout, "%s .. ok\n", name); */
   /* } */
 
-  boundary({psi});
+  comp_q(psi,q);
+
+  boundary({psi,q});
 
 }
 
@@ -113,6 +115,6 @@ event writestdout (i++) {
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
-//  invertq(psi, q);
+  invert_q(psi, q);
   write_nc();
 }

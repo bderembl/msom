@@ -272,7 +272,7 @@ void write_nc(struct OutputNetcdf p) {
     
     if (pid() == 0) { // master
 @if _MPI
-        MPI_Reduce (MPI_IN_PLACE, field[0], p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+        MPI_Reduce (MPI_IN_PLACE, &field[0], p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
   
  /*       int nv; */
@@ -291,7 +291,7 @@ void write_nc(struct OutputNetcdf p) {
   }
 @if _MPI
   else // slave
-  MPI_Reduce (field[0], NULL, p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+  MPI_Reduce (&field[0], NULL, p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
 //  }
   }

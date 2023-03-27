@@ -12,10 +12,12 @@ $$
 trace
 void rhs_pv_barotropic(scalar q, scalar psi, scalar dqdt)
 {
+
   foreach_all(){
-    dqdt[] = -jacobian(psi, q) - beta_effect(psi)\
+    dqdt[] = -jacobian(psi, q)                     \ 
+      - beta_effect(psi)                           \
       - hEkb*f0/(2*dh[nl-1])*q[]                   \
-      - q_forcing[]                                \
+      + q_forcing[]                                \
       + nu*laplacian(q);
   }
 //    dqdt[] += -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - beta_effect(psi);
