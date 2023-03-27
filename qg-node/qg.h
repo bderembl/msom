@@ -57,7 +57,7 @@ tau0 = 1e-3
 nu = 5
 beta = 0.5
 dh   = [1.0]
-sbc = 0
+bc_fac = 0
 
 # timestepping
 DT    = 5.e-2
@@ -118,7 +118,7 @@ double beta = 0.;
 double hEkb = 0.;
 double tau0 = 0.;
 double nu = 0.;
-//double sbc = 0.;
+//double sbc = 0.; //retired
 double tend = 100.;
 double dtout = 1.; 
 double dh[nl_max] = {1.};
@@ -192,7 +192,7 @@ double dtdiag = -1; // non zero
 void set_bc()
 {
   // derived const
-  //bc_fac = sbc/((0.5*sbc + 1)); 
+  //bc_fac = sbc/((0.5*sbc + 1)); // retired
 
   psi[left]   = psi_bc;
   psi[right]  = psi_bc;
