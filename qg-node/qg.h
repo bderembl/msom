@@ -90,20 +90,6 @@ Van Hoft.  Hence all fields are defined at cell vertices. (still experimental)
 //#define LAYERS 0
 #define nl_max 1000
 
-#if LAYERS
-
-@def foreach_all()
-  foreach_vertex()
-    foreach_layer() {
-@
-@define end_foreach_all() } end_foreach_vertex();
-
-#else
-
-int nl = 1;
-#define foreach_all() foreach_vertex()
-
-#endif
 
 #include "predictor-corrector.h"
 #include "nodal-poisson.h"
@@ -213,8 +199,11 @@ void set_bc()
 trace
 void comp_del2(scalar psi, scalar zeta, double add, double fac)
 {
-  foreach_all()
-    zeta[] = add*zeta[] + fac*laplacian(psi);
+  foreach_vertex()
+#if LAYERS
+    foreach_layer()
+#endif
+      zeta[] = add*zeta[] + fac*laplacian(psi);
   
   boundary({zeta});
 }
@@ -270,8 +259,11 @@ static void advance_qg (scalar * output, scalar * input,
   vertex scalar qo = output[0];
   vertex scalar dq = updates[0];
 
-  foreach_all()
-    qo[] = qi[] + dq[]*dt;
+  foreach_vertex()
+#if LAYERS
+    foreach_layer()
+#endif
+      qo[] = qi[] + dq[]*dt;
 //  boundary(output);
 }
 
@@ -386,12 +378,12 @@ void set_const() {
     
 //      iRd2_l[] = gp_l[] != 0 ? -sq(f0 + flag_ms*beta*(y-0.5*L0))/(gp_l[]*dh[nl-1]) : 0;
 
-  comp_q(psi,q); // last part of init: invert PV
+  comp_q(psi,q); // last part of init: compute PV (initial condition in psi)
 
   boundary (all);
 }
 
-event init (i = 0, last) {  
+event init (i = 0) {
   set_const(); 
 }
 

@@ -242,16 +242,15 @@ void write_nc(struct OutputNetcdf p) {
       }
     }
 
-      foreach_vertex(noauto){
 #if LAYERS
     foreach_layer()
 #else
       int _layer = 0;
 #endif
+      foreach_vertex(noauto){
         //      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
         field[p.n*p.n*_layer + p.n*_J + _I] = s[];
     }
-
 
 
     /* for (int j = 0; j < p.n; j++) { */

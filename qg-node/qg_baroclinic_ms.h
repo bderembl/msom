@@ -10,6 +10,7 @@ $$
 
 vertex scalar psi_pg;
 vertex scalar S2;
+//vertex scalar N2; // alias for S2 (used to load variable only)
 vertex scalar zeta;
 
 vertex scalar topo[];
@@ -52,6 +53,7 @@ void set_bc_ms()
   zeta[right]  = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
   zeta[bottom] = 2*bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
   zeta[top]    = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
+
 }
 
 
@@ -64,7 +66,7 @@ void comp_stretch(scalar psi, scalar stretch, double add, double fac)
 {
 
   foreach_vertex() {
-    
+
     // upper layer
     _layer = 0;
     stretch[] = add*stretch[] + fac*S2[]*(psi[0,0,1] - psi[])*idh1[_layer];
@@ -151,11 +153,14 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
 trace
 void comp_q_baroclinic(scalar psi, scalar q)
 {
-  foreach_all()
-    q[] = laplacian(psi);
+  foreach_vertex()
+    foreach_layer()
+      q[] = laplacian(psi);
 
   comp_stretch(psi, q, 1., 1.);
 
+  // need to set bc to force boundary conditions
+  set_bc_ms();
   boundary({q});
 }
 
@@ -166,9 +171,7 @@ void comp_q_baroclinic(scalar psi, scalar q)
 trace
 void invert_q_baroclinic(scalar psi, scalar q)
 {
-
   mgpsi = vpoisson(psi, q);
-//  mgpsi = vpoisson(psi, q, lambda=iRd2_l);
   // need to reset the values of the BC (has to do with vertices?)
   set_bc_ms();
   boundary({psi, q});
@@ -234,12 +237,12 @@ static void relax_baroclinic (scalar * al, scalar * bl, int l, void * data)
     _layer = nl-1;
     a[] = t0[nl-1] = rhs[nl-1]/t1[nl-1];
     for (_layer = nl - 2; _layer >= 0; _layer--) {
-      a = al[_layer];
       a[] = t0[_layer] = (rhs[_layer] - t2[_layer]*t0[_layer+1])/t1[_layer];
     }
   }
   _layer = 0;
   boundary_level({a}, l);
+
 }
 
 static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void * data)
@@ -283,6 +286,7 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
         maxres = fabs(res[]);
 
     } _layer = 0;
+
     return maxres;
 
 }
@@ -314,7 +318,6 @@ event init (i = 0){
 
   double dhc[nl_max] = {1.};
 
-
   for (int l = 0; l < nl-1; l++)
     dhc[l] = 0.5*(dh[l] + dh[l+1]);
 
@@ -328,6 +331,23 @@ event init (i = 0){
   idh1[nl-1] = 0.;
 
   /**
+     Read values of N^2
+   */
+  fprintf(stdout, "Read input files:\n");
+
+  FILE * fp;
+  char name[80];
+  sprintf (name,"pgvars_%dl_N%d.nc", nl,N);
+  if ((fp = fopen(name, "r"))) {
+//    S2.name = "N2";
+    read_nc({S2, psi_pg}, name);
+//    S2.name = "S2";
+    fclose(fp);
+//    backup_file(name);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
+
+  /**
      Replace value S2: N^2 -> f^2/N^2
    */
 
@@ -336,6 +356,7 @@ event init (i = 0){
       S2[0,0,l] = sq(f_var)/S2[0,0,l];
     }
   restriction({S2});
+
 }
 
 
@@ -354,5 +375,4 @@ event defaults (i = 0){
   invert_q = invert_q_baroclinic;
   relax_nodal = relax_baroclinic;
   residual_nodal = residual_baroclinic;
-
 }

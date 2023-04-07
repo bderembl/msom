@@ -3,6 +3,9 @@
    Read input parameters
  */
 
+char dpath[80]; // name of output dir
+char file_param[80] = "params.in"; // name param file
+
 
 // for mkdir
 #include <sys/stat.h>
@@ -13,7 +16,7 @@ void trim_whitespace(char* s) {
   do {
     while (*d == ' ')
       ++d;
-  } while (*s++ = *d++);
+  } while ((*s++ = *d++));
   *s = '\0';
 }
 
@@ -24,58 +27,76 @@ void str2array(char *tmps2, double *array){
   p = strtok(tmps2,"[,]");
   while (p != NULL){
     array[n] = atof(p);
+    fprintf (stderr, "array[%d] = %g \n", n, array[n]);
     p = strtok(NULL, ",");
     n += 1;
   }
 }
+
+
+Array * params; 
+
+/**
+   These two structs should be identical.
+*/
+
+typedef struct {
+  char * name;
+  void * ptr;
+  char * type;
+  int len;
+} ParamItem;
+
+ParamItem par;
+
+struct NewParam {
+  char * name;
+  void * ptr;
+  char * type;
+  int len;
+};
+
+void add_param(struct NewParam p)
+{
+  array_append (params, &p, sizeof (ParamItem));
+
+}
+
+
 
 void read_params(char* path2file)
 {
   FILE * fp;
   if ((fp = fopen(path2file, "rt"))) {
     char tempbuff[300];
-    while(fgets(tempbuff,300,fp)) {
+    while(fgets(tempbuff,300,fp)) { // loop over file lines
       trim_whitespace(tempbuff);
       char* tmps1 = strtok(tempbuff, "=");
       char* tmps2 = strtok(NULL, "=");
-      // basilisk constants
-      if      (strcmp(tmps1,"N")    ==0) { N     = atoi(tmps2); }
-//      else if (strcmp(tmps1,"nl")   ==0) { nl    = atoi(tmps2); }
-      else if (strcmp(tmps1,"L0")   ==0) { L0    = atof(tmps2); }
-      else if (strcmp(tmps1,"DT")   ==0) { DT    = atof(tmps2); }
-      else if (strcmp(tmps1,"CFL")  ==0) { CFL   = atof(tmps2); }
-      else if (strcmp(tmps1,"TOLERANCE")==0) { TOLERANCE= atof(tmps2); }
-      // qg specific constants
-      else if (strcmp(tmps1,"f0")   ==0) { f0    = atof(tmps2); }
-      else if (strcmp(tmps1,"beta") ==0) { beta  = atof(tmps2); }
-      else if (strcmp(tmps1,"hEkb") ==0) { hEkb  = atof(tmps2); }
-      else if (strcmp(tmps1,"tau0") ==0) { tau0  = atof(tmps2); }
-      else if (strcmp(tmps1,"nu")   ==0) { nu    = atof(tmps2); }
-      else if (strcmp(tmps1,"gp_l") ==0) { gp_l0 = atof(tmps2); }
-      else if (strcmp(tmps1,"flag_ms")  ==0) { flag_ms   = atoi(tmps2); }
-      else if (strcmp(tmps1,"bc_fac")  ==0) { bc_fac   = atof(tmps2); }
-//      else if (strcmp(tmps1,"sbc")  ==0) { sbc   = atof(tmps2); }
-      else if (strcmp(tmps1,"tend") ==0) { tend  = atof(tmps2); }
-      else if (strcmp(tmps1,"dtout")==0) { dtout = atof(tmps2); }
-      else if (strcmp(tmps1,"dtdiag")==0) { dtdiag = atof(tmps2); }
-      else if (strcmp(tmps1,"dh")   ==0) { str2array(tmps2, dh);}
 
-//      printf("%s => %s\n", tmps1, tmps2);
+  ParamItem * d2 = params->p;
+  for (int i = 0; i < params->len/sizeof(ParamItem); i++, d2++) { // loop over parameters
+    if (strcmp(d2->name, tmps1) == 0) {
+      //check for type and assign value
+    if (strcmp(d2->type, "int") == 0) {
+      *( (int*) d2->ptr) = atoi(tmps2);
+      fprintf (stderr, "scan param %s: %d\n", d2->name, *( (int*) d2->ptr));}
+    else if (strcmp(d2->type, "double") == 0){
+      *( (double*) d2->ptr) = atof(tmps2);
+      fprintf (stderr, "scan param %s: %e\n", d2->name, *( (double*) d2->ptr));}
+    else if (strcmp(d2->type, "array") == 0){
+      fprintf (stderr, "scan param %s:\n", d2->name);
+      str2array(tmps2, (double*) d2->ptr);
+      }
+    }
+    }
+
     }
     fclose(fp);
   } else {
     fprintf(stdout, "file %s not found\n", path2file);
     exit(0);
   }
-
-  /**
-     Viscosity CFL = 0.5
-   */
-  if (nu  != 0) DT = 0.5*min(DT,sq(L0/N)/nu/4.);
-
-
-  fprintf(stdout, "Config: N = %d, L0 = %g\n", N,  L0);
-//  fprintf(stdout, "Config: N = %d, nl = %d, L0 = %g\n", N, nl, L0);
 }
 
 /**
@@ -97,21 +118,19 @@ void create_outdir()
 @endif
 }
 
-void backup_config()
+void backup_config(char* path2file)
 {
   fprintf(stdout, "Backup config\n");
   char ch;
-  char name[80];
+  char name[90];
   sprintf (name,"%sparams.in", dpath);
-  FILE * source = fopen("params.in", "r");
+  FILE * source = fopen(path2file, "r");
   FILE * target = fopen(name, "w");
   while ((ch = fgetc(source)) != EOF)
     fputc(ch, target);
   fclose(source);
   fclose(target);
 }
-
-
 
 /**
  Copy file

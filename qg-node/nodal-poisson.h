@@ -51,32 +51,29 @@ mgstats vpoisson (struct Poisson p) {
   /* lambda.prolongation = refine_vert; */
   /* restriction ({lambda}); */
 
-  vertex scalar da[], res[], a = p.a, b = p.b;
-  scalar_clone (da, a);
-  da.restriction = restriction_vert;
-  da.prolongation = refine_vert;
+
+  vertex scalar * da = list_clone ({p.a}), * res = p.res;
+  if (!res)
+    res = list_clone ({p.b});
+  
+  for (vertex scalar s in da){
+    s.restriction = restriction_vert;
+    s.prolongation = refine_vert;
+  }  
 
 
-  /* da[left]   = 0.; */
-  /* da[right]  = 0.; */
-  /* da[top]    = 0.; */
-  /* da[bottom] = 0.; */
+  for (vertex scalar s in res){
+    s.prolongation = refine_vert;
+    // BD: In principle, there is no need to define a BC for the rhs (or
+    // residual).  However, for the Multigrid method, these BC are necessary to
+    // converge in case a and b do not have the same BC (e.g. for the QG model with no slip BC)
+    s[left]   = 0.;
+    s[right]  = 0.;
+    s[top]    = 0.;
+    s[bottom] = 0.;
+  }
 
 
-  if (p.res)
-    res = p.res[0];
-  else 
-    scalar_clone (res, b);
-//  res.restriction = restriction_vert;
-  res.prolongation = refine_vert;
-
-  // BD: In principle, there is no need to define a BC for the rhs (or
-  // residual).  However, for the Multigrid method, these BC are necessary to
-  // converge in case a and b do not have the same BC (e.g. for the QG model with no slip BC)
-  res[left]   = 0.;
-  res[right]  = 0.;
-  res[top]    = 0.;
-  res[bottom] = 0.;
 
 
   mgstats mg; mg.sum = HUGE, mg.resa = HUGE;
@@ -90,7 +87,7 @@ mgstats vpoisson (struct Poisson p) {
     // Residual
     double max = 0;
 
-    max = residual_nodal ({a}, {b}, {res}, &p);
+    max = residual_nodal ({p.a}, {p.b}, res, &p);
 
     // Statistics
     mg.resa = max;
@@ -100,23 +97,29 @@ mgstats vpoisson (struct Poisson p) {
     if (max < TOLERANCE && mg.i >= NITERMIN)
       break;
     // Residual on levels requires attention
-    res.restriction = restriction_vert;
-    boundary ({res});
-    res.restriction = restriction_coarsen_vert;
-    multigrid_restriction ({res});
+    for (scalar s in res)
+      s.restriction = restriction_vert;
+    boundary (res);
+    for (scalar s in res)
+      s.restriction = restriction_coarsen_vert;
+    multigrid_restriction (res);
     for (int l = 0; l <= depth(); l++) {
-      boundary_level({res}, l);      
+      boundary_level(res, l);      
     }
 
     // Guess
     foreach_vertex_level(mg.minlevel)
-      da[] = 0;
+	for (vertex scalar s in da)
+#if LAYERS
+          foreach_layer()
+#endif
+          s[] = 0;
     // Up-cycle
     for (int l = mg.minlevel; l <= depth(); l++) {
-      boundary_level({da}, l);
+      boundary_level(da, l);
       // Relaxation sweep
       for (int rel = 0; rel < mg.nrelax; rel++) {
-        relax_nodal ({da}, {res}, l, &p);
+        relax_nodal (da, res, l, &p);
       }
       // Prolongation
       //    printf("LEVEL: %d\n",l);
@@ -125,23 +128,40 @@ mgstats vpoisson (struct Poisson p) {
       // modif BD
       if (l < depth()){
         foreach_vertex_level(l){
+          for (vertex scalar s in da)
+#if LAYERS
+            foreach_layer()
+#endif
           //   printf("%g \t %g \t %g\n",x,y,da[]);
-          refine_vert (point, da);
+            refine_vert (point, s);
         }
-        boundary_level({da}, l+1);
+        boundary_level(da, l+1);
 
       }
     }
     // Correction
-    foreach_vertex()
-      a[] += da[];
-    boundary ({a});
+    foreach_vertex(){
+//      scalar s = p.a[0];
+      vertex scalar ds = da[0];
+#if LAYERS
+          foreach_layer()
+#endif
+//      for (s, ds in p.a, da)
+        p.a[] += ds[];
+    }
+    boundary ({p.a});
   }
-  if (mg.resa > TOLERANCE)
+  if (mg.resa > TOLERANCE) {
     fprintf (stderr, "Convergence for %s not reached.\n"
 	     "mg.i = %d, mg.resb: %g mg.resa: %g\n",
-	     a.name, mg.i, mg.resb,  mg.resa);
+	     p.a.name, mg.i, mg.resb,  mg.resa);
+  }
   if (p.tolerance)
     TOLERANCE = defaultol;
+
+  if (!p.res)
+    delete (res), free (res);
+  delete (da), free (da);
+
   return mg;
 }
