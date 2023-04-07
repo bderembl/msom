@@ -124,7 +124,20 @@ event write_const (t = 0) {
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
+
+
+// temporary
+  foreach_vertex() 
+    foreach_layer(){
+    q[] = q[]*mask[];
+
+    //TODO: no need to put psi here but we need to find a way...
+    psi[] = psi[]*mask[];
+  }
+
+
   invert_q(psi, q);
+    
   write_nc();
   fprintf(stdout,"file written \n");
 }

@@ -330,26 +330,6 @@ void read_nc(scalar * list_in, char* file_in){
   if ((nc_err = nc_inq(ncfile, &ndims, &nvars, &ngatts, &unlimited)))
     ERR(nc_err);
 
-  size_t start[NDIMS], count[NDIMS];
-  start[0] = 0; //time
-#if LAYERS
-  start[1] = 0;
-  start[2] = 0;
-  start[3] = 0;
-#else
-  start[1] = 0;
-  start[2] = 0;
-#endif
-
-  count[0] = 1;
-#if LAYERS
-  count[1] = nl;
-  count[2] = Nloc;
-  count[3] = Nloc;
-#else
-  count[1] = Nloc;
-  count[2] = Nloc;
-#endif
 
   for (scalar s in list_in){
     for(i=0; i<nvars; i++) {
@@ -363,6 +343,35 @@ void read_nc(scalar * list_in, char* file_in){
       if (strcmp(varname,s.name) == 0) {
         fprintf(stdout,"Reading variable  %s!\n", s.name);
 
+        int nl_loc = _attribute[s.i].block;
+
+        if (nl_loc == 1){
+          size_t start[3], count[3];
+          start[0] = 0; //time
+          start[1] = 0;
+          start[2] = 0;
+
+          count[0] = 1;
+          count[1] = Nloc;
+          count[2] = Nloc;
+          if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
+                                                 &field[0])))
+            ERR(nc_err);
+
+          foreach_vertex(noauto)
+              s[] = field[Nloc*_J + _I];
+
+        } else {
+          size_t start[4], count[4];
+          start[0] = 0; //time
+          start[1] = 0;
+          start[2] = 0;
+          start[3] = 0;
+
+          count[0] = 1;
+          count[1] = nl;
+          count[2] = Nloc;
+          count[3] = Nloc;
           if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
                                                  &field[0])))
             ERR(nc_err);
@@ -378,6 +387,10 @@ void read_nc(scalar * list_in, char* file_in){
 #if LAYERS
           }
 #endif          
+
+        }
+
+
         }
 
 

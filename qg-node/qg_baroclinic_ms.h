@@ -171,6 +171,7 @@ void comp_q_baroclinic(scalar psi, scalar q)
 trace
 void invert_q_baroclinic(scalar psi, scalar q)
 {
+
   mgpsi = vpoisson(psi, q);
   // need to reset the values of the BC (has to do with vertices?)
   set_bc_ms();
@@ -340,7 +341,7 @@ event init (i = 0){
   sprintf (name,"pgvars_%dl_N%d.nc", nl,N);
   if ((fp = fopen(name, "r"))) {
 //    S2.name = "N2";
-    read_nc({S2, psi_pg}, name);
+    read_nc({S2, psi_pg, mask}, name);
 //    S2.name = "S2";
     fclose(fp);
 //    backup_file(name);

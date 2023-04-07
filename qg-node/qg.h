@@ -92,6 +92,8 @@ Van Hoft.  Hence all fields are defined at cell vertices. (still experimental)
 
 
 #include "predictor-corrector.h"
+vertex scalar mask[];
+
 #include "nodal-poisson.h"
 
 
@@ -263,7 +265,7 @@ static void advance_qg (scalar * output, scalar * input,
 #if LAYERS
     foreach_layer()
 #endif
-      qo[] = qi[] + dq[]*dt;
+      qo[] = (qi[] + dq[]*dt)*mask[];
 //  boundary(output);
 }
 
@@ -342,6 +344,18 @@ void set_vars()
   q.restriction = restriction_vert;
   q.prolongation = refine_vert;
 
+  mask.restriction = restriction_vert;
+  mask.prolongation = refine_vert;
+
+  mask[left]   = 0.;
+  mask[right]  = 0.;
+  mask[top]    = 0.;
+  mask[bottom] = 0.;
+
+  foreach_vertex()
+    mask[] = 1.;
+
+
 
   reset ({q, psi}, 0.);
   reset ({q_forcing}, 0.);
@@ -369,6 +383,14 @@ The event below will happen after all the other initial events to take
 into account user-defined field initialisations. */
 
 void set_const() {
+
+
+  boundary ({mask});
+  restriction({mask});
+  for (int l = 0; l <= depth(); l++) {
+    boundary_level({mask}, l);
+
+  }
 
 
   // Warning iRd2_l defined on upper layer only

@@ -12,32 +12,8 @@ where vertices are shared and the restriciton of the residual.
 #include "my_vertex.h"
 #include "poisson.h"
 
-vertex scalar mask[];
-
-event init (i = 0) {  
-
-  mask.restriction = restriction_vert;
-  mask.prolongation = refine_vert;
-
-  mask[left]   = 0.;
-  mask[right]  = 0.;
-  mask[top]    = 0.;
-  mask[bottom] = 0.;
-
-  foreach_vertex()
-    mask[] = 1.;
-  boundary ({mask});
-  restriction({mask});
-  for (int l = 0; l <= depth(); l++) {
-    boundary_level({mask}, l);
-
-  }
-}
-
 static void (* relax_nodal) (scalar * al, scalar * bl, int l, void * data);
 static double (* residual_nodal) (scalar * al, scalar * bl, scalar * resl, void * data);
-
-
 
 
 mgstats vpoisson (struct Poisson p) {
