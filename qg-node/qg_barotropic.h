@@ -13,8 +13,8 @@ trace
 void rhs_pv_barotropic(scalar q, scalar psi, scalar dqdt)
 {
 
-  foreach_all(){
-    dqdt[] = -jacobian(psi, q)                     \ 
+  foreach_vertex(){
+    dqdt[] = -jacobian(psi, q)                     \
       - beta_effect(psi)                           \
       - hEkb*f0/(2*dh[nl-1])*q[]                   \
       + q_forcing[]                                \
@@ -28,7 +28,7 @@ void rhs_pv_barotropic(scalar q, scalar psi, scalar dqdt)
 trace
 void comp_q_barotropic(scalar psi, scalar q)
 {
-  foreach_all()
+  foreach_vertex()
     q[] = laplacian(psi);
 
   boundary({q});
