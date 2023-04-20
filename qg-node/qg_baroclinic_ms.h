@@ -14,10 +14,12 @@ vertex scalar S2;
 vertex scalar zeta;
 
 vertex scalar topo[];
+vertex scalar sig_lev[];
 
 
 double idh0[nl_max] = {1.};
 double idh1[nl_max] = {1.};
+double N2[nl_max] = {1.};
 
 
 /**
@@ -89,6 +91,14 @@ trace
 void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
 {
   
+  foreach_vertex() {
+    foreach_layer(){
+      q[] *= mask[];
+      psi[] *= mask[];
+    }
+  }
+
+
   comp_del2(psi, zeta, 0., 1.);
 
   foreach_vertex(){
@@ -144,6 +154,11 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
   }
 
 
+  foreach_vertex() {
+    foreach_layer(){
+      dqdt[] *= mask[];
+    }
+  }
 
 //    dqdt[] += -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - beta_effect(psi);
 
@@ -292,6 +307,68 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
 
 }
 
+trace
+void wavelet_filter(scalar q, scalar psi)
+{
+
+  invert_q(psi,q);
+
+  foreach_layer(){
+    scalar w[];
+    scalar psi_i[];
+
+    w[top]    = 0;
+    w[bottom] = 0;
+    w[right]  = 0;
+    w[left]   = 0;
+
+    psi_i[top]    = dirichlet(0.);
+    psi_i[bottom] = dirichlet(0.);
+    psi_i[right]  = dirichlet(0.);
+    psi_i[left]   = dirichlet(0.);
+
+
+
+    // TODO: temporary fix to do wavelet transform with centered field
+    // should be done in vertex field
+    foreach()
+      psi_i[] = 0.25*(psi[] + psi[1] + psi[0,1] + psi[1,1]);
+    
+    wavelet(psi_i,w);
+//    wavelet(psi,w);
+
+    for (int l = 0; l <= depth(); l++) {
+      foreach_vertex_level (l)
+        w[] *= sig_lev[];
+      boundary_level ({w}, l);
+    }
+    inverse_wavelet (psi_i, w);
+//    inverse_wavelet (psi, w);
+
+    if (Lfmax < HUGE)
+      foreach_vertex()
+        psi[] = (psi[] - 0.25*(psi_i[] + psi_i[-1] + psi_i[0,-1] + psi_i[-1,-1]))*mask[];
+
+
+    /* foreach_vertex() */
+    /*   psi[] *= mask[]; */
+    
+  }
+  
+  boundary({psi});
+
+  comp_q(psi,q);
+  
+}
+
+/**
+   Filter
+*/
+event filter (t = dtflt; t <= tend+1e-10;  t += dtflt) {
+  fprintf(stdout,"Filter solution\n");
+  wavelet_filter ( q, psi);
+}
+
 event defaults (i = 0){
 
   S2 = new vertex scalar[nl];
@@ -334,19 +411,28 @@ event init (i = 0){
   /**
      Read values of N^2
    */
+
+  // defined in params.in
+  foreach_vertex()
+    for (int l = 0; l < nl-1 ; l++) {
+      S2[0,0,l] = N2[l];
+    }
+
   fprintf(stdout, "Read input files:\n");
 
   FILE * fp;
   char name[80];
-  sprintf (name,"pgvars_%dl_N%d.nc", nl,N);
+  sprintf (name,"input_vars_%dl_N%d.nc", nl,N);
   if ((fp = fopen(name, "r"))) {
 //    S2.name = "N2";
     read_nc({S2, psi_pg, mask}, name);
+//    read_nc({S2, psi_pg}, name);
 //    S2.name = "S2";
     fclose(fp);
-//    backup_file(name);
+    backup_file(name);
     fprintf(stdout, "%s .. ok\n", name);
   }
+
 
   /**
      Replace value S2: N^2 -> f^2/N^2
@@ -358,6 +444,42 @@ event init (i = 0){
     }
   restriction({S2});
 
+
+
+  /**
+     Compute filter
+
+   */
+
+
+  // low pass filter
+  for (int l = depth(); l >= 0; l--) {
+    foreach_vertex_level (l) {
+      double ref_flag = 0;
+      if (l < depth())
+        foreach_child()
+          ref_flag += sig_lev[];
+      if (ref_flag > 0)
+        sig_lev[] = 1;
+      else
+        if (Lfmax > 2*Delta)
+          sig_lev[] = 0;
+        else if (Lfmax <= 2*Delta && Lfmax > Delta)
+          sig_lev[] = 1-(Lfmax-Delta)/Delta;
+        else
+          sig_lev[] = 1;
+    }
+    boundary_level ({sig_lev}, l);
+  }
+
+  /* // high pass filter */
+  /* for (int l = depth(); l >= 0; l--) { */
+  /*   foreach_vertex_level (l) */
+  /*     sig_lev[] = 1 - sig_lev[]; */
+  /*   boundary_level ({sig_lev}, l);   */
+  /* } */
+
+
 }
 
 
@@ -368,8 +490,6 @@ event cleanup (t = end, last)
 
 
 event defaults (i = 0){
-
-  flag_ms = 1;
 
   rhs_pv = rhs_pv_baroclinic;
   comp_q = comp_q_baroclinic;

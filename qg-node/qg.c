@@ -24,12 +24,12 @@ int nl = 1;
 
 
 #include "grid/multigrid.h"
+#include "extra.h"
 #include "netcdf_vertex_bas.h"
 
 #include "qg.h"
 //#include "qg_barotropic.h"
 #include "qg_baroclinic_ms.h"
-#include "extra.h"
 
 char* fileout = "vars.nc";
 
@@ -40,12 +40,18 @@ int main(int argc,char* argv[]) {
   params = array_new();
   add_param ("N", &N, "int");
   add_param ("nl", &nl, "int");
+  add_param ("flag_ms", &flag_ms, "int");
   add_param ("L0", &L0, "double");
   add_param ("f0", &f0, "double");
   add_param ("beta", &beta, "double");
   add_param ("nu", &nu, "double");
+  add_param ("hEkb", &hEkb, "double");
   add_param ("tau0", &tau0, "double");
+  add_param ("noise_init", &noise_init, "double");
+  add_param ("Lfmax", &Lfmax, "double");
+  add_param ("dtflt", &dtflt, "double");
   add_param ("dh", &dh[0], "array");
+  add_param ("N2", &N2[0], "array");
   add_param ("bc_fac", &bc_fac, "double");
   add_param ("DT", &DT, "double");
   add_param ("tend", &tend, "double");
@@ -68,8 +74,7 @@ int main(int argc,char* argv[]) {
     periodic(right);
     periodic(top);
   }
-
-
+ 
   init_grid (N);
   size(L0);
 
@@ -81,34 +86,13 @@ int main(int argc,char* argv[]) {
 
 
 /**
-   Initial conditions, surface forcing and PG fields
+   Surface forcing
 */
 event init (i = 0) {
 
-  foreach_vertex() 
-#if LAYERS
-    foreach_layer()
-#endif
-        psi[] = 1e-3*noise();
-//      psi[] = 1e-3*noise();
-
   foreach_vertex()
-    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
-
-
-  fprintf(stdout, "Read input files:\n");
-
-  FILE * fp;
-  char name[80];
-  sprintf (name,"restart.nc");
-  if ((fp = fopen(name, "r"))) {
-    read_nc({psi}, name);
-    fclose(fp);
-    backup_file(name);
-    fprintf(stdout, "%s .. ok\n", name);
-  }
-
-  boundary({psi});
+    q_forcing[] = -tau0/dh[0]*2*pi/L0*sin(2*pi*y/L0);
+//    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
 
 }
 
@@ -125,20 +109,11 @@ event write_const (t = 0) {
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
 
+  if (i == 0)
+    invert_q(psi, q);
 
-// temporary
-  foreach_vertex() 
-    foreach_layer(){
-    q[] = q[]*mask[];
-
-    //TODO: no need to put psi here but we need to find a way...
-    psi[] = psi[]*mask[];
-  }
-
-
-  invert_q(psi, q);
-    
   write_nc();
+
   fprintf(stdout,"file written \n");
 }
 

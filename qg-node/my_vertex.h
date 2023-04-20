@@ -60,6 +60,20 @@ static inline void restriction_coarsen_vert (Point point, scalar s) {
 	 fine(s,0,1,0) + fine(s,0,-1,0))/6.;
 #endif
 }
+
+
+static inline void restriction_coarsen_vert2 (Point point, scalar s) {
+#if (dimension == 1)
+  s[] = (fine(s,1,0,0) + 2*fine(s,0,0,0) + fine(s,-1,0,0))/4.;
+#elif (dimension == 2)
+  s[] = (4*fine(s,0,0,0) + 
+         2*fine(s,1,0,0) + 2*fine(s,-1,0,0) +
+	 2*fine(s,0,1,0) + 2*fine(s,0,-1,0) + 
+         fine(s,1,1,0) + fine(s,-1,1,0) +
+	 fine(s,1,-1,0) + fine(s,-1,-1,0))/16.;
+#endif
+}
+
 /**
 ## High-Level Boundary treatment
 

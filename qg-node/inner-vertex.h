@@ -136,3 +136,9 @@ OMP_PARALLEL() {
   }
 }
 @
+
+
+@ifndef foreach_coarse_vertex_level
+@ define foreach_coarse_vertex_level      foreach_level
+@ define end_foreach_coarse_vertex_level  end_foreach_level
+@endif

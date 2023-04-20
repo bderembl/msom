@@ -112,7 +112,12 @@ double dtout = 1.;
 double dh[nl_max] = {1.};
 double gp_l0 = 0.;
 
+double noise_init = 0;
+double Lfmax = HUGE;
+double dtflt = -1; // Delat T filtering
+
 int flag_ms = 0;
+
 
 char dpath[80]; // name of output dir
 /** 
@@ -239,12 +244,16 @@ double adjust_dt(scalar psi, double dtmax){
 #if LAYERS
     }
 #endif
+
+
+
   }
 
   dtmax *= CFL;
   if (dtmax > previous)
     dtmax = (previous + 0.1*dtmax)/1.1;
   previous = dtmax;
+
   return dtmax;
 }
 /**
@@ -265,7 +274,7 @@ static void advance_qg (scalar * output, scalar * input,
 #if LAYERS
     foreach_layer()
 #endif
-      qo[] = (qi[] + dq[]*dt)*mask[];
+      qo[] = qi[] + dq[]*dt;
 //  boundary(output);
 }
 
@@ -344,7 +353,8 @@ void set_vars()
   q.restriction = restriction_vert;
   q.prolongation = refine_vert;
 
-  mask.restriction = restriction_vert;
+//  mask.restriction = restriction_vert;
+  mask.restriction = restriction_coarsen_vert2; // better convergence for poisson solver
   mask.prolongation = refine_vert;
 
   mask[left]   = 0.;
@@ -389,8 +399,29 @@ void set_const() {
   restriction({mask});
   for (int l = 0; l <= depth(); l++) {
     boundary_level({mask}, l);
-
   }
+
+
+  foreach_vertex() 
+#if LAYERS
+    foreach_layer()
+#endif
+      psi[] = noise_init*noise() + sin(2*pi*y/L0);
+
+
+  fprintf(stdout, "Read restart file:\n");
+
+  FILE * fp;
+  char name[80];
+  sprintf (name,"restart.nc");
+  if ((fp = fopen(name, "r"))) {
+    read_nc({psi}, name);
+    fclose(fp);
+    backup_file(name);
+    fprintf(stdout, "%s .. ok\n", name);
+  }
+
+  boundary({psi});
 
 
   // Warning iRd2_l defined on upper layer only
