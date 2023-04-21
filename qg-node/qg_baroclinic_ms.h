@@ -12,6 +12,7 @@ vertex scalar psi_pg;
 vertex scalar S2;
 //vertex scalar N2; // alias for S2 (used to load variable only)
 vertex scalar zeta;
+vertex scalar psi_f;
 
 vertex scalar topo[];
 vertex scalar sig_lev[];
@@ -21,6 +22,7 @@ double idh0[nl_max] = {1.};
 double idh1[nl_max] = {1.};
 double N2[nl_max] = {1.};
 
+int nbar = 0;
 
 /**
    Jacobian (p[l], q[l+1])
@@ -70,18 +72,19 @@ void comp_stretch(scalar psi, scalar stretch, double add, double fac)
   foreach_vertex() {
 
     // upper layer
-    _layer = 0;
-    stretch[] = add*stretch[] + fac*S2[]*(psi[0,0,1] - psi[])*idh1[_layer];
+    point.l = 0;
+    stretch[] = add*stretch[] + fac*S2[]*(psi[0,0,1] - psi[])*idh1[point.l];
     
     // intermediate layers
-    for (_layer = 1; _layer < nl-1 ; _layer++) {
-      stretch[] = add*stretch[] + fac*(S2[0,0,-1]*(psi[0,0,-1] - psi[])*idh0[_layer] + S2[]*(psi[0,0,1] - psi[])*idh1[_layer]);
+    for (point.l = 1; point.l < nl-1 ; point.l++) {
+      stretch[] = add*stretch[] + fac*(S2[0,0,-1]*(psi[0,0,-1] - psi[])*idh0[point.l] + S2[]*(psi[0,0,1] - psi[])*idh1[point.l]);
     }
     
     // lower layer
-    _layer = nl-1;
-    stretch[] = add*stretch[] + fac*S2[0,0,-1]*(psi[0,0,-1] - psi[])*idh0[_layer];
-  } _layer = 0;
+    point.l = nl-1;
+    stretch[] = add*stretch[] + fac*S2[0,0,-1]*(psi[0,0,-1] - psi[])*idh0[point.l];
+    point.l = 0;
+  }
   
   boundary({stretch});
 }
@@ -104,32 +107,32 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
   foreach_vertex(){
 
     // upper layer
-    _layer = 0;
+    point.l = 0;
 
     double ju,jd;
 
     jd = jacobian_l1(psi, psi) + jacobian_l1(psi_pg, psi) + jacobian_l1(psi, psi_pg);
 
-    dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[]*jd*idh1[_layer]  \
+    dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[]*jd*idh1[point.l]  \
       - beta_effect(psi);
 
       // intermediate layers
-      for (_layer = 1; _layer < nl-1 ; _layer++) {
+      for (point.l = 1; point.l < nl-1 ; point.l++) {
 
         ju = -jd;
         jd = jacobian_l1(psi, psi) + jacobian_l1(psi_pg, psi) + jacobian_l1(psi, psi_pg);
         
-        dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[]*jd*idh1[_layer] - S2[0,0,-1]*ju*idh0[_layer] \
+        dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[]*jd*idh1[point.l] - S2[0,0,-1]*ju*idh0[point.l] \
           - beta_effect(psi);
       }
 
       // lower layer
-      _layer = nl-1;
+      point.l = nl-1;
       ju = -jd;
-      dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[0,0,-1]*ju*idh0[_layer]  \
+      dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[0,0,-1]*ju*idh0[point.l]  \
         - beta_effect(psi);
-      
-  } _layer = 0;
+      point.l = 0;   
+  }
 
 
   /**
@@ -206,57 +209,57 @@ static void relax_baroclinic (scalar * al, scalar * bl, int l, void * data)
     double t0[nl], t1[nl], t2[nl], rhs[nl];
 
     // upper layer
-    _layer = 0;
+    point.l = 0;
 
-    rhs[_layer] = - sq(Delta)*b[]*mask[];
-    t2[_layer] = -sq(Delta)*S2[]*idh1[_layer]*mask[];
-    t1[_layer] = -t2[_layer];
+    rhs[point.l] = - sq(Delta)*b[]*mask[];
+    t2[point.l] = -sq(Delta)*S2[]*idh1[point.l]*mask[];
+    t1[point.l] = -t2[point.l];
     foreach_dimension() {
-      rhs[_layer] += (a[1] + a[-1])*mask[];
-      t1[_layer] += 2;
+      rhs[point.l] += (a[1] + a[-1])*mask[];
+      t1[point.l] += 2;
     }
 
     // intermediate layers
-    for (_layer = 1; _layer < nl-1 ; _layer++) {
-      rhs[_layer] = - sq(Delta)*b[]*mask[];
-      t0[_layer] = -sq(Delta)*S2[0,0,-1]*idh0[_layer]*mask[];
-      t2[_layer] = -sq(Delta)*S2[]*idh1[_layer]*mask[];
-      t1[_layer] = -t0[_layer] - t2[_layer];
+    for (point.l = 1; point.l < nl-1 ; point.l++) {
+      rhs[point.l] = - sq(Delta)*b[]*mask[];
+      t0[point.l] = -sq(Delta)*S2[0,0,-1]*idh0[point.l]*mask[];
+      t2[point.l] = -sq(Delta)*S2[]*idh1[point.l]*mask[];
+      t1[point.l] = -t0[point.l] - t2[point.l];
 
       foreach_dimension() {
-        rhs[_layer] += (a[1] + a[-1])*mask[];
-        t1[_layer] += 2;
+        rhs[point.l] += (a[1] + a[-1])*mask[];
+        t1[point.l] += 2;
       }
     }
 
     // lower layer
-    _layer = nl-1;
+    point.l = nl-1;
 
-    rhs[_layer] = - sq(Delta)*b[]*mask[];
-    t0[_layer] = -sq(Delta)*S2[0,0,-1]*idh0[_layer];
-    t1[_layer] = -t0[_layer];
+    rhs[point.l] = - sq(Delta)*b[]*mask[];
+    t0[point.l] = -sq(Delta)*S2[0,0,-1]*idh0[point.l];
+    t1[point.l] = -t0[point.l];
     foreach_dimension() {
-      rhs[_layer] += (a[1] + a[-1])*mask[];
-      t1[_layer] += 2;
+      rhs[point.l] += (a[1] + a[-1])*mask[];
+      t1[point.l] += 2;
     }
 
     /**
        We can now solve the tridiagonal system using the [Thomas
        algorithm](https://en.wikipedia.org/wiki/Tridiagonal_matrix_algorithm). */
     
-    for (_layer = 1; _layer < nl; _layer++) {
-      t1[_layer] -= t0[_layer]*t2[_layer-1]/t1[_layer-1];
-      rhs[_layer] -= t0[_layer]*rhs[_layer-1]/t1[_layer-1];
+    for (point.l = 1; point.l < nl; point.l++) {
+      t1[point.l] -= t0[point.l]*t2[point.l-1]/t1[point.l-1];
+      rhs[point.l] -= t0[point.l]*rhs[point.l-1]/t1[point.l-1];
     }
 
     // lower layer
-    _layer = nl-1;
+    point.l = nl-1;
     a[] = t0[nl-1] = rhs[nl-1]/t1[nl-1];
-    for (_layer = nl - 2; _layer >= 0; _layer--) {
-      a[] = t0[_layer] = (rhs[_layer] - t2[_layer]*t0[_layer+1])/t1[_layer];
+    for (point.l = nl - 2; point.l >= 0; point.l--) {
+      a[] = t0[point.l] = (rhs[point.l] - t2[point.l]*t0[point.l+1])/t1[point.l];
     }
+  point.l = 0;
   }
-  _layer = 0;
   boundary_level({a}, l);
 
 }
@@ -272,9 +275,9 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
     foreach_vertex(reduction (max:maxres)) {
 
     // upper layer
-    _layer = 0;
+    point.l = 0;
 
-      res[] = (b[] + S2[]*(a[] - a[0,0,1])*idh1[_layer])*mask[];
+      res[] = (b[] + S2[]*(a[] - a[0,0,1])*idh1[point.l])*mask[];
       foreach_dimension() {
           res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
       }
@@ -282,8 +285,8 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
         maxres = fabs(res[]);
 
     // intermediate layers
-    for (_layer = 1; _layer < nl-1 ; _layer++) {
-      res[] = (b[] + S2[0,0,-1]*(a[] - a[0,0,-1])*idh0[_layer] - S2[]*(a[0,0,1] - a[])*idh1[_layer])*mask[];
+    for (point.l = 1; point.l < nl-1 ; point.l++) {
+      res[] = (b[] + S2[0,0,-1]*(a[] - a[0,0,-1])*idh0[point.l] - S2[]*(a[0,0,1] - a[])*idh1[point.l])*mask[];
       foreach_dimension() {
           res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
       }
@@ -292,16 +295,16 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
     }
 
     // lower layer
-    _layer = nl-1;
+    point.l = nl-1;
 
-    res[] = (b[] + S2[0,0,-1]*(a[] - a[0,0,-1])*idh0[_layer])*mask[];
+    res[] = (b[] + S2[0,0,-1]*(a[] - a[0,0,-1])*idh0[point.l])*mask[];
       foreach_dimension() {
           res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
       }
       if (fabs(res[]) > maxres)
         maxres = fabs(res[]);
-
-    } _layer = 0;
+      point.l = 0;
+    }
 
     return maxres;
 
@@ -346,9 +349,11 @@ void wavelet_filter(scalar q, scalar psi)
 //    inverse_wavelet (psi, w);
 
     if (Lfmax < HUGE)
-      foreach_vertex()
-        psi[] = (psi[] - 0.25*(psi_i[] + psi_i[-1] + psi_i[0,-1] + psi_i[-1,-1]))*mask[];
-
+      foreach_vertex(){
+        double psi_loc = 0.25*(psi_i[] + psi_i[-1] + psi_i[0,-1] + psi_i[-1,-1]);
+        psi_f[] = (psi_f[]*nbar + psi_loc/dtflt)/(nbar+1);
+        psi[] = (psi[] - psi_loc)*mask[];
+      }
 
     /* foreach_vertex() */
     /*   psi[] *= mask[]; */
@@ -358,7 +363,8 @@ void wavelet_filter(scalar q, scalar psi)
   boundary({psi});
 
   comp_q(psi,q);
-  
+  nbar++;
+
 }
 
 /**
@@ -374,6 +380,7 @@ event defaults (i = 0){
   S2 = new vertex scalar[nl];
   psi_pg = new vertex scalar[nl];
   zeta = new vertex scalar[nl];
+  psi_f = new vertex scalar[nl];
 
   S2.restriction = restriction_vert;
   S2.prolongation = refine_vert;
@@ -384,7 +391,7 @@ event defaults (i = 0){
   zeta.restriction = restriction_vert;
   zeta.prolongation = refine_vert;
 
-  reset ({S2, psi_pg, zeta}, 0.);
+  reset ({S2, psi_pg, zeta, psi_f}, 0.);
 }
 
 
@@ -424,10 +431,12 @@ event init (i = 0){
   char name[80];
   sprintf (name,"input_vars_%dl_N%d.nc", nl,N);
   if ((fp = fopen(name, "r"))) {
-//    S2.name = "N2";
-    read_nc({S2, psi_pg, mask}, name);
+    char N2_name[80] = "N2"; // trick to read N2 instead of S2
+    char * N2_sav = S2.name; 
+    S2.name = N2_name;
+    read_nc({S2, psi_pg, mask, topo}, name);
 //    read_nc({S2, psi_pg}, name);
-//    S2.name = "S2";
+    S2.name = N2_sav;
     fclose(fp);
     backup_file(name);
     fprintf(stdout, "%s .. ok\n", name);
@@ -485,7 +494,7 @@ event init (i = 0){
 
 event cleanup (t = end, last)
 {
-  delete ({psi_pg, S2});
+  delete ({psi_pg, S2, zeta, psi_f});
 }
 
 

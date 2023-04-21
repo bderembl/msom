@@ -7,7 +7,20 @@ This version uses fields defined on vertices.
 It is still experimental.
 
 compile with 
-qcc -lm -lnetcdf -O3 qg.c -I$DOCUMENT_ROOT/sandbox
+qcc -lm -lnetcdf -O3 qg.c -I$DOCUMENT_ROOT/sandbox -o qg.e (-DLAYERS=1) (-fopenmp)
+export OMP_NUM_THREADS=20 (?)
+
+
+MPI:
+CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -lnetcdf -O3 qg.c -o qg.e -grid=multigrid (-DLAYERS=1)
+mpirun -np 16 ./qg.e
+
+
+HPC:
+qcc -D_MPI=1 -grid=multigrid -source qg.c    ( -DLAYERS=1 )
+rsync _qg.c
+mpicc -Wall -std=c99 -O2 _qg.c -lm -o qg.e 
+
 
 create a restart file:
 ncks -d time,198,198 vars.nc restart.nc
@@ -102,7 +115,7 @@ event init (i = 0) {
 event write_const (t = 0) {
 
   sprintf (file_nc,"%s%s", dpath, fileout);
-  scalar_list_nc = list_copy({psi, q});
+  scalar_list_nc = list_copy({psi, q, psi_f});
   create_nc();
 }
 
@@ -113,6 +126,7 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
     invert_q(psi, q);
 
   write_nc();
+  nbar = 0;
 
   fprintf(stdout,"file written \n");
 }
