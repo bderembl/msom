@@ -7,7 +7,7 @@ This version uses fields defined on vertices.
 It is still experimental.
 
 compile with 
-qcc -lm -lnetcdf -O3 qg.c -I$DOCUMENT_ROOT/sandbox -o qg.e (-DLAYERS=1) (-fopenmp)
+qcc -lm -lnetcdf -O3 qg.c -o qg.e (-DLAYERS=1) (-fopenmp) (-I$DOCUMENT_ROOT/sandbox)
 export OMP_NUM_THREADS=20 (?)
 
 
@@ -19,7 +19,7 @@ mpirun -np 16 ./qg.e
 HPC:
 qcc -D_MPI=1 -grid=multigrid -source qg.c    ( -DLAYERS=1 )
 rsync _qg.c
-mpicc -Wall -std=c99 -O2 _qg.c -lm -o qg.e 
+mpicc -Wall -std=c99 -O2 _qg.c -lm -lnetcdf -o qg.e 
 
 
 create a restart file:
@@ -59,6 +59,7 @@ int main(int argc,char* argv[]) {
   add_param ("beta", &beta, "double");
   add_param ("nu", &nu, "double");
   add_param ("hEkb", &hEkb, "double");
+  add_param ("scale_topo", &scale_topo, "double");
   add_param ("tau0", &tau0, "double");
   add_param ("noise_init", &noise_init, "double");
   add_param ("Lfmax", &Lfmax, "double");

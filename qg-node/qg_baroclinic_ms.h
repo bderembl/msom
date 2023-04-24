@@ -10,7 +10,6 @@ $$
 
 vertex scalar psi_pg;
 vertex scalar S2;
-//vertex scalar N2; // alias for S2 (used to load variable only)
 vertex scalar zeta;
 vertex scalar psi_f;
 
@@ -23,6 +22,8 @@ double idh1[nl_max] = {1.};
 double N2[nl_max] = {1.};
 
 int nbar = 0;
+
+double scale_topo = 1.;
 
 /**
    Jacobian (p[l], q[l+1])
@@ -124,6 +125,7 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
         
         dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[]*jd*idh1[point.l] - S2[0,0,-1]*ju*idh0[point.l] \
           - beta_effect(psi);
+
       }
 
       // lower layer
@@ -131,23 +133,21 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
       ju = -jd;
       dqdt[] = -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - S2[0,0,-1]*ju*idh0[point.l]  \
         - beta_effect(psi);
-      point.l = 0;   
-  }
 
+      /**
+         Bottom friction and topography
+      */
+        dqdt[] += - hEkb*f0/(2*dh[nl-1])*zeta[] - jacobian(psi, topo)*f_var/dh[nl-1];
+
+
+      point.l = 0;
+  }
 
   /**
      Dissipation
    */
   comp_stretch(zeta, dqdt, 1., nu);
   comp_del2(zeta, dqdt, 1., nu);
-
-  /**
-     Bottom friction and topography
-   */
-  foreach_vertex() {
-    dqdt[0,0,nl-1] += - hEkb*f0/(2*dh[nl-1])*zeta[0,0,nl-1]\
-      - jacobian(psi, topo)*f_var/dh[nl-1];
-  }
 
   /**
      Surface forcing
@@ -391,6 +391,17 @@ event defaults (i = 0){
   zeta.restriction = restriction_vert;
   zeta.prolongation = refine_vert;
 
+  psi_pg[left]   = psi_bc;
+  psi_pg[right]  = psi_bc;
+  psi_pg[bottom] = psi_bc;
+  psi_pg[top]    = psi_bc;
+
+  S2[left]   = neumann(0.);
+  S2[right]  = neumann(0.);
+  S2[bottom] = neumann(0.);
+  S2[top]    = neumann(0.);
+
+
   reset ({S2, psi_pg, zeta, psi_f}, 0.);
 }
 
@@ -452,8 +463,17 @@ event init (i = 0){
       S2[0,0,l] = sq(f_var)/S2[0,0,l];
     }
   restriction({S2});
+  for (int l = 0; l <= depth(); l++) {
+    boundary_level({S2}, l);
+  }
 
 
+  /**
+     Rescale topo (TODO: temporary)
+   */
+
+  foreach_vertex()
+    topo[] *= scale_topo;
 
   /**
      Compute filter

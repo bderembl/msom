@@ -160,7 +160,7 @@ void create_nc()
    /* Close the file. */
    if ((nc_err = nc_close(ncid)))
       ERR(nc_err);
-   printf("*** SUCCESS creating example file %s!\n", file_nc);
+   fprintf(stdout,"*** SUCCESS creating example file %s!\n", file_nc);
 
 }
 
