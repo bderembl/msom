@@ -63,6 +63,8 @@ int main(int argc,char* argv[]) {
   add_param ("tau0", &tau0, "double");
   add_param ("noise_init", &noise_init, "double");
   add_param ("Lfmax", &Lfmax, "double");
+  add_param ("Lfmin", &Lfmin, "double");
+  add_param ("fac_filt_Rd", &fac_filt_Rd, "double");
   add_param ("dtflt", &dtflt, "double");
   add_param ("dh", &dh[0], "array");
   add_param ("N2", &N2[0], "array");
@@ -123,8 +125,10 @@ event write_const (t = 0) {
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
 
-  if (i == 0)
+  if (i == 0){
+//    wavelet_filter ( q, psi);
     invert_q(psi, q);
+  }
 
   write_nc();
   nbar = 0;

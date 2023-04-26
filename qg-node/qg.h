@@ -114,6 +114,8 @@ double gp_l0 = 0.;
 
 double noise_init = 0;
 double Lfmax = HUGE;
+double Lfmin = HUGE;
+double fac_filt_Rd = 0.;
 double dtflt = -1; // Delat T filtering
 
 int flag_ms = 0;

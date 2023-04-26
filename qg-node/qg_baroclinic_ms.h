@@ -8,6 +8,9 @@ $$
 
 */
 
+#include "wavelet_vertex.h"
+
+
 vertex scalar psi_pg;
 vertex scalar S2;
 vertex scalar zeta;
@@ -15,6 +18,7 @@ vertex scalar psi_f;
 
 vertex scalar topo[];
 vertex scalar sig_lev[];
+
 
 
 double idh0[nl_max] = {1.};
@@ -43,6 +47,7 @@ double scale_topo = 1.;
 
 
 #define f_var (f0 + flag_ms*beta*(y-0.5*L0))
+#define L_filt (Lfmax + (y/L0)*(Lfmin - Lfmax))
 
 /**
    Boundary condition for relative vorticity (same as PV)
@@ -137,7 +142,7 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
       /**
          Bottom friction and topography
       */
-        dqdt[] += - hEkb*f0/(2*dh[nl-1])*zeta[] - jacobian(psi, topo)*f_var/dh[nl-1];
+        dqdt[] += - hEkb*f_var/(2*dh[nl-1])*zeta[] - jacobian(psi, topo)*f_var/dh[nl-1];
 
 
       point.l = 0;
@@ -310,6 +315,10 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
 
 }
 
+/**
+   TODO: refactor wavelet filter
+ */
+
 trace
 void wavelet_filter(scalar q, scalar psi)
 {
@@ -337,7 +346,7 @@ void wavelet_filter(scalar q, scalar psi)
     foreach()
       psi_i[] = 0.25*(psi[] + psi[1] + psi[0,1] + psi[1,1]);
     
-    wavelet(psi_i,w);
+    wavelet_mask(psi_i,w);
 //    wavelet(psi,w);
 
     for (int l = 0; l <= depth(); l++) {
@@ -345,7 +354,7 @@ void wavelet_filter(scalar q, scalar psi)
         w[] *= sig_lev[];
       boundary_level ({w}, l);
     }
-    inverse_wavelet (psi_i, w);
+    inverse_wavelet_mask (psi_i, w);
 //    inverse_wavelet (psi, w);
 
     if (Lfmax < HUGE)
@@ -431,9 +440,10 @@ event init (i = 0){
    */
 
   // defined in params.in
-  foreach_vertex()
-    for (int l = 0; l < nl-1 ; l++) {
-      S2[0,0,l] = N2[l];
+  foreach_vertex(){
+    for (point.l = 0; point.l < nl-1 ; point.l++)
+      S2[] = N2[point.l];
+    point.l = 0;
     }
 
   fprintf(stdout, "Read input files:\n");
@@ -458,10 +468,12 @@ event init (i = 0){
      Replace value S2: N^2 -> f^2/N^2
    */
 
-  foreach_vertex()
-    for (int l = 0; l < nl-1 ; l++) {
-      S2[0,0,l] = sq(f_var)/S2[0,0,l];
-    }
+  foreach_vertex(){
+    for (point.l = 0; point.l < nl-1 ; point.l++)
+      S2[] = sq(f_var)/S2[];
+    point.l = 0;
+  }
+
   restriction({S2});
   for (int l = 0; l <= depth(); l++) {
     boundary_level({S2}, l);
@@ -480,7 +492,6 @@ event init (i = 0){
 
    */
 
-
   // low pass filter
   for (int l = depth(); l >= 0; l--) {
     foreach_vertex_level (l) {
@@ -490,13 +501,22 @@ event init (i = 0){
           ref_flag += sig_lev[];
       if (ref_flag > 0)
         sig_lev[] = 1;
-      else
-        if (Lfmax > 2*Delta)
+      else{
+
+        double L_filt2 = 0;
+        if (fac_filt_Rd > 0){
+          L_filt2 =  fac_filt_Rd*dh[0]/sqrt(S2[]);
+        }
+        else
+          L_filt2 = L_filt;
+
+        if (L_filt2 > 2*Delta)
           sig_lev[] = 0;
-        else if (Lfmax <= 2*Delta && Lfmax > Delta)
-          sig_lev[] = 1-(Lfmax-Delta)/Delta;
+        else if (L_filt2 <= 2*Delta && L_filt2 > Delta)
+          sig_lev[] = 1-(L_filt2-Delta)/Delta;
         else
           sig_lev[] = 1;
+      }
     }
     boundary_level ({sig_lev}, l);
   }
@@ -508,6 +528,24 @@ event init (i = 0){
   /*   boundary_level ({sig_lev}, l);   */
   /* } */
 
+
+
+    mask_c[top]    = dirichlet(0.);
+    mask_c[bottom] = dirichlet(0.);
+    mask_c[right]  = dirichlet(0.);
+    mask_c[left]   = dirichlet(0.);
+
+
+
+    // TODO: temporary fix to do wavelet transform with centered field
+    // should be done in vertex field
+    foreach()
+      mask_c[] = 0.25*(mask[] + mask[1] + mask[0,1] + mask[1,1]);
+
+    restriction({mask_c});
+    for (int l = 0; l <= depth(); l++) {
+      boundary_level({mask_c}, l);
+    }
 
 }
 
