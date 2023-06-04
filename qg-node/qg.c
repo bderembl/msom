@@ -39,10 +39,11 @@ int nl = 1;
 #include "grid/multigrid.h"
 #include "extra.h"
 #include "netcdf_vertex_bas.h"
+//#include "pnetcdf_vertex_bas.h"
 
 #include "qg.h"
-//#include "qg_barotropic.h"
-#include "qg_baroclinic_ms.h"
+#include "qg_barotropic.h"
+//#include "qg_baroclinic_ms.h"
 
 char* fileout = "vars.nc";
 
@@ -58,6 +59,7 @@ int main(int argc,char* argv[]) {
   add_param ("f0", &f0, "double");
   add_param ("beta", &beta, "double");
   add_param ("nu", &nu, "double");
+  add_param ("nu4", &nu4, "double");
   add_param ("hEkb", &hEkb, "double");
   add_param ("scale_topo", &scale_topo, "double");
   add_param ("tau0", &tau0, "double");
@@ -107,8 +109,8 @@ int main(int argc,char* argv[]) {
 event init (i = 0) {
 
   foreach_vertex()
-    q_forcing[] = -tau0/dh[0]*2*pi/L0*sin(2*pi*y/L0);
-//    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
+    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
+//    q_forcing[] = -tau0/dh[0]*2*pi/L0*sin(2*pi*y/L0);
 
 }
 
@@ -117,9 +119,11 @@ event init (i = 0) {
  */
 event write_const (t = 0) {
 
-  sprintf (file_nc,"%s%s", dpath, fileout);
-  scalar_list_nc = list_copy({psi, q, psi_f});
-  create_nc();
+  char file_tmp[90];
+  sprintf (file_tmp,"%s%s", dpath, fileout);
+//  scalar_list_nc = list_copy();
+//  scalar_list_nc = list_copy({psi, q, psi_f});
+  create_nc({psi, q}, file_tmp);
 }
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {

@@ -16,6 +16,8 @@ vertex scalar S2;
 vertex scalar zeta;
 vertex scalar psi_f;
 
+vertex scalar tmp; // for bi-harmonic viscosity
+
 vertex scalar topo[];
 vertex scalar sig_lev[];
 
@@ -23,11 +25,6 @@ vertex scalar sig_lev[];
 
 double idh0[nl_max] = {1.};
 double idh1[nl_max] = {1.};
-double N2[nl_max] = {1.};
-
-int nbar = 0;
-
-double scale_topo = 1.;
 
 /**
    Jacobian (p[l], q[l+1])
@@ -63,6 +60,11 @@ void set_bc_ms()
   zeta[right]  = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
   zeta[bottom] = 2*bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
   zeta[top]    = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
+
+  tmp[left]   = 2*bc_fac/sq(Delta)*(zeta[1]   - psi_bc);
+  tmp[right]  = 2*bc_fac/sq(Delta)*(zeta[]    - psi_bc);
+  tmp[bottom] = 2*bc_fac/sq(Delta)*(zeta[0,1] - psi_bc);
+  tmp[top]    = 2*bc_fac/sq(Delta)*(zeta[]    - psi_bc);
 
 }
 
@@ -142,7 +144,8 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
       /**
          Bottom friction and topography
       */
-        dqdt[] += - hEkb*f_var/(2*dh[nl-1])*zeta[] - jacobian(psi, topo)*f_var/dh[nl-1];
+        //dqdt[] += - hEkb*f_var/(2*dh[nl-1])*zeta[] - jacobian(psi, topo)*f_var/dh[nl-1];
+        dqdt[] += - hEkb*f0/(2*dh[nl-1])*zeta[] - jacobian(psi, topo)*f0/dh[nl-1];
 
 
       point.l = 0;
@@ -152,7 +155,18 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
      Dissipation
    */
   comp_stretch(zeta, dqdt, 1., nu);
-  comp_del2(zeta, dqdt, 1., nu);
+//  comp_del2(zeta, dqdt, 1., nu);
+  comp_del2(zeta, tmp, 0., 1.0);
+
+  foreach_vertex()
+    foreach_layer()
+      dqdt[] += nu*tmp[];
+
+  double minus_nu4 = -nu4;
+
+  comp_stretch(tmp, dqdt, 1., minus_nu4);
+  comp_del2(tmp, dqdt, 1., minus_nu4);
+
 
   /**
      Surface forcing
@@ -391,6 +405,8 @@ event defaults (i = 0){
   zeta = new vertex scalar[nl];
   psi_f = new vertex scalar[nl];
 
+  tmp = new vertex scalar[nl];
+
   S2.restriction = restriction_vert;
   S2.prolongation = refine_vert;
 
@@ -412,6 +428,7 @@ event defaults (i = 0){
 
 
   reset ({S2, psi_pg, zeta, psi_f}, 0.);
+  reset ({tmp}, 0.);
 }
 
 
@@ -505,7 +522,7 @@ event init (i = 0){
 
         double L_filt2 = 0;
         if (fac_filt_Rd > 0){
-          L_filt2 =  fac_filt_Rd*dh[0]/sqrt(S2[]);
+          L_filt2 =  min(fac_filt_Rd*dh[0]/sqrt(S2[]),Lfmax);
         }
         else
           L_filt2 = L_filt;
@@ -552,7 +569,7 @@ event init (i = 0){
 
 event cleanup (t = end, last)
 {
-  delete ({psi_pg, S2, zeta, psi_f});
+  delete ({psi_pg, S2, zeta, psi_f, tmp});
 }
 
 

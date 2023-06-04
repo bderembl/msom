@@ -106,10 +106,12 @@ double beta = 0.;
 double hEkb = 0.;
 double tau0 = 0.;
 double nu = 0.;
+double nu4 = 0.;
 //double sbc = 0.; //retired
 double tend = 100.;
 double dtout = 1.; 
 double dh[nl_max] = {1.};
+double N2[nl_max] = {1.};
 double gp_l0 = 0.;
 
 double noise_init = 0;
@@ -119,6 +121,9 @@ double fac_filt_Rd = 0.;
 double dtflt = -1; // Delat T filtering
 
 int flag_ms = 0;
+int nbar = 0;
+
+double scale_topo = 1.;
 
 
 char dpath[80]; // name of output dir
@@ -313,27 +318,28 @@ event write_1d_diag (t=0; t <= tend+1e-10; t += dtdiag){
           fclose(fp);
         }
       }
-    }
+    } else {
     
-/**
-   Using a foreach loop because foreach_vertex will count subdomain boundary
-   points twice in MPI. Make sure the field is zero at the boundary
- */
-    double ke = 0;
-    double d_ke = 0;
-    double f_ke = 0;
-
-    // TODO: update in layer
-    foreach(reduction(+:ke) reduction(+:d_ke) reduction(+:f_ke)){
-      ke -= 0.5*psi[]*laplacian(psi)*sq(Delta);
-      d_ke -= nu*psi[]*laplacian(q)*sq(Delta);
-      f_ke -= psi[]*q_forcing[]*sq(Delta);
-    }
-
-    if (pid() == 0) {
-      if ((fp = fopen(name, "a"))) {
-        fprintf(fp, "%e, %e, %e, %e\n", t, ke, d_ke, f_ke);
-        fclose(fp);
+      /**
+         Using a foreach loop because foreach_vertex will count subdomain boundary
+         points twice in MPI. Make sure the field is zero at the boundary
+      */
+      double ke = 0;
+      double d_ke = 0;
+      double f_ke = 0;
+      
+      // TODO: update in layer
+      foreach(reduction(+:ke) reduction(+:d_ke) reduction(+:f_ke)){
+        ke -= 0.5*psi[]*laplacian(psi)*sq(Delta);
+        d_ke -= nu*psi[]*laplacian(q)*sq(Delta);
+        f_ke -= psi[]*q_forcing[]*sq(Delta);
+      }
+      
+      if (pid() == 0) {
+        if ((fp = fopen(name, "a"))) {
+          fprintf(fp, "%e, %e, %e, %e\n", t, ke, d_ke, f_ke);
+          fclose(fp);
+        }
       }
     }
   } // dtdiag > 0
@@ -408,7 +414,7 @@ void set_const() {
 #if LAYERS
     foreach_layer()
 #endif
-      psi[] = noise_init*noise() + sin(2*pi*y/L0);
+      psi[] = noise_init*(noise() + sin(2*pi*y/L0));
 
 
   fprintf(stdout, "Read restart file:\n");
