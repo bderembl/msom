@@ -50,8 +50,14 @@ int nc_rec = -1;
 // tempo
 int nl_tmp = 1;
 
-void create_nc()
+void create_nc(scalar * list_out, char* file_out)
 {
+
+   // make it global variable
+   sprintf (file_nc,"%s", file_out);
+   scalar_list_nc = list_copy(list_out);
+
+  if (pid() == 0) { // master
 
    /* LOCAL IDs for the netCDF file, dimensions, and variables. */
    int x_dimid, y_dimid, lvl_dimid, rec_dimid;
@@ -161,6 +167,7 @@ void create_nc()
    if ((nc_err = nc_close(ncid)))
       ERR(nc_err);
    fprintf(stdout,"*** SUCCESS creating example file %s!\n", file_nc);
+  } // end master
 
 }
 
