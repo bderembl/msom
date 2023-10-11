@@ -104,7 +104,7 @@ vertex scalar mask[];
 double f0 = 1.0;
 double beta = 0.;
 double hEkb = 0.;
-double tau0 = 0.;
+double tau0 = 0.; //forcing parameter
 double nu = 0.;
 double nu4 = 0.;
 //double sbc = 0.; //retired
@@ -137,6 +137,10 @@ vertex scalar q;
 #else
 vertex scalar psi[];
 vertex scalar q[];
+#endif
+
+#if SQG
+vertex scalar bs[];
 #endif
 
 vertex scalar q_forcing[]; 
@@ -207,6 +211,17 @@ void set_bc()
   q[right]  = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
   q[bottom] = 2*bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
   q[top]    = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
+
+
+#if SQG
+  /**
+     Neumann BC for surface buoyancy
+ */
+  bs[left]   = bs[1];
+  bs[right]  = bs[];
+  bs[bottom] = bs[0,1];
+  bs[top]    = bs[];
+#endif
 }
 
 
@@ -224,13 +239,16 @@ void comp_del2(scalar psi, scalar zeta, double add, double fac)
 /**
    Prototype functions
  */
-
+#if SQG
+void (* invert_q) (scalar psi, scalar q, scalar bs) = NULL;
+void (* comp_q) (scalar psi, scalar q, scalar bs) = NULL;
+void (* rhs_pv) (scalar q, scalar psi, scalar bs, scalar dqdt) = NULL;
+void (* rhs_bs) (scalar bs, scalar psi, scalar dbsdt) = NULL;
+#else
 void (* invert_q) (scalar psi, scalar q) = NULL;
-
 void (* comp_q) (scalar psi, scalar q) = NULL;
-
 void (* rhs_pv) (scalar q, scalar psi, scalar dqdt) = NULL;
-
+#endif
 
 /**
   compute dtmax (ajusted from timestep.h)
@@ -283,6 +301,15 @@ static void advance_qg (scalar * output, scalar * input,
 #endif
       qo[] = qi[] + dq[]*dt;
 //  boundary(output);
+
+#if SQG
+  vertex scalar bi = input[1];
+  vertex scalar bo = output[1];
+  vertex scalar db = updates[1];
+
+  foreach_vertex()
+      bo[] = bi[] + db[]*dt;
+#endif
 }
 
 
@@ -291,9 +318,18 @@ double update_qg (scalar * evolving, scalar * updates, double dtmax)
 
   vertex scalar q = evolving[0];
   vertex scalar dqdt = updates[0];
+#if SQG
+  vertex scalar bs = evolving[1];
+  vertex scalar dbsdt = updates[1];
 
+  invert_q(psi, q, bs);
+  rhs_pv(q, psi, bs, dqdt);
+  rhs_bs(bs, psi, dbsdt);
+
+#else
   invert_q(psi, q);
   rhs_pv(q, psi, dqdt);  
+#endif
   dtmax = adjust_dt(psi, dtmax);
 
   return dtmax;
@@ -370,6 +406,8 @@ void set_vars()
   mask[top]    = 0.;
   mask[bottom] = 0.;
 
+
+  reset ({mask}, 0.);
   foreach_vertex()
     mask[] = 1.;
 
@@ -377,13 +415,19 @@ void set_vars()
 
   reset ({q, psi}, 0.);
   reset ({q_forcing}, 0.);
+#if SQG
+  reset ({bs}, 0.);
+#endif
 
   /**
      We overload the default 'advance' and 'update' functions of the
      predictor-corrector scheme and (TODO) setup the prolongation and
      restriction methods on trees. */
-
+#if SQG
+  evolving = list_copy({q, bs});
+#else
   evolving = list_copy({q});
+#endif
   advance = advance_qg;
   update = update_qg;
   fprintf(stdout,"ok\n");
@@ -416,6 +460,10 @@ void set_const() {
 #endif
       psi[] = noise_init*(noise() + sin(2*pi*y/L0));
 
+#if SQG
+  foreach_vertex() 
+    bs[] = noise_init*noise();
+#endif
 
   fprintf(stdout, "Read restart file:\n");
 
@@ -423,13 +471,20 @@ void set_const() {
   char name[80];
   sprintf (name,"restart.nc");
   if ((fp = fopen(name, "r"))) {
-    read_nc({psi}, name);
+#if SQG
+    read_nc({psi, bs}, name, false);
+#else
+    read_nc({psi}, name, false);
+#endif
     fclose(fp);
     backup_file(name);
     fprintf(stdout, "%s .. ok\n", name);
   }
 
   boundary({psi});
+#if SQG
+  boundary({bs});
+#endif
 
 
   // Warning iRd2_l defined on upper layer only
@@ -439,7 +494,11 @@ void set_const() {
     
 //      iRd2_l[] = gp_l[] != 0 ? -sq(f0 + flag_ms*beta*(y-0.5*L0))/(gp_l[]*dh[nl-1]) : 0;
 
+#if SQG
+  comp_q(psi,q, bs);
+#else
   comp_q(psi,q); // last part of init: compute PV (initial condition in psi)
+#endif
 
   boundary (all);
 }
