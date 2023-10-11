@@ -8,6 +8,9 @@ $$
 
 */
 
+// temporary topo
+//vertex scalar topo[];
+
 
 trace
 void rhs_pv_barotropic(scalar q, scalar psi, scalar dqdt)
@@ -18,6 +21,7 @@ void rhs_pv_barotropic(scalar q, scalar psi, scalar dqdt)
       - beta_effect(psi)                           \
       - hEkb*f0/(2*dh[nl-1])*q[]                   \
       + q_forcing[]                                \
+//      - jacobian(psi, topo)*f0/dh[nl-1]            \
       + nu*laplacian(q);
   }
 //    dqdt[] += -jacobian(psi, zeta) - jacobian(psi_pg, zeta) - beta_effect(psi);
@@ -102,3 +106,20 @@ event defaults (i = 0){
   residual_nodal = residual_barotropic;
 
 }
+
+
+
+// temporary topo
+/* event init (i = 0) { */
+
+/*   FILE * fp; */
+/*   char name[80]; */
+/*   sprintf (name,"input_vars_%dl_N%d.nc", nl,N); */
+/*   if ((fp = fopen(name, "r"))) { */
+/*     read_nc({topo}, name, false); */
+/*     fclose(fp); */
+/*     backup_file(name); */
+/*     fprintf(stdout, "%s .. ok\n", name); */
+/*   } */
+
+/* } */
