@@ -318,11 +318,12 @@ void write_nc(struct OutputNetcdf p) {
    Read NC
  */
 
-void read_nc(scalar * list_in, char* file_in){
+void read_nc(scalar * list_in, char* file_in, bool read_time){
 
   int i, ret;
   int ncfile, ndims, nvars, ngatts, unlimited;
   int var_ndims, var_natts;
+  int t_id;
   nc_type type;
   char varname[NC_MAX_NAME+1];
   int *dimids = NULL;
@@ -337,6 +338,20 @@ void read_nc(scalar * list_in, char* file_in){
   if ((nc_err = nc_inq(ncfile, &ndims, &nvars, &ngatts, &unlimited)))
     ERR(nc_err);
 
+
+  if (read_time) {
+    if ((nc_err = nc_inq_varid(ncfile, "time", &t_id)))
+      ERR(nc_err);
+    size_t startt[1], countt[1];
+    startt[0] = 0; //time
+    countt[0] = 1;
+    float loctime;
+    
+    if ((nc_err = nc_get_vara_float(ncfile, t_id, startt, countt,
+                                    &loctime)))
+      ERR(nc_err);
+    t = loctime;
+  }
 
   for (scalar s in list_in){
     for(i=0; i<nvars; i++) {
