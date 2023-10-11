@@ -22,8 +22,15 @@ void trim_whitespace(char* s) {
 
 
 void str2array(char *tmps2, double *array){
+
+  // overwrite newline character with string terminator
+  char *newline = strchr( tmps2, '\n' );
+  if ( newline )
+    *newline = 0;
+
   char* p;
   int n = 0;
+
   p = strtok(tmps2,"[,]");
   while (p != NULL){
     array[n] = atof(p);
@@ -33,12 +40,11 @@ void str2array(char *tmps2, double *array){
   }
 }
 
-
-Array * params; 
-
 /**
-   These two structs should be identical.
+   Params global variable
 */
+
+Array * params;
 
 typedef struct {
   char * name;
@@ -47,17 +53,16 @@ typedef struct {
   int len;
 } ParamItem;
 
-ParamItem par;
 
-struct NewParam {
-  char * name;
-  void * ptr;
-  char * type;
-  int len;
-};
-
-void add_param(struct NewParam p)
+void add_param(char * name, void * ptr,  char * type, int len = 0)
 {
+  ParamItem p;
+
+  p.name = strdup(name);
+  p.ptr = ptr;
+  p.type = strdup(type);
+  p.len = len;
+
   array_append (params, &p, sizeof (ParamItem));
 
 }
