@@ -172,14 +172,8 @@ void create_nc(scalar * list_out, char* file_out)
 }
 
 
-struct OutputNetcdf {
-  int it;
-  int n; 
-  bool linear;
-} OutputNetcdf;
-
-void write_nc(struct OutputNetcdf p) {
-  if (p.n == 0) p.n = N + 1;
+void write_nc() {
+  int N_out = N + 1;
 
   if (pid() == 0) { // master
     /* open file. */
@@ -202,10 +196,10 @@ void write_nc(struct OutputNetcdf p) {
 
 
 
-  float fn = p.n, Delta = L0/fn;
-  float * field = (float *)malloc(p.n*p.n*nl*sizeof(float));
+  float fn = N_out, Delta = L0/fn;
+  float * field = (float *)malloc(N_out*N_out*nl*sizeof(float));
 
-//  float ** field = matrix_new (p.n, p.n, sizeof(float));
+//  float ** field = matrix_new (N_out, N_out, sizeof(float));
   
   /* The start and count arrays will tell the netCDF library where to
      write our data. */
@@ -229,11 +223,11 @@ void write_nc(struct OutputNetcdf p) {
   count[0] = 1;
 #if LAYERS
   count[1] = nl;
-  count[2] = p.n;
-  count[3] = p.n;
+  count[2] = N_out;
+  count[3] = N_out;
 #else
-  count[1] = p.n;
-  count[2] = p.n;
+  count[1] = N_out;
+  count[2] = N_out;
 #endif  
   int nv = -1;
   /* char * str1; */
@@ -242,9 +236,9 @@ void write_nc(struct OutputNetcdf p) {
     nv += 1;
 
     for (int k = 0; k < nl; k++) {
-      for (int j = 0; j < p.n; j++) {
-        for (int i = 0; i < p.n; i++) {
-          field[p.n*p.n*k + p.n*j + i] = nodata;
+      for (int j = 0; j < N_out; j++) {
+        for (int i = 0; i < N_out; i++) {
+          field[N_out*N_out*k + N_out*j + i] = nodata;
         }
       }
     }
@@ -256,13 +250,13 @@ void write_nc(struct OutputNetcdf p) {
 #endif
       foreach_vertex(noauto){
         //      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
-        field[p.n*p.n*_layer + p.n*_J + _I] = s[];
+        field[N_out*N_out*_layer + N_out*_J + _I] = s[];
     }
 
 
-    /* for (int j = 0; j < p.n; j++) { */
+    /* for (int j = 0; j < N_out; j++) { */
     /*   float yp = Delta*j + Y0 + Delta/2.; */
-    /*   for (int i = 0; i < p.n; i++) { */
+    /*   for (int i = 0; i < N_out; i++) { */
     /*     float xp = Delta*i + X0 + Delta/2.; */
     /*     if (p.linear) { */
     /*       field[j][i] = interpolate (s, xp, yp); */
@@ -278,7 +272,7 @@ void write_nc(struct OutputNetcdf p) {
     
     if (pid() == 0) { // master
 @if _MPI
-        MPI_Reduce (MPI_IN_PLACE, &field[0], p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+        MPI_Reduce (MPI_IN_PLACE, &field[0], N_out*N_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
   
  /*       int nv; */
@@ -297,7 +291,7 @@ void write_nc(struct OutputNetcdf p) {
   }
 @if _MPI
   else // slave
-  MPI_Reduce (&field[0], NULL, p.n*p.n*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+  MPI_Reduce (&field[0], NULL, N_out*N_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
 //  }
   }
