@@ -61,10 +61,10 @@ void set_bc_ms()
   zeta[bottom] = 2*bc_fac/sq(Delta)*(psi[0,1] - psi_bc);
   zeta[top]    = 2*bc_fac/sq(Delta)*(psi[]    - psi_bc);
 
-  tmp[left]   = 2*bc_fac/sq(Delta)*(zeta[1]   - psi_bc);
-  tmp[right]  = 2*bc_fac/sq(Delta)*(zeta[]    - psi_bc);
-  tmp[bottom] = 2*bc_fac/sq(Delta)*(zeta[0,1] - psi_bc);
-  tmp[top]    = 2*bc_fac/sq(Delta)*(zeta[]    - psi_bc);
+  tmp[left]   = 2*bc_fac/sq(Delta)*(zeta[1]   - zeta[]);
+  tmp[right]  = 2*bc_fac/sq(Delta)*(zeta[]    - zeta[1]);
+  tmp[bottom] = 2*bc_fac/sq(Delta)*(zeta[0,1] - zeta[]);
+  tmp[top]    = 2*bc_fac/sq(Delta)*(zeta[]    - zeta[0,1]);
 
 }
 
@@ -472,7 +472,7 @@ event init (i = 0){
     char N2_name[80] = "N2"; // trick to read N2 instead of S2
     char * N2_sav = S2.name; 
     S2.name = N2_name;
-    read_nc({S2, psi_pg, mask, topo}, name);
+    read_nc({S2, psi_pg, mask, topo, q_forcing}, name, false);
 //    read_nc({S2, psi_pg}, name);
     S2.name = N2_sav;
     fclose(fp);
