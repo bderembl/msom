@@ -23,7 +23,7 @@ mpicc -Wall -std=c99 -O2 _qg.c -lm -lnetcdf -o qg.e
 
 
 create a restart file:
-ncks -d time,198,198 vars.nc restart.nc
+ncks -d time,-1,-1 vars.nc restart.nc
 
 
  */
@@ -47,6 +47,13 @@ int nl = 1;
 
 char* fileout = "vars.nc";
 
+double tau1 = 0.; //forcing parameter
+double tf1 = 1.; //forcing parameter
+double tf2 = 1.; //forcing parameter
+double dy_ws = 1.; //forcing parameter
+
+
+
 int main(int argc,char* argv[]) {
 
 
@@ -63,6 +70,10 @@ int main(int argc,char* argv[]) {
   add_param ("hEkb", &hEkb, "double");
   add_param ("scale_topo", &scale_topo, "double");
   add_param ("tau0", &tau0, "double");
+  add_param ("tau1", &tau1, "double");
+  add_param ("tf1", &tf1, "double");
+  add_param ("tf2", &tf2, "double");
+  add_param ("dy_ws", &dy_ws, "double");
   add_param ("noise_init", &noise_init, "double");
   add_param ("Lfmax", &Lfmax, "double");
   add_param ("Lfmin", &Lfmin, "double");
@@ -106,11 +117,13 @@ int main(int argc,char* argv[]) {
 /**
    Surface forcing
 */
-event init (i = 0) {
+event forcing (i++) {
+//event init (i = 0) {
 
   foreach_vertex()
-    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
-//    q_forcing[] = -tau0/dh[0]*2*pi/L0*sin(2*pi*y/L0);
+//    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
+//    q_forcing[] = - (tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*2*pi/L0*sin(2*pi*y/L0);
+    q_forcing[] = -tau0/dh[0]*2*pi/L0*sin(2*pi*(y + y*(y-L0)*2/(L0*L0)*dy_ws*sin(2*pi*t/tf2))/L0);
 
 }
 
