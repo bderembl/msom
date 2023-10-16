@@ -54,6 +54,17 @@ typedef struct {
 } ParamItem;
 
 
+/* keep these lines for backward compatibility*/
+
+/* struct NewParam { */
+/*   char * name; */
+/*   void * ptr; */
+/*   char * type; */
+/*   int len; */
+/* }; */
+
+/* void add_param(struct NewParam p) */
+/* { */
 void add_param(char * name, void * ptr,  char * type, int len = 0)
 {
   ParamItem p;
