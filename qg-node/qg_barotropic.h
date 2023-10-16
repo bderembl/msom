@@ -33,7 +33,7 @@ trace
 void comp_q_barotropic(scalar psi, scalar q)
 {
   foreach_vertex()
-    q[] = laplacian(psi);
+    q[] = laplacian(psi) - iRd2_low*psi[];
 
   boundary({q});
 }
@@ -62,8 +62,9 @@ static void relax_barotropic (scalar * al, scalar * bl, int l, void * data)
   (const) scalar lambda = p->lambda;
 
         foreach_vertex_level(l) {
-          double d = 0;
+//          double d = 0;
 //          double d = - lambda[]*sq(Delta);
+          double d = - (-iRd2_low)*sq(Delta);
           a[] = -b[]*sq(Delta);
           foreach_dimension() {
               a[] += (a[1] + a[-1])*mask[];
@@ -83,8 +84,9 @@ static double residual_barotropic (scalar * al, scalar * bl, scalar * resl, void
   double maxres = 0.;
 
     foreach_vertex(reduction (max:maxres)) {
-      res[] = b[]*mask[];
+//      res[] = b[]*mask[];
 //      res[] = (b[] - lambda[]*a[])*mask[];
+      res[] = (b[] - (-iRd2_low*a[]))*mask[];
       foreach_dimension() {
           res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
       }
@@ -109,9 +111,13 @@ event defaults (i = 0){
 
 
 
-// temporary topo
-/* event init (i = 0) { */
+event init (i = 0) {
 
+  if (gp_low != 0.)
+    iRd2_low = sq(f0)/(gp_low*dh[nl-1]);
+
+
+// temporary topo
 /*   FILE * fp; */
 /*   char name[80]; */
 /*   sprintf (name,"input_vars_%dl_N%d.nc", nl,N); */
@@ -122,4 +128,4 @@ event defaults (i = 0){
 /*     fprintf(stdout, "%s .. ok\n", name); */
 /*   } */
 
-/* } */
+}

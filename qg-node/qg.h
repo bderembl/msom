@@ -112,7 +112,8 @@ double tend = 100.;
 double dtout = 1.; 
 double dh[nl_max] = {1.};
 double N2[nl_max] = {1.};
-double gp_l0 = 0.;
+double gp_low = 0.;
+double iRd2_low = 0.;
 
 double noise_init = 0;
 double Lfmax = HUGE;
