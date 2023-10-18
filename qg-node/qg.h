@@ -488,6 +488,14 @@ void set_const() {
 #endif
 
 
+  /**
+     Viscosity CFL = 0.5
+     beta CFL
+   */
+  if (nu  != 0) DT = 0.5*min(DT,sq(L0/N)/nu/4.);
+  if (beta != 0) DT = min(DT,1/(2.*beta*L0));
+
+
   // Warning iRd2_l defined on upper layer only
   // TODO: to be upddated for multi layer
   /* foreach_vertex() */
