@@ -43,6 +43,7 @@ int nl = 1;
 #include "netcdf_vertex_bas.h"
 //#include "pnetcdf_vertex_bas.h"
 
+#include "qg_stochastic.h"
 #include "qg.h"
 #include "qg_barotropic.h"
 //#include "qg_baroclinic_ms.h"
@@ -91,7 +92,10 @@ int main(int argc,char* argv[]) {
   add_param ("CFL", &CFL, "double");
   add_param ("TOLERANCE", &TOLERANCE, "double");
   add_param ("dtdiag", &dtdiag, "double");
-
+#ifdef _STOCHASTIC
+  add_param ("amp_stoch", &amp_stoch, "double");
+  add_param ("L_filt", &L_filt, "double");
+#endif
 
   // Search for the configuration file with a given path or read params.in 
   if (argc == 2)

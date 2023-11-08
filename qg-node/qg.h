@@ -303,6 +303,23 @@ static void advance_qg (scalar * output, scalar * input,
       qo[] = qi[] + dq[]*dt;
 //  boundary(output);
 
+#ifdef _STOCHASTIC
+  corrector_step = (corrector_step+1)%2;
+  double dts = sqrt(dt);
+  if (corrector_step) {
+    generate_noise(n_stoch, amp_stoch);
+    dts = dts/sqrt(2); // :to get sqrt(dt)/2 (in the predictor step, dt=dt/2)
+    }
+
+  if (nl>1)
+    fprintf(stdout,"Stochastic not ready for multilayer yet \n");
+  
+
+  foreach_vertex()
+    qo[] += n_stoch[]*dts;
+#endif
+
+
 #if SQG
   vertex scalar bi = input[1];
   vertex scalar bo = output[1];
@@ -466,12 +483,11 @@ void set_const() {
     bs[] = noise_init*noise();
 #endif
 
-  fprintf(stdout, "Read restart file:\n");
-
   FILE * fp;
   char name[80];
   sprintf (name,"restart.nc");
   if ((fp = fopen(name, "r"))) {
+    fprintf(stdout, "Read restart file:\n");
 #if SQG
     read_nc({psi, bs}, name, false);
 #else
