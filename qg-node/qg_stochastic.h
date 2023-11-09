@@ -9,6 +9,7 @@ int corrector_step = 0;
 scalar sig_lev[];
 scalar n_stoch[];
 
+@define normal_noise() (sqrt(-2.*log(( (double)(rand()) + 1. )/( (double)(RAND_MAX) + 2. ) ))*cos(2*pi*rand()/(double)RAND_MAX))
 
 event init_stoch (i = 0) {
 
@@ -48,7 +49,7 @@ event init_stoch (i = 0) {
 void generate_noise(scalar psi, double amp_stoch)
 {
   foreach() {
-    psi[] = amp_stoch*noise();
+    psi[] = amp_stoch*normal_noise();
   }
   scalar w[];
   
