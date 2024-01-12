@@ -21,7 +21,9 @@ vertex scalar tmp; // for bi-harmonic viscosity
 vertex scalar topo[];
 vertex scalar sig_lev[];
 
-
+//#if FORCING_3D
+vertex scalar q_forcing_3d;
+//#endif
 
 double idh0[nl_max] = {1.};
 double idh1[nl_max] = {1.};
@@ -175,6 +177,13 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
     dqdt[] += q_forcing[];
   }
 
+#if FORCING_3D
+  foreach_vertex() {
+    foreach_layer(){
+      dqdt[] += q_forcing_3d[];
+    }
+  }
+#endif
 
   foreach_vertex() {
     foreach_layer(){
@@ -407,6 +416,11 @@ event defaults (i = 0){
 
   tmp = new vertex scalar[nl];
 
+#if FORCING_3D
+  q_forcing_3d = new vertex scalar[nl];
+#endif
+
+
   S2.restriction = restriction_vert;
   S2.prolongation = refine_vert;
 
@@ -463,16 +477,15 @@ event init (i = 0){
     point.l = 0;
     }
 
-  fprintf(stdout, "Read input files:\n");
-
   FILE * fp;
   char name[80];
   sprintf (name,"input_vars_%dl_N%d.nc", nl,N);
   if ((fp = fopen(name, "r"))) {
+    fprintf(stdout, "Read input files:\n");
     char N2_name[80] = "N2"; // trick to read N2 instead of S2
-    char * N2_sav = S2.name; 
+    char * N2_sav = S2.name;
     S2.name = N2_name;
-    read_nc({S2, psi_pg, mask, topo, q_forcing}, name, false);
+   read_nc({S2, psi_pg, mask, topo, q_forcing, q_forcing_3d}, name, false);
 //    read_nc({S2, psi_pg}, name);
     S2.name = N2_sav;
     fclose(fp);
@@ -570,11 +583,13 @@ event init (i = 0){
 event cleanup (t = end, last)
 {
   delete ({psi_pg, S2, zeta, psi_f, tmp});
+#if FORCING_3D
+  delete ({q_forcing_3d});
+#endif
 }
 
 
 event defaults (i = 0){
-
   rhs_pv = rhs_pv_baroclinic;
   comp_q = comp_q_baroclinic;
   invert_q = invert_q_baroclinic;

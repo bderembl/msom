@@ -28,6 +28,9 @@ create a restart file:
 ncks -d time,-1,-1 vars.nc restart.nc
 
 
+exerimental flags:
+-DFORCING_3D=1 to add a 3d forcing (field read in the input_vars...nc file)
+
  */
 
 #if LAYERS
@@ -45,8 +48,12 @@ int nl = 1;
 
 #include "qg_stochastic.h"
 #include "qg.h"
+
+#if LAYERS
+#include "qg_baroclinic_ms.h"
+#else
 #include "qg_barotropic.h"
-//#include "qg_baroclinic_ms.h"
+#endif
 
 char* fileout = "vars.nc";
 
@@ -54,6 +61,7 @@ double tau1 = 0.; //forcing parameter
 double tf1 = 1.; //forcing parameter
 double tf2 = 1.; //forcing parameter
 double dy_ws = 1.; //forcing parameter
+double forc_mode = 2.0; //forcing parameter
 
 
 
@@ -78,6 +86,7 @@ int main(int argc,char* argv[]) {
   add_param ("tf1", &tf1, "double");
   add_param ("tf2", &tf2, "double");
   add_param ("dy_ws", &dy_ws, "double");
+  add_param ("forc_mode", &forc_mode, "double");
   add_param ("noise_init", &noise_init, "double");
   add_param ("Lfmax", &Lfmax, "double");
   add_param ("Lfmin", &Lfmin, "double");
@@ -128,9 +137,10 @@ event forcing (i++) {
 //event init (i = 0) {
 
   foreach_vertex()
-    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
+//    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
 //    q_forcing[] = - (tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*2*pi/L0*sin(2*pi*y/L0);
-//    q_forcing[] = -tau0/dh[0]*2*pi/L0*sin(2*pi*(y + y*(y-L0)*2/(L0*L0)*dy_ws*sin(2*pi*t/tf2))/L0);
+    q_forcing[] = -(tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*forc_mode*pi/L0         \
+    *sin(forc_mode*pi*(y + y*(y-L0)*2/(L0*L0)*dy_ws*sin(2*pi*t/tf2))/L0);
 
 }
 
