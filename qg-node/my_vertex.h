@@ -14,33 +14,33 @@ of cell centers. Furtheromore, for 5-point-stencil schemes, not all
 
 Iterate leafs and vertices on levels
  */
-@def foreach_vert()
-  update_cache();
-  foreach_cache(tree->leaves) {
-    x -= Delta/2.;
-#if dimension >= 2
-    y -= Delta/2.;
-#endif
-#if dimension >= 3
-    z -= Delta/2.;
-#endif
-@
-@define end_foreach_vert() } end_foreach_cache()
+/* @def foreach_vert() */
+/*   update_cache(); */
+/*   foreach_cache(tree->leaves) { */
+/*     x -= Delta/2.; */
+/* #if dimension >= 2 */
+/*     y -= Delta/2.; */
+/* #endif */
+/* #if dimension >= 3 */
+/*     z -= Delta/2.; */
+/* #endif */
+/* @ */
+/* @define end_foreach_vert() } end_foreach_cache() */
 
-@def foreach_vert_level(l) {
-  if (l <= depth()) {
-    update_cache();
-    CacheLevel _active = tree->active[l];
-    foreach_cache_level (_active,l) {
-      x -= Delta/2.;
-#if dimension >= 2
-      y -= Delta/2.;
-#endif
-#if dimension >= 3
-      z -= Delta/2.;
-#endif
-@
-@define end_foreach_vert_level() } end_foreach_cache_level(); }}
+/* @def foreach_vert_level(l) { */
+/*   if (l <= depth()) { */
+/*     update_cache(); */
+/*     CacheLevel _active = tree->active[l]; */
+/*     foreach_cache_level (_active,l) { */
+/*       x -= Delta/2.; */
+/* #if dimension >= 2 */
+/*       y -= Delta/2.; */
+/* #endif */
+/* #if dimension >= 3 */
+/*       z -= Delta/2.; */
+/* #endif */
+/* @ */
+/* @define end_foreach_vert_level() } end_foreach_cache_level(); }} */
 /**
 ## Vertex restriction
 

@@ -35,7 +35,7 @@ mgstats vpoisson (struct Poisson p) {
   for (vertex scalar s in da){
     s.restriction = restriction_vert;
     s.prolongation = refine_vert;
-  }  
+  }
 
 
   for (vertex scalar s in res){

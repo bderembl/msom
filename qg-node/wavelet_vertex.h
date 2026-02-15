@@ -11,7 +11,7 @@ void wavelet_mask (scalar s, scalar w)
 {
   restriction ({s});
   for (int l = grid->maxdepth - 1; l >= 0; l--) {
-    foreach_coarse_level (l) {
+    foreach_coarse_level (l, nowarning) {
       foreach_child()
         w[] = s[];
       s.prolongation (point, s);
@@ -36,7 +36,7 @@ void inverse_wavelet_mask (scalar s, scalar w)
     s[] = w[]*mask_c[];
   boundary_level ({s}, 0);
   for (int l = 0; l <= grid->maxdepth - 1; l++) {
-    foreach_coarse_level (l) {
+    foreach_coarse_level (l, nowarning) {
       s.prolongation (point, s);
       foreach_child()
         s[] = (s[] + w[])*mask_c[];
