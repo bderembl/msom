@@ -205,7 +205,7 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar bs, scalar dqdt)
      Surface forcing
    */
   foreach_vertex() {
-    dqdt[] += q_forcing[];
+    dqdt[] += ws_curl[]/dh[0];
   }
 
 

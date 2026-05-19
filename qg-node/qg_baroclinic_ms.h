@@ -22,7 +22,7 @@ vertex scalar topo[];
 vertex scalar sig_lev[];
 
 //#if FORCING_3D
-vertex scalar q_forcing_3d;
+//vertex scalar q_forcing_3d;
 //#endif
 
 double idh0[nl_max] = {1.};
@@ -174,7 +174,7 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
      Surface forcing
    */
   foreach_vertex() {
-    dqdt[] += q_forcing[];
+    dqdt[] += ws_curl[]/dh[0];
   }
 
 #if FORCING_3D
@@ -234,6 +234,11 @@ static void relax_baroclinic (scalar * al, scalar * bl, int l, void * data)
 
   foreach_vertex_level(l) {
 
+  if (x <= X0 + 0.5*Delta || x >= X0 + L0 - 0.5*Delta ||
+    y <= Y0 + 0.5*Delta || y >= Y0 + L0 - 0.5*Delta)
+    continue;
+
+
     double t0[nl], t1[nl], t2[nl], rhs[nl];
 
     // upper layer
@@ -264,7 +269,7 @@ static void relax_baroclinic (scalar * al, scalar * bl, int l, void * data)
     point.l = nl-1;
 
     rhs[point.l] = - sq(Delta)*b[]*mask[];
-    t0[point.l] = -sq(Delta)*S2[0,0,-1]*idh0[point.l];
+    t0[point.l] = -sq(Delta)*S2[0,0,-1]*idh0[point.l]*mask[];
     t1[point.l] = -t0[point.l];
     foreach_dimension() {
       rhs[point.l] += (a[1] + a[-1])*mask[];
@@ -301,7 +306,10 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
   double maxres = 0.;
 
     foreach_vertex(reduction (max:maxres)) {
-
+if (x <= X0 + 0.5*Delta || x >= X0 + L0 - 0.5*Delta ||
+    y <= Y0 + 0.5*Delta || y >= Y0 + L0 - 0.5*Delta)  {
+    res[] = 0.;
+  } else {
     // upper layer
     point.l = 0;
 
@@ -329,11 +337,12 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
       foreach_dimension() {
           res[] -= (a[-1] - 2.*a[] + a[1])/(sq(Delta))*mask[];
       }
+
       if (fabs(res[]) > maxres)
         maxres = fabs(res[]);
       point.l = 0;
-    }
-
+}
+}// end if
     return maxres;
 
 }
@@ -441,7 +450,10 @@ event defaults (i = 0){
   S2[top]    = neumann(0.);
 
 
-  reset ({S2, psi_pg, zeta, psi_f}, 0.);
+  reset ({S2}, 0. );
+  reset ({psi_pg}, 0.);
+  reset ({zeta}, 0.);
+  reset ({psi_f}, 0.);
   reset ({tmp}, 0.);
 }
 
@@ -485,8 +497,7 @@ event init (i = 0){
     char N2_name[80] = "N2"; // trick to read N2 instead of S2
     char * N2_sav = S2.name;
     S2.name = N2_name;
-   read_nc({S2, psi_pg, mask, topo, q_forcing, q_forcing_3d}, name, false);
-//    read_nc({S2, psi_pg}, name);
+    read_nc({S2, psi_pg, mask, topo, ws_curl}, name, false);
     S2.name = N2_sav;
     fclose(fp);
     backup_file(name);

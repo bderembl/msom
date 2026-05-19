@@ -14,7 +14,7 @@ export OMP_NUM_THREADS=20 (?)
 
 
 MPI:
-CC99='mpicc -std=c99' qcc -D_MPI=1 -lm -lnetcdf -O3 qg.c -o qg.e -grid=multigrid (-DLAYERS=1)
+CC99='mpicc -std=c99' qcc -disable-dimensions  -D_MPI=1 -lm -lnetcdf -O3 qg.c -o qg.e -grid=multigrid (-DLAYERS=1)
 mpirun -np 16 ./qg.e
 
 
@@ -69,9 +69,11 @@ int main(int argc,char* argv[]) {
 
 
   // declare user parameters
-  params = array_new();
+  init_param();
   add_param ("N", &N, "int");
   add_param ("nl", &nl, "int");
+  add_param ("npx", &npx, "int");
+  add_param ("npy", &npy, "int");
   add_param ("flag_ms", &flag_ms, "int");
   add_param ("L0", &L0, "double");
   add_param ("f0", &f0, "double");
@@ -114,6 +116,7 @@ int main(int argc,char* argv[]) {
   create_outdir();
   backup_config(file_param);
 
+  dimensions(nx=npx, ny=npy);
 
   if (bc_fac == -1) {
     periodic(right);
@@ -125,23 +128,25 @@ int main(int argc,char* argv[]) {
 
   run();
 
-  array_free (params);
-
+  cleanup_param();
 }
 
 
 /**
    Surface forcing
 */
-event forcing (i++) {
-//event init (i = 0) {
-
+// 02/2026: replaced q_forcing by ws_curl/dh[0]
+event init (i = 0) {
   foreach_vertex()
-//    q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
-//    q_forcing[] = - (tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*2*pi/L0*sin(2*pi*y/L0);
-    q_forcing[] = -(tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*forc_mode*pi/L0         \
-    *sin(forc_mode*pi*(y + y*(y-L0)*2/(L0*L0)*dy_ws*sin(2*pi*t/tf2))/L0);
+    ws_curl[] = - tau0*2*pi/L0*sin(2*pi*y/L0);
+}
 
+event forcing (i++) {
+ foreach_vertex()
+   //q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
+   //q_forcing[] = - (tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*2*pi/L0*sin(2*pi*y/L0);
+   ws_curl[] = -(tau0 + tau1*cos(2*pi*t/tf1))*forc_mode*pi/L0         \
+   sin(forc_mode*pi*(y + y*(y-L0)*2/(L0*L0)*dy_ws*sin(2*pi*t/tf2))/L0);
 }
 
 /**
@@ -158,7 +163,6 @@ event write_const (t = 0) {
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {
   fprintf(stdout,"write file\n");
-
   if (i == 0){
 //    wavelet_filter ( q, psi);
     invert_q(psi, q);
@@ -171,10 +175,10 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
 }
 
 event writestdout (i++) {
-  double ke = 0;
-  foreach_vertex(reduction(+:ke))
-    ke -= 0.5*psi[]*laplacian(psi)*sq(Delta);
+  double ke_int = 0. [4,-2];
+  foreach_vertex(reduction(+:ke_int))
+    ke_int -= 0.5*psi[]*laplacian(psi)*sq(Delta);
 
-  fprintf (stdout,"i = %i, dt = %g, t = %g, ke_1 = %g\n", i, dt, t, ke);
+  fprintf (stdout,"i = %i, dt = %g, t = %g, ke_1 = %g\n", i, dt, t, ke_int);
 }
 

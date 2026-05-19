@@ -20,7 +20,7 @@ void rhs_pv_barotropic(scalar q, scalar psi, scalar dqdt)
     dqdt[] = -jacobian(psi, q)                     \
       - beta_effect(psi)                           \
       - hEkb*f0/(2*dh[nl-1])*q[]                   \
-      + q_forcing[]                                \
+      + ws_curl[]/dh[0]                            \
 /*      - jacobian(psi, topo)*f0/dh[nl-1]            \ */
       + nu*laplacian(q);
   }

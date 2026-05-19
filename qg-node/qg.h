@@ -115,7 +115,7 @@ double N2[nl_max] = {1.};
 double gp_low = 0.;
 double iRd2_low = 0.;
 
-double noise_init = 0;
+double noise_init = 0.; // noise on psi
 double Lfmax = HUGE;
 double Lfmin = HUGE;
 double fac_filt_Rd = 0.;
@@ -123,6 +123,9 @@ double dtflt = -1; // Delat T filtering
 
 int flag_ms = 0;
 int nbar = 0;
+
+int npx = 1; // domain aspect ratio
+int npy = 1; // domain aspect ratio
 
 double scale_topo = 1.;
 
@@ -144,7 +147,7 @@ vertex scalar q[];
 vertex scalar bs[];
 #endif
 
-vertex scalar q_forcing[]; 
+vertex scalar ws_curl[];
 
 
 
@@ -386,7 +389,7 @@ event write_1d_diag (t=0; t <= tend+1e-10; t += dtdiag){
       foreach(reduction(+:ke) reduction(+:d_ke) reduction(+:f_ke)){
         ke -= 0.5*psi[]*laplacian(psi)*sq(Delta);
         d_ke -= nu*psi[]*laplacian(q)*sq(Delta);
-        f_ke -= psi[]*q_forcing[]*sq(Delta);
+        f_ke -= psi[]*ws_curl[]/dh[0]*sq(Delta);
       }
       
       if (pid() == 0) {
@@ -430,9 +433,13 @@ void set_vars()
     mask[] = 1.;
 
 
-
   reset ({q, psi}, 0.);
-  reset ({q_forcing}, 0.);
+  reset ({ws_curl}, 0.);
+
+  /* reset ({q}, 0. [0,-1]); */
+  /* reset ({psi}, 0. [2,-1]); */
+  /* reset ({ws_curl}, 0. [2,-2]); */
+
 #if SQG
   reset ({bs}, 0.);
 #endif
@@ -471,7 +478,6 @@ void set_const() {
     boundary_level({mask}, l);
   }
 
-
   foreach_vertex() 
 #if LAYERS
     foreach_layer()
@@ -480,7 +486,7 @@ void set_const() {
 
 #if SQG
   foreach_vertex() 
-    bs[] = noise_init*noise();
+    bs[] = noise_init*noise(); // todo different noise for units
 #endif
 
   FILE * fp;
@@ -524,6 +530,12 @@ void set_const() {
 #else
   comp_q(psi,q); // last part of init: compute PV (initial condition in psi)
 #endif
+
+  foreach_vertex() {
+    foreach_layer(){
+      q[] *= mask[];
+    }
+  }
 
   boundary (all);
 }

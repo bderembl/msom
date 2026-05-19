@@ -63,7 +63,7 @@ void create_nc(scalar * list_out, char* file_out)
    int x_dimid, y_dimid, lvl_dimid, rec_dimid;
    int y_varid, x_varid, lvl_varid;
    int dimids[NDIMS];
-   
+
    /* Create the file. */
    if ((nc_err = nc_create(file_nc, NC_CLOBBER, &ncid)))
       ERR(nc_err);
@@ -71,13 +71,21 @@ void create_nc(scalar * list_out, char* file_out)
    /* Define the dimensions. The record dimension is defined to have
     * unlimited length - it can grow as needed. In this example it is
     * the time dimension.*/
+
+   int npx = Dimensions.x;
+   int npy = Dimensions.y;
+   int Nloc = (1 << depth());
+   int Nx = Nloc*npx;
+   int Ny = Nloc*npy;
+
+
 #if LAYERS
    if ((nc_err = nc_def_dim(ncid, LVL_NAME, nl, &lvl_dimid)))
       ERR(nc_err);
 #endif
-   if ((nc_err = nc_def_dim(ncid, Y_NAME, N+1, &y_dimid)))
+   if ((nc_err = nc_def_dim(ncid, Y_NAME, Ny+1, &y_dimid)))
       ERR(nc_err);
-   if ((nc_err = nc_def_dim(ncid, X_NAME, N+1, &x_dimid)))
+   if ((nc_err = nc_def_dim(ncid, X_NAME, Nx+1, &x_dimid)))
       ERR(nc_err);
    if ((nc_err = nc_def_dim(ncid, REC_NAME, NC_UNLIMITED, &rec_dimid)))
       ERR(nc_err);
@@ -128,7 +136,7 @@ void create_nc(scalar * list_out, char* file_out)
      /*   str1 = strdup(s.name); */
      /* } */
    }
-   
+
    /* /\* Assign units attributes to the netCDF variables. *\/ */
    /* if ((nc_err = nc_put_att_text(ncid, pres_varid, UNITS,  */
    /*      			 strlen(PRES_UNITS), PRES_UNITS))) */
@@ -142,12 +150,13 @@ void create_nc(scalar * list_out, char* file_out)
       ERR(nc_err);
 
    /*  write coordinates*/
-   float yc[N+1], xc[N+1];
-   double Delta = L0*1.0/N;
-   for (int i = 0; i < N+1; i++){
+   float yc[Ny+1], xc[Nx+1];
+   double Delta = L0*1.0/Nx;
+   for (int i = 0; i < Nx+1; i++)
+     xc[i] = X0 + i*Delta;
+
+   for (int i = 0; i < Ny+1; i++)
       yc[i] = Y0 + i*Delta;
-      xc[i] = X0 + i*Delta;
-   }
 
    if ((nc_err = nc_put_var_float(ncid, y_varid, &yc[0])))
       ERR(nc_err);
@@ -173,7 +182,15 @@ void create_nc(scalar * list_out, char* file_out)
 
 
 void write_nc() {
-  int N_out = N + 1;
+
+   int npx = Dimensions.x;
+   int npy = Dimensions.y;
+   int Nloc = (1 << depth());
+   int Nx = Nloc*npx;
+   int Ny = Nloc*npy;
+
+  int Nx_out = Nx + 1;
+  int Ny_out = Ny + 1;
 
   if (pid() == 0) { // master
     /* open file. */
@@ -196,16 +213,13 @@ void write_nc() {
 
 
 
-  float fn = N_out, Delta = L0/fn;
-  float * field = (float *)malloc(N_out*N_out*nl*sizeof(float));
+  float * field = (float *)malloc(Nx_out*Ny_out*nl*sizeof(float));
 
-//  float ** field = matrix_new (N_out, N_out, sizeof(float));
-  
   /* The start and count arrays will tell the netCDF library where to
      write our data. */
   size_t start[NDIMS], count[NDIMS];
-  
-  
+
+
   /* These settings tell netcdf to write one timestep of data. (The
      setting of start[0] inside the loop below tells netCDF which
      timestep to write.) */
@@ -219,16 +233,16 @@ void write_nc() {
   start[2] = 0;      //x
 #endif
 
-  
+
   count[0] = 1;
 #if LAYERS
   count[1] = nl;
-  count[2] = N_out;
-  count[3] = N_out;
+  count[2] = Ny_out;
+  count[3] = Nx_out;
 #else
-  count[1] = N_out;
-  count[2] = N_out;
-#endif  
+  count[1] = Ny_out;
+  count[2] = Nx_out;
+#endif
   int nv = -1;
   /* char * str1; */
 //  foreach_layer() {
@@ -236,9 +250,9 @@ void write_nc() {
     nv += 1;
 
     for (int k = 0; k < nl; k++) {
-      for (int j = 0; j < N_out; j++) {
-        for (int i = 0; i < N_out; i++) {
-          field[N_out*N_out*k + N_out*j + i] = nodata;
+      for (int j = 0; j < Ny_out; j++) {
+        for (int i = 0; i < Nx_out; i++) {
+          field[Ny_out*Nx_out*k + Nx_out*j + i] = nodata;
         }
       }
     }
@@ -248,50 +262,22 @@ void write_nc() {
 #else
       int _layer = 0;
 #endif
-      foreach_vertex(noauto){
-        //      printf ("%d\t%d\t %g\n", point.i-GHOSTS, point.j-GHOSTS, s[]);
-        field[N_out*N_out*_layer + N_out*_J + _I] = s[];
+      foreach_vertex(serial){
+        field[Ny_out*Nx_out*_layer + Nx_out*_J + _I] = s[];
     }
-
-
-    /* for (int j = 0; j < N_out; j++) { */
-    /*   float yp = Delta*j + Y0 + Delta/2.; */
-    /*   for (int i = 0; i < N_out; i++) { */
-    /*     float xp = Delta*i + X0 + Delta/2.; */
-    /*     if (p.linear) { */
-    /*       field[j][i] = interpolate (s, xp, yp); */
-    /*     } */
-    /*     else { */
-    /*       Point point = locate (xp, yp); */
-    /*       field[j][i] = point.level >= 0 ? val(s) : nodata; */
-    /*       printf ("%d\t%d\t %g\n", i, j, field[j][i]); */
-
-    /*     } */
-    /*   } */
-    /* } */
-    
     if (pid() == 0) { // master
 @if _MPI
-        MPI_Reduce (MPI_IN_PLACE, &field[0], N_out*N_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+        MPI_Reduce (MPI_IN_PLACE, &field[0], Ny_out*Nx_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
-  
- /*       int nv; */
- /* for (nv = 0; nv < nvarout; nv ++) */
- /*   if (strcmp(s.name, nc_varname[nv]) == 0) { */
- /*       start[1] += 1; */
- /*       break; */
- /*     } */
 
      if ((nc_err = nc_put_vara_float(ncid, nc_varid[nv], start, count,
         			      &field[0])))
          ERR(nc_err);
 
-     /* if (start[1] == p.nl - 1) */
-     /*   start[1] = -1; */
   }
 @if _MPI
   else // slave
-  MPI_Reduce (&field[0], NULL, N_out*N_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
+  MPI_Reduce (&field[0], NULL, Ny_out*Nx_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
 @endif
 //  }
   }
@@ -322,9 +308,19 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
   char varname[NC_MAX_NAME+1];
   int *dimids = NULL;
 
-  int Nloc = N+1;
-//  float ** field = matrix_new (Nloc, Nloc, sizeof(float));
-  float * field = (float *)malloc(Nloc*Nloc*nl*sizeof(float));
+  int npx = Dimensions.x;
+  int npy = Dimensions.y;
+  int Nloc = (1 << depth());
+  int Nx = Nloc*npx;
+  int Ny = Nloc*npy;
+
+
+
+  int Nx_out = Nx+1;
+  int Ny_out = Ny+1;
+
+  //  float ** field = matrix_new (Nloc, Nloc, sizeof(float));
+  float * field = (float *)malloc(Nx_out*Ny_out*nl*sizeof(float));
 
   if ((nc_err = nc_open(file_in, NC_NOWRITE, &ncfile)))
     ERR(nc_err);
@@ -340,7 +336,7 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
     startt[0] = 0; //time
     countt[0] = 1;
     float loctime;
-    
+
     if ((nc_err = nc_get_vara_float(ncfile, t_id, startt, countt,
                                     &loctime)))
       ERR(nc_err);
@@ -351,74 +347,90 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
     for(i=0; i<nvars; i++) {
 
 
-  if ((nc_err = nc_inq_var(ncfile, i, varname, &type, &var_ndims, dimids,
-                          &var_natts)))
-    ERR(nc_err);
-
+      if ((nc_err = nc_inq_var(ncfile, i, varname, &type, &var_ndims, dimids,
+                               &var_natts)))
+        ERR(nc_err);
 
       if (strcmp(varname,s.name) == 0) {
         fprintf(stdout,"Reading variable  %s!\n", s.name);
 
-        int nl_loc = _attribute[s.i].block;
+        if (var_ndims < 2) { // error
+          fprintf(stdout, "Error: input variables should be at least (x,y)\n");
+          return;
+        }
 
-        if (nl_loc == 1){
-          size_t start[3], count[3];
-          start[0] = 0; //time
-          start[1] = 0;
-          start[2] = 0;
+        // TODO: Determine if the variable has a time dimension (assume it is unlimited dimension)
+        /* int has_time = 0; */
+        /* int time_dimid = -1; */
+        /* if (nc_inq_unlimdim(ncfile, &time_dimid) == NC_NOERR && time_dimid >= 0) { */
+        /*   has_time = (dimids[0] == time_dimid); */
+        /* } */
+        
+        int has_time = 1;
+        // Effective spatial dims = var_ndims - has_time
+        int spatial_ndims = var_ndims - has_time;
 
-          count[0] = 1;
-          count[1] = Nloc;
-          count[2] = Nloc;
-          if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
-                                                 &field[0])))
-            ERR(nc_err);
+        if (spatial_ndims < 2) {
+          fprintf(stdout, "Error: input variables should have at least (x,y) spatial dims\n");
+          return;
+        }
 
-          foreach_vertex(noauto)
-              s[] = field[Nloc*_J + _I];
+        if (spatial_ndims == 2) {
+          if (has_time) {
+            // (t, y, x)
+            size_t start[3] = {0, 0, 0};
+            size_t count[3] = {1, Ny_out, Nx_out};
+            if ((nc_err = nc_get_vara_float(ncfile, i, start, count, &field[0])))
+              ERR(nc_err);
+          } else {
+            // (y, x)
+            size_t start[2] = {0, 0};
+            size_t count[2] = {Ny_out, Nx_out};
+            if ((nc_err = nc_get_vara_float(ncfile, i, start, count, &field[0])))
+              ERR(nc_err);
+          }
 
-        } else {
-          size_t start[4], count[4];
-          start[0] = 0; //time
-          start[1] = 0;
-          start[2] = 0;
-          start[3] = 0;
+          foreach_vertex()
+            s[] = field[Nx_out * _J + _I];
 
-          count[0] = 1;
-          count[1] = nl;
-          count[2] = Nloc;
-          count[3] = Nloc;
-          if ((nc_err = nc_get_vara_float(ncfile, i, start, count,
-                                                 &field[0])))
-            ERR(nc_err);
+        } else if (spatial_ndims == 3) {
+          if (has_time) {
+            // (t, z, y, x)
+            size_t start[4] = {0, 0, 0, 0};
+            size_t count[4] = {1, nl, Ny_out, Nx_out};
+            if ((nc_err = nc_get_vara_float(ncfile, i, start, count, &field[0])))
+              ERR(nc_err);
+          } else {
+            // (z, y, x)
+            size_t start[3] = {0, 0, 0};
+            size_t count[3] = {nl, Ny_out, Nx_out};
+            if ((nc_err = nc_get_vara_float(ncfile, i, start, count, &field[0])))
+              ERR(nc_err);
+          }
 
 #if LAYERS
-            foreach_layer() {
+          foreach_layer() {
 #else
-      int _layer = 0;
+            int _layer = 0;
 #endif
-            foreach_vertex(noauto){
-              s[] = field[Nloc*Nloc*_layer + Nloc*_J + _I];
+            foreach_vertex(){
+              s[] = field[Ny_out*Nx_out*_layer + Nx_out*_J + _I];
             }
 #if LAYERS
-          }
-#endif          
-
-        }
-
-
-        }
-
-
+          } // foreach_layer
+#endif
+        } // if spatial_ndims
+      } // if (strcmp(varname,s.name) == 0) {
     }
   }
 
-//  matrix_free (field);
+  //  matrix_free (field);
   free(field);
 
   if ((nc_err = nc_close(ncfile)))
     ERR(nc_err);
 
+  // BD: there should be a call to boundary here (not automatic and needed for MPI)
   boundary(list_in);
 
 }
