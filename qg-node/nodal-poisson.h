@@ -31,13 +31,9 @@ cycle. */
 
 #include "vertex-utils.h"
 
-static void (* relax_nodal) (scalar * al, scalar * bl, int l, void * data);
-static double (* residual_nodal) (scalar * al, scalar * bl, scalar * resl, void * data);
-
-
 trace
 void mg_cycle (scalar * a, scalar * res, scalar * da,
-	       void (* relax_nodal) (scalar * da, scalar * res,
+	       void (* relax) (scalar * da, scalar * res,
 			       int depth, void * data),
 	       void * data,
 	       int nrelax, int minlevel, int maxlevel)
@@ -78,9 +74,8 @@ void mg_cycle (scalar * a, scalar * res, scalar * da,
       boundary_level (da, l - 1);
       foreach_vertex_level (l)
         for (scalar s in da)
-          foreach_blockf (s) {
+          foreach_blockf (s)
             s[] = bilinear_vertex (point, s);
-          }
     }
     /**
     We then apply homogeneous boundary conditions and do several
@@ -88,7 +83,7 @@ void mg_cycle (scalar * a, scalar * res, scalar * da,
 
     for (int i = 0; i < nrelax; i++) {
       boundary_level (da, l);
-      relax_nodal (da, res, l, data);
+      relax (da, res, l, data);
     }
   }
 
@@ -98,14 +93,11 @@ void mg_cycle (scalar * a, scalar * res, scalar * da,
 
   foreach_vertex() {
     vertex scalar s, ds;
-    for (s, ds in a, da) {
-      foreach_blockf (s){
+    for (s, ds in a, da) 
+      foreach_blockf (s)
 	s[] += ds[];
-      }
-    }
   }
   boundary(a); //vertex not automatic
-
 }
 
 /**
@@ -143,9 +135,9 @@ cell). */
 
 trace
 mgstats mg_solve (scalar * a, scalar * b,
-		  double (* residual_nodal) (scalar * a, scalar * b, scalar * res,
+		  double (* residual) (scalar * a, scalar * b, scalar * res,
 				       void * data),
-		  void (* relax_nodal) (scalar * da, scalar * res, int depth,
+		  void (* relax) (scalar * da, scalar * res, int depth,
 				  void * data),
 		  void * data = NULL,
 		  int nrelax = 4,
@@ -198,7 +190,7 @@ mgstats mg_solve (scalar * a, scalar * b,
   Here we compute the initial residual field and its maximum. */
 
   double resb;
-  resb = s.resb = s.resa = (* residual_nodal) (a, b, res, data);
+  resb = s.resb = s.resa = (* residual) (a, b, res, data);
 
   /**
   We then iterate until convergence or until *NITERMAX* is reached. Note
@@ -208,11 +200,11 @@ mgstats mg_solve (scalar * a, scalar * b,
   for (s.i = 0;
        s.i < NITERMAX && (s.i < NITERMIN || s.resa > tolerance);
        s.i++) {
-    mg_cycle (a, res, da, relax_nodal, data,
+    mg_cycle (a, res, da, relax, data,
 	      s.nrelax,
 	      minlevel,
 	      grid->maxdepth);
-    s.resa = (* residual_nodal) (a, b, res, data);
+    s.resa = (* residual) (a, b, res, data);
     /**
     We tune the number of relaxations so that the residual is reduced
     by between 2 and 20 for each cycle. This is particularly useful
@@ -292,65 +284,3 @@ struct Poisson {
 };
 
 
-/**
-## User interface
-
-Finally we provide a generic user interface for a Poisson--Helmholtz
-equation of the form
-$$
-\nabla\cdot (\alpha\nabla a) + \lambda a = b
-$$ */
-
-trace
-mgstats vpoisson (scalar a, scalar b,
-		 (const) face vector alpha = {{-1}},
-		 (const) scalar lambda = {-1},
-		 double tolerance = 0.,
-		 int nrelax = 4,
-		 int minlevel = 1, //on vertex minlevel = 1
-		 scalar * res = NULL,
-		 double (* flux) (Point, scalar, vector, double *) = NULL)
-{
-
-  /**
-  If $\alpha$ or $\lambda$ are not set, we replace them with constant
-  unity vector (resp. zero scalar) fields. Note that the user is free to
-  provide $\alpha$ and $\beta$ as constant fields. */
-
-  /* if (alpha.x.i < 0) */
-  /*   alpha[] = {1.,1.,1.}; */
-  /* if (lambda.i < 0) */
-  /*   lambda[] = 0.; */
-
-
-  /**
-  We need $\alpha$ and $\lambda$ on all levels of the grid. */
-
-  /* restriction ({alpha,lambda}); */
-
-  /**
-  If *tolerance* is set it supersedes the default of the multigrid
-  solver. */
-
-  double defaultol = TOLERANCE;
-  if (tolerance)
-    TOLERANCE = tolerance;
-
-  struct Poisson p = {a, b, alpha, lambda, tolerance, nrelax, minlevel, res };
-#if EMBED
-  if (!flux && a.boundary[embed] != symmetry)
-    p.embed_flux = embed_flux;
-  else
-    p.embed_flux = flux;
-#endif // EMBED
-  mgstats s = mg_solve ({a}, {b}, residual_nodal, relax_nodal, &p,
-			nrelax, res, max(1, minlevel));
-
-  /**
-  We restore the default. */
-
-  if (tolerance)
-    TOLERANCE = defaultol;
-
-  return s;
-}

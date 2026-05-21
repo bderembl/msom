@@ -214,23 +214,11 @@ void comp_q_baroclinic(scalar psi, scalar q)
    Invert the poisson equation $\nabla^2 \psi = q$
 */
 
-trace
-void invert_q_baroclinic(scalar psi, scalar q)
-{
-
-  mgpsi = vpoisson(psi, q);
-  // need to reset the values of the BC (has to do with vertices?)
-  set_bc_ms();
-  boundary({psi, q});
-}
-
 
 static void relax_baroclinic (scalar * al, scalar * bl, int l, void * data)
 {
   scalar a = al[0], b = bl[0];
   struct Poisson * p = (struct Poisson *) data;
-  (const) face vector alpha = p->alpha;
-  (const) scalar lambda = p->lambda;
 
   foreach_vertex_level(l) {
 
@@ -301,8 +289,6 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
 {
   scalar a = al[0], b = bl[0], res = resl[0];
   struct Poisson * p = (struct Poisson *) data;
-  (const) face vector alpha = p->alpha;
-  (const) scalar lambda = p->lambda;
   double maxres = 0.;
 
     foreach_vertex(reduction (max:maxres)) {
@@ -345,6 +331,15 @@ if (x <= X0 + 0.5*Delta || x >= X0 + L0 - 0.5*Delta ||
 }// end if
     return maxres;
 
+}
+
+trace
+void invert_q_baroclinic(scalar psi, scalar q)
+{
+  mgpsi = mg_solve({psi}, {q}, residual_baroclinic, relax_baroclinic);
+  // need to reset the values of the BC (has to do with vertices?)
+  set_bc_ms();
+  boundary({psi, q});
 }
 
 /**
@@ -604,6 +599,4 @@ event defaults (i = 0){
   rhs_pv = rhs_pv_baroclinic;
   comp_q = comp_q_baroclinic;
   invert_q = invert_q_baroclinic;
-  relax_nodal = relax_baroclinic;
-  residual_nodal = residual_baroclinic;
 }

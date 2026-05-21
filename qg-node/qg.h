@@ -531,11 +531,11 @@ void set_const() {
   comp_q(psi,q); // last part of init: compute PV (initial condition in psi)
 #endif
 
-  foreach_vertex() {
-    foreach_layer(){
+  foreach_vertex()
+#if LAYERS
+    foreach_layer()
+#endif
       q[] *= mask[];
-    }
-  }
 
   boundary (all);
 }

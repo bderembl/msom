@@ -42,24 +42,10 @@ void comp_q_barotropic(scalar psi, scalar q)
    Invert the poisson equation $\nabla^2 \psi = q$
 */
 
-trace
-void invert_q_barotropic(scalar psi, scalar q)
-{
-
-  mgpsi = vpoisson(psi, q);
-//  mgpsi = vpoisson(psi, q, lambda=iRd2_l);
-  // need to reset the values of the BC (has to do with vertices?)
-  set_bc();
-  boundary({psi, q});
-}
-
-
 static void relax_barotropic (scalar * al, scalar * bl, int l, void * data)
 {
   scalar a = al[0], b = bl[0];
   struct Poisson * p = (struct Poisson *) data;
-  (const) face vector alpha = p->alpha;
-  (const) scalar lambda = p->lambda;
 
         foreach_vertex_level(l) {
 //          double d = 0;
@@ -79,8 +65,6 @@ static double residual_barotropic (scalar * al, scalar * bl, scalar * resl, void
 {
   scalar a = al[0], b = bl[0], res = resl[0];
   struct Poisson * p = (struct Poisson *) data;
-  (const) face vector alpha = p->alpha;
-  (const) scalar lambda = p->lambda;
   double maxres = 0.;
 
     foreach_vertex(reduction (max:maxres)) {
@@ -97,6 +81,15 @@ static double residual_barotropic (scalar * al, scalar * bl, scalar * resl, void
 
 }
 
+trace
+void invert_q_barotropic(scalar psi, scalar q)
+{
+  mgpsi = mg_solve({psi}, {q}, residual_barotropic, relax_barotropic);
+  // need to reset the values of the BC (has to do with vertices?)
+  set_bc();
+  boundary({psi, q});
+}
+
 
 
 event defaults (i = 0){
@@ -104,9 +97,6 @@ event defaults (i = 0){
   rhs_pv = rhs_pv_barotropic;
   comp_q = comp_q_barotropic;
   invert_q = invert_q_barotropic;
-  relax_nodal = relax_barotropic;
-  residual_nodal = residual_barotropic;
-
 }
 
 

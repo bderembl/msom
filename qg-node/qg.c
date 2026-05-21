@@ -141,14 +141,6 @@ event init (i = 0) {
     ws_curl[] = - tau0*2*pi/L0*sin(2*pi*y/L0);
 }
 
-event forcing (i++) {
- foreach_vertex()
-   //q_forcing[] = -tau0/L0*pi*sin(pi*y/L0);
-   //q_forcing[] = - (tau0 + tau1*cos(2*pi*t/tf1))/dh[0]*2*pi/L0*sin(2*pi*y/L0);
-   ws_curl[] = -(tau0 + tau1*cos(2*pi*t/tf1))*forc_mode*pi/L0         \
-   sin(forc_mode*pi*(y + y*(y-L0)*2/(L0*L0)*dy_ws*sin(2*pi*t/tf2))/L0);
-}
-
 /**
    Write parameters
  */
@@ -170,8 +162,6 @@ event output (t = 0; t <= tend+1e-10;  t += dtout) {
 
   write_nc();
   nbar = 0;
-
-  fprintf(stdout,"file written \n");
 }
 
 event writestdout (i++) {
