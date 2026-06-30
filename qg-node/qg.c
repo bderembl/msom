@@ -9,12 +9,12 @@ It is still experimental.
 for now compile with -disable-dimensions
 
 compile with 
-qcc -lm -lnetcdf -O3 qg.c -o qg.e (-DLAYERS=1) (-fopenmp) (-I$DOCUMENT_ROOT/sandbox) (-disable-dimensions )
+qcc -DLAYERS=1 -grid=multigrid -disable-dimensions -O3 qg.c -o qg.e -lm -lnetcdf
 export OMP_NUM_THREADS=20 (?)
 
 
 MPI:
-CC99='mpicc -std=c99' qcc -disable-dimensions  -D_MPI=1 -lm -lnetcdf -O3 qg.c -o qg.e -grid=multigrid (-DLAYERS=1)
+CC99='mpicc -std=c99' qcc -disable-dimensions -DLAYERS=1 -grid=multigrid -D_MPI=1 -O3 qg.c -o qg.e -lm -lnetcdf
 mpirun -np 16 ./qg.e
 
 
@@ -41,7 +41,6 @@ int nl = 1;
 
 
 
-#include "grid/multigrid.h"
 #include "extra.h"
 #include "netcdf_vertex_bas.h"
 //#include "pnetcdf_vertex_bas.h"
