@@ -183,11 +183,11 @@ void create_nc(scalar * list_out, char* file_out)
 
 void write_nc() {
 
-   int npx = Dimensions.x;
-   int npy = Dimensions.y;
-   int Nloc = (1 << depth());
-   int Nx = Nloc*npx;
-   int Ny = Nloc*npy;
+  int npx = Dimensions.x;
+  int npy = Dimensions.y;
+  int Nloc = (1 << depth());
+  int Nx = Nloc*npx;
+  int Ny = Nloc*npy;
 
   int Nx_out = Nx + 1;
   int Ny_out = Ny + 1;
@@ -262,8 +262,10 @@ void write_nc() {
 #else
       int _layer = 0;
 #endif
-      foreach_vertex(serial){
-        field[Ny_out*Nx_out*_layer + Nx_out*_J + _I] = s[];
+      foreach_vertex(cpu){
+        int i = (x - X0)/L0*(Nx_out-1);
+        int j = (y - Y0)/(L0*(npy/npx))*(Ny_out-1);
+        field[Ny_out*Nx_out*_layer + Nx_out*j + i] = s[];
     }
     if (pid() == 0) { // master
 @if _MPI
@@ -365,7 +367,7 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
         /* if (nc_inq_unlimdim(ncfile, &time_dimid) == NC_NOERR && time_dimid >= 0) { */
         /*   has_time = (dimids[0] == time_dimid); */
         /* } */
-        
+
         int has_time = 1;
         // Effective spatial dims = var_ndims - has_time
         int spatial_ndims = var_ndims - has_time;
@@ -390,8 +392,11 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
               ERR(nc_err);
           }
 
-          foreach_vertex()
-            s[] = field[Nx_out * _J + _I];
+          foreach_vertex(){
+            int i = (x - X0)/L0*(Nx_out - 1);
+            int j = (y - Y0)/(L0*(npy/npx))*(Ny_out - 1);
+            s[] = field[Nx_out*j + i];
+          }
 
         } else if (spatial_ndims == 3) {
           if (has_time) {
@@ -414,7 +419,9 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
             int _layer = 0;
 #endif
             foreach_vertex(){
-              s[] = field[Ny_out*Nx_out*_layer + Nx_out*_J + _I];
+              int i = (x - X0)/L0*(Nx_out - 1);
+              int j = (y - Y0)/(L0*(npy/npx))*(Ny_out - 1);
+              s[] = field[Ny_out*Nx_out*_layer + Nx_out*j + i];
             }
 #if LAYERS
           } // foreach_layer
