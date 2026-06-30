@@ -21,7 +21,10 @@ mpirun -np 16 ./qg.e
 HPC:
 qcc -D_MPI=1 -grid=multigrid -source qg.c    ( -DLAYERS=1 )
 rsync _qg.c
-mpicc -Wall -std=c99 -O2 _qg.c -lm -lnetcdf -o qg.e 
+mpicc -Wall -std=c99 -O2 _qg.c -lm -lnetcdf -o qg.e
+
+CUDA on gricad
+qcc -grid=cuda/multigrid -g -Wall -pipe -DLAYERS=1 -D_FORTIFY_SOURCE=2 -O2 qg.c -o qg.e -lm -L$BASILISK/grid/cuda -lbuda -lerrors -lcuda -L/softs/cuda/12.9.patched/lib64 -lnvrtc
 
 
 create a restart file:
