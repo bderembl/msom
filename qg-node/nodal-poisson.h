@@ -149,14 +149,54 @@ mgstats mg_solve (scalar * a, scalar * b,
   We allocate a new correction and residual field for each of the scalars
   in *a*. */
 
+
+// issue with scalar_clone on GPUs?
+#if _GPU
+  scalar * da = NULL;
+  int nvar = datasize/sizeof(real), map[nvar];
+  for (int i = 0; i < nvar; i++)
+    map[i] = -1;
+  for (scalar s in a) {
+    scalar c = s.block > 1 ? new_block_scalar("c", "", s.block) : new_scalar("c");
+    scalar_clone (c, s);
+    map[s.i] = c.i;
+    da = list_append (da, c);
+  }
+  for (scalar s in da)
+    foreach_dimension()
+      if (s.v.x.i >= 0 && map[s.v.x.i] >= 0)
+        s.v.x.i = map[s.v.x.i];
+
+
+  scalar * pres = res;
+  if (!res) {
+  scalar * res = NULL;
+  int nvar = datasize/sizeof(real), map[nvar];
+  for (int i = 0; i < nvar; i++)
+    map[i] = -1;
+  for (scalar s in b) {
+    scalar c = s.block > 1 ? new_block_scalar("c", "", s.block) : new_scalar("c");
+    scalar_clone (c, s);
+    map[s.i] = c.i;
+    res = list_append (res, c);
+  }
+  for (scalar s in res)
+    foreach_dimension()
+      if (s.v.x.i >= 0 && map[s.v.x.i] >= 0)
+        s.v.x.i = map[s.v.x.i];
+}
+#else
   vertex scalar * da = list_clone (a), * pres = res;
   if (!res)
     res = list_clone (b);
+#endif
 
 
-  for (int b = 0; b < nboundary; b++)
+
+
+  for (int ib = 0; ib < nboundary; b++)
     for (scalar s in da)
-      s.boundary[b] = s.boundary_homogeneous[b];
+      s.boundary[ib] = s.boundary_homogeneous[ib];
 
   /* for (vertex scalar s in da){ */
   /*   s.restriction = restriction_vert; */
@@ -282,5 +322,3 @@ struct Poisson {
   double (* embed_flux) (Point, scalar, vector, double *);
 #endif
 };
-
-
