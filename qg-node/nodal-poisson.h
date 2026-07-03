@@ -194,7 +194,7 @@ mgstats mg_solve (scalar * a, scalar * b,
 
 
 
-  for (int ib = 0; ib < nboundary; b++)
+  for (int ib = 0; ib < nboundary; ib++)
     for (scalar s in da)
       s.boundary[ib] = s.boundary_homogeneous[ib];
 

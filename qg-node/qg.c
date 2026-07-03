@@ -24,7 +24,7 @@ rsync _qg.c
 mpicc -Wall -std=c99 -O2 _qg.c -lm -lnetcdf -o qg.e
 
 CUDA on gricad
-qcc -grid=cuda/multigrid -g -Wall -pipe -DLAYERS=1 -D_FORTIFY_SOURCE=2 -O2 qg.c -o qg.e -lm -L$BASILISK/grid/cuda -lbuda -L$BASILISK/grid/gpu -lerrors -lcuda -L/softs/cuda/12.9.patched/lib64 -lnvrtc
+qcc -disable-dimensions -grid=cuda/multigrid -g -Wall -pipe -DLAYERS=1 -D_FORTIFY_SOURCE=2 -O2 qg.c -o qg.e -lm -L$BASILISK/grid/cuda -lbuda -L$BASILISK/grid/gpu -lerrors -lcuda -L/softs/cuda/12.9.patched/lib64 -lnvrtc
 
 
 create a restart file:

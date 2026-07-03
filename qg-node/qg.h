@@ -478,7 +478,7 @@ void set_const() {
     boundary_level({mask}, l);
   }
 
-  foreach_vertex() 
+  foreach_vertex(cpu)
 #if LAYERS
     foreach_layer()
 #endif
