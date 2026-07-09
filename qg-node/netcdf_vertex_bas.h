@@ -264,23 +264,23 @@ void write_nc() {
 #endif
       foreach_vertex(cpu){
         int i = (x - X0)/L0*(Nx_out-1);
-        int j = (y - Y0)/(L0*(npy/npx))*(Ny_out-1);
+        int j = (y - Y0)/(L0*(npy*1.0/npx))*(Ny_out-1);
         field[Ny_out*Nx_out*_layer + Nx_out*j + i] = s[];
     }
     if (pid() == 0) { // master
-@if _MPI
+#if _MPI
         MPI_Reduce (MPI_IN_PLACE, &field[0], Ny_out*Nx_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
-@endif
+#endif
 
      if ((nc_err = nc_put_vara_float(ncid, nc_varid[nv], start, count,
         			      &field[0])))
          ERR(nc_err);
 
   }
-@if _MPI
+#if _MPI
   else // slave
   MPI_Reduce (&field[0], NULL, Ny_out*Nx_out*nl, MPI_FLOAT, MPI_MIN, 0,MPI_COMM_WORLD);
-@endif
+#endif
 //  }
   }
 //  matrix_free (field);
@@ -394,7 +394,7 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
 
           foreach_vertex(){
             int i = (x - X0)/L0*(Nx_out - 1);
-            int j = (y - Y0)/(L0*(npy/npx))*(Ny_out - 1);
+            int j = (y - Y0)/(L0*(npy*1.0/npx))*(Ny_out - 1);
             s[] = field[Nx_out*j + i];
           }
 
@@ -420,7 +420,7 @@ void read_nc(scalar * list_in, char* file_in, bool read_time){
 #endif
             foreach_vertex(){
               int i = (x - X0)/L0*(Nx_out - 1);
-              int j = (y - Y0)/(L0*(npy/npx))*(Ny_out - 1);
+              int j = (y - Y0)/(L0*(npy*1.0/npx))*(Ny_out - 1);
               s[] = field[Ny_out*Nx_out*_layer + Nx_out*j + i];
             }
 #if LAYERS

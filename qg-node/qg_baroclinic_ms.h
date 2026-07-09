@@ -156,17 +156,16 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
   /**
      Dissipation
    */
-  comp_stretch(zeta, dqdt, 1., nu);
-//  comp_del2(zeta, dqdt, 1., nu);
-  comp_del2(zeta, tmp, 0., 1.0);
+//  comp_stretch(zeta, dqdt, 1., nu);
 
+  comp_del2(zeta, tmp, 0., 1.0);
   foreach_vertex()
     foreach_layer()
       dqdt[] += nu*tmp[];
 
   double minus_nu4 = -nu4;
 
-  comp_stretch(tmp, dqdt, 1., minus_nu4);
+//  comp_stretch(tmp, dqdt, 1., minus_nu4);
   comp_del2(tmp, dqdt, 1., minus_nu4);
 
 

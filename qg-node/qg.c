@@ -19,7 +19,7 @@ mpirun -np 16 ./qg.e
 
 
 HPC:
-qcc -D_MPI=1 -grid=multigrid -source qg.c    ( -DLAYERS=1 )
+qcc -disable-dimensions -D_MPI=1 -grid=multigrid -source qg.c    ( -DLAYERS=1 )
 rsync _qg.c
 mpicc -Wall -std=c99 -O2 _qg.c -lm -lnetcdf -o qg.e
 
