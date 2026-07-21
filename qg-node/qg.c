@@ -140,7 +140,7 @@ int main(int argc,char* argv[]) {
 // 02/2026: replaced q_forcing by ws_curl/dh[0]
 event init (i = 0) {
   foreach_vertex()
-    ws_curl[] = - tau0*2*pi/L0*sin(2*pi*y/L0);
+    ws_curl[] = - tau0*2*pi/Ly*sin(2*pi*y/Ly);
 }
 
 /**
@@ -150,9 +150,10 @@ event write_const (t = 0) {
 
   char file_tmp[90];
   sprintf (file_tmp,"%s%s", dpath, fileout);
-//  scalar_list_nc = list_copy();
-//  scalar_list_nc = list_copy({psi, q, psi_f});
-  create_nc({psi, q}, file_tmp);
+  if (flag_ms)
+    create_nc({psi, q, psi_f}, file_tmp);
+  else
+    create_nc({psi, q}, file_tmp);
 }
 
 event output (t = 0; t <= tend+1e-10;  t += dtout) {

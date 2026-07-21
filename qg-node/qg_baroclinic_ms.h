@@ -45,8 +45,8 @@ double idh1[nl_max] = {1.};
                           /(12.*Delta*Delta))
 
 
-#define f_var (f0 + flag_ms*beta*(y-0.5*L0))
-#define L_filt (Lfmax + (y/L0)*(Lfmin - Lfmax))
+#define f_var (f0 + flag_ms*beta*(y-0.5*Ly))
+#define L_filt (Lfmax + (y/Ly)*(Lfmin - Lfmax))
 
 /**
    Boundary condition for relative vorticity (same as PV)
@@ -156,8 +156,7 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
   /**
      Dissipation
    */
-//  comp_stretch(zeta, dqdt, 1., nu);
-
+  comp_stretch(zeta, dqdt, 1., nu);
   comp_del2(zeta, tmp, 0., 1.0);
   foreach_vertex()
     foreach_layer()
@@ -165,7 +164,7 @@ void rhs_pv_baroclinic(scalar q, scalar psi, scalar dqdt)
 
   double minus_nu4 = -nu4;
 
-//  comp_stretch(tmp, dqdt, 1., minus_nu4);
+  comp_stretch(tmp, dqdt, 1., minus_nu4);
   comp_del2(tmp, dqdt, 1., minus_nu4);
 
 
@@ -221,8 +220,8 @@ static void relax_baroclinic (scalar * al, scalar * bl, int l, void * data)
 
   foreach_vertex_level(l) {
 
-  if (x <= X0 + 0.5*Delta || x >= X0 + L0 - 0.5*Delta ||
-    y <= Y0 + 0.5*Delta || y >= Y0 + L0 - 0.5*Delta)
+  if (x <= X0 + 0.5*Delta || x >= X0 + Lx - 0.5*Delta ||
+    y <= Y0 + 0.5*Delta || y >= Y0 + Ly - 0.5*Delta)
     continue;
 
 
@@ -291,8 +290,8 @@ static double residual_baroclinic (scalar * al, scalar * bl, scalar * resl, void
   double maxres = 0.;
 
     foreach_vertex(reduction (max:maxres)) {
-if (x <= X0 + 0.5*Delta || x >= X0 + L0 - 0.5*Delta ||
-    y <= Y0 + 0.5*Delta || y >= Y0 + L0 - 0.5*Delta)  {
+if (x <= X0 + 0.5*Delta || x >= X0 + Lx - 0.5*Delta ||
+    y <= Y0 + 0.5*Delta || y >= Y0 + Ly - 0.5*Delta)  {
     res[] = 0.;
   } else {
     // upper layer

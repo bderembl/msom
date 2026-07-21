@@ -166,6 +166,14 @@ mgstats mgpsi;
 
 double dtdiag = -1; // non zero
 
+
+/**
+   Domain size
+*/
+#define Lx (L0)
+#define Ly (npy*L0/npx)
+
+
 /**
    Define useful operators:
 
@@ -482,7 +490,7 @@ void set_const() {
 #if LAYERS
     foreach_layer()
 #endif
-      psi[] = noise_init*(noise() + sin(2*pi*y/L0));
+      psi[] = noise_init*(noise() + sin(2*pi*y/Ly));
 
 #if SQG
   foreach_vertex() 
